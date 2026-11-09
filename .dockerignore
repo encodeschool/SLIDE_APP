@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/target
+**/.dart_tool
+**/.git
+.env
+.env.*
+**/.env
+**/.env.*

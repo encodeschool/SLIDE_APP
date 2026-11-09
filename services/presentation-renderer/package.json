@@ -1,0 +1,17 @@
+{
+  "name": "presentation-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Renders the canonical presentation JSON model to editable PPTX and PDF.",
+  "scripts": {
+    "start": "node src/server.js",
+    "render:sample": "node src/cli.js samples/sample-deck.json out/sample",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "3.12.0"
+  },
+  "overrides": {
+    "image-size": "2.0.4"
+  }
+}

@@ -1,0 +1,250 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+    concurrency:
+      group: slideforge-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Validate deployment configuration
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PROD_BOOTSTRAP_ADMIN_EMAIL }}
+          BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${{ secrets.PROD_BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64 }}
+          SMTP_HOST: ${{ secrets.PROD_SMTP_HOST }}
+          SMTP_USERNAME: ${{ secrets.PROD_SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.PROD_SMTP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.PROD_MAIL_FROM }}
+          AI_PROVIDER_BASE_URL: ${{ secrets.PROD_AI_PROVIDER_BASE_URL }}
+          AI_PROVIDER_MODEL: ${{ secrets.PROD_AI_PROVIDER_MODEL }}
+          AI_PROVIDER_API_KEY: ${{ secrets.PROD_AI_PROVIDER_API_KEY }}
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          DEPLOY_PATH: ${{ vars.VDS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          for name in POSTGRES_PASSWORD JWT_SECRET; do
+            value="${!name}"
+            [[ "$value" =~ ^[A-Za-z0-9_-]{32,}$ ]] || {
+              echo "$name must be at least 32 characters and contain only letters, digits, _ or -" >&2
+              exit 1
+            }
+          done
+          for name in VDS_HOST VDS_USER VDS_SSH_PRIVATE_KEY VDS_SSH_KNOWN_HOSTS GHCR_PULL_USERNAME GHCR_PULL_TOKEN DEPLOY_PATH BOOTSTRAP_ADMIN_EMAIL BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64 SMTP_HOST SMTP_USERNAME SMTP_PASSWORD MAIL_FROM; do
+            [[ -n "${!name}" ]] || { echo "Missing required GitHub secret/variable: $name" >&2; exit 1; }
+          done
+          [[ "$BOOTSTRAP_ADMIN_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || {
+            echo "PROD_BOOTSTRAP_ADMIN_EMAIL must be a valid email address" >&2
+            exit 1
+          }
+          [[ "$BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64" =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || {
+            echo "PROD_BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64 must be base64-encoded BCrypt output" >&2
+            exit 1
+          }
+          admin_hash="$(printf '%s' "$BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64" | base64 --decode)"
+          [[ "$admin_hash" =~ ^\{bcrypt\}\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$ ]] || {
+            echo "Bootstrap administrator hash is not a valid Spring BCrypt hash" >&2
+            exit 1
+          }
+          unset admin_hash
+          for name in SMTP_HOST SMTP_USERNAME SMTP_PASSWORD MAIL_FROM; do
+            [[ "${!name}" != *$'\n'* && "${!name}" != *$'\r'* ]] || {
+              echo "$name must not contain newline characters" >&2
+              exit 1
+            }
+          done
+          for name in AI_PROVIDER_BASE_URL AI_PROVIDER_MODEL AI_PROVIDER_API_KEY; do
+            [[ "${!name}" != *$'\n'* && "${!name}" != *$'\r'* ]] || {
+              echo "$name must not contain newline characters" >&2
+              exit 1
+            }
+          done
+          [[ "$GHCR_PULL_USERNAME" =~ ^[A-Za-z0-9-]+$ ]] || {
+            echo "GHCR_PULL_USERNAME must contain only letters, digits or hyphens" >&2
+            exit 1
+          }
+          [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ && "$DEPLOY_PATH" != *"/../"* ]] || {
+            echo "VDS_DEPLOY_PATH must be a safe absolute path" >&2
+            exit 1
+          }
+
+      - name: Build and push production images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          namespace="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker build -f backend/api/Dockerfile -t "$namespace-api:$SOURCE_SHA" backend/api
+          docker build -f services/presentation-renderer/Dockerfile -t "$namespace-renderer:$SOURCE_SHA" services/presentation-renderer
+          docker build -f apps/web/Dockerfile -t "$namespace-web:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-slides.encode.uz .
+          docker build -f apps/admin/Dockerfile -t "$namespace-admin:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-slides.encode.uz .
+          docker push "$namespace-api:$SOURCE_SHA"
+          docker push "$namespace-renderer:$SOURCE_SHA"
+          docker push "$namespace-web:$SOURCE_SHA"
+          docker push "$namespace-admin:$SOURCE_SHA"
+          docker logout ghcr.io
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Prepare deployment bundle
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.PROD_BOOTSTRAP_ADMIN_EMAIL }}
+          BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${{ secrets.PROD_BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64 }}
+          SMTP_HOST: ${{ secrets.PROD_SMTP_HOST }}
+          SMTP_USERNAME: ${{ secrets.PROD_SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.PROD_SMTP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.PROD_MAIL_FROM }}
+          AI_PROVIDER_BASE_URL: ${{ secrets.PROD_AI_PROVIDER_BASE_URL }}
+          AI_PROVIDER_MODEL: ${{ secrets.PROD_AI_PROVIDER_MODEL }}
+          AI_PROVIDER_API_KEY: ${{ secrets.PROD_AI_PROVIDER_API_KEY }}
+          DEPLOY_PATH: ${{ vars.VDS_DEPLOY_PATH }}
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          set -euo pipefail
+          namespace="ghcr.io/${GITHUB_REPOSITORY,,}"
+          umask 077
+          env_file="$RUNNER_TEMP/slideforge.production.env"
+          write_env() {
+            local name="$1"
+            local value="$2"
+            [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || {
+              echo "$name must not contain newline characters" >&2
+              return 1
+            }
+            value="${value//\\/\\\\}"
+            value="${value//\"/\\\"}"
+            value="${value//\$/\$\$}"
+            printf '%s="%s"\n' "$name" "$value"
+          }
+          {
+            write_env POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+            write_env JWT_SECRET "$JWT_SECRET"
+            write_env BOOTSTRAP_ADMIN_EMAIL "$BOOTSTRAP_ADMIN_EMAIL"
+            write_env BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64 "$BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64"
+            write_env SMTP_HOST "$SMTP_HOST"
+            write_env SMTP_USERNAME "$SMTP_USERNAME"
+            write_env SMTP_PASSWORD "$SMTP_PASSWORD"
+            write_env MAIL_FROM "$MAIL_FROM"
+            write_env AI_PROVIDER_BASE_URL "$AI_PROVIDER_BASE_URL"
+            write_env AI_PROVIDER_MODEL "$AI_PROVIDER_MODEL"
+            write_env AI_PROVIDER_API_KEY "$AI_PROVIDER_API_KEY"
+            write_env IMAGE_PREFIX "$namespace"
+            write_env IMAGE_TAG "$SOURCE_SHA"
+          } > "$env_file"
+          bash infra/deployment/validate.sh "$env_file"
+          target="$VDS_USER@$VDS_HOST"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "install -d -m 700 '$DEPLOY_PATH'"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes "$env_file" "$target:$DEPLOY_PATH/slideforge.production.env.next"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes infra/deployment/compose.production.yml "$target:$DEPLOY_PATH/compose.production.yml.next"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes infra/deployment/Caddyfile "$target:$DEPLOY_PATH/Caddyfile.next"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes infra/deployment/deploy-remote.sh "$target:$DEPLOY_PATH/"
+          rm -f "$env_file"
+
+      - name: Deploy on VDS
+        id: deploy
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          DEPLOY_PATH: ${{ vars.VDS_DEPLOY_PATH }}
+          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "started=true" >> "$GITHUB_OUTPUT"
+          target="$VDS_USER@$VDS_HOST"
+          printf '%s\n' "$GHCR_PULL_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "bash '$DEPLOY_PATH/deploy-remote.sh' deploy '$DEPLOY_PATH' '$GHCR_PULL_USERNAME'"
+
+      - name: Check public production health
+        if: success()
+        run: |
+          set -euo pipefail
+          wait_for_url() {
+            local url="$1"
+            for attempt in {1..30}; do
+              if curl --fail --silent --show-error --max-time 10 "$url"; then
+                return 0
+              fi
+              sleep 10
+            done
+            echo "Health check timed out: $url" >&2
+            return 1
+          }
+          wait_for_url https://slides.encode.uz/ >/dev/null
+          wait_for_url https://slides-admin.encode.uz/ >/dev/null
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --max-time 10 https://api-slides.encode.uz/actuator/health \
+              | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "API health check timed out or reported a non-UP status." >&2
+          exit 1
+
+      - name: Roll back failed deployment
+        if: failure() && steps.deploy.outputs.started == 'true'
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          DEPLOY_PATH: ${{ vars.VDS_DEPLOY_PATH }}
+          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          target="$VDS_USER@$VDS_HOST"
+          printf '%s\n' "$GHCR_PULL_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "bash '$DEPLOY_PATH/deploy-remote.sh' rollback '$DEPLOY_PATH' '$GHCR_PULL_USERNAME'"
+
+      - name: Remove previous deployment state
+        if: success()
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          DEPLOY_PATH: ${{ vars.VDS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$VDS_USER@$VDS_HOST" "rm -f '$DEPLOY_PATH/slideforge.production.env.previous' '$DEPLOY_PATH/compose.production.yml.previous' '$DEPLOY_PATH/Caddyfile.previous'"

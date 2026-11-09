@@ -1,0 +1,37 @@
+{
+	admin off
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+}
+
+slides.encode.uz {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy web:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+slides-admin.encode.uz {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy admin:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+api-slides.encode.uz {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}

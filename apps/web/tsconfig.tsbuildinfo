@@ -1,0 +1,1 @@
+{"root":["./src/env.d.ts","./src/main.tsx","./src/app/app.tsx","./src/features/auth/authpanel.tsx","./src/features/auth/profilepanel.tsx","./src/features/generation/generationpanel.tsx","./src/features/presentations/presentationeditor.tsx","./src/features/presentations/presentationlibrary.tsx","./src/shared/types.ts","./src/shared/api/client.ts"],"version":"5.7.3"}

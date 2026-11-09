@@ -1,0 +1,127 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: slideforge
+      POSTGRES_USER: slideforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  renderer:
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}-renderer:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      PORT: 8090
+    expose:
+      - "8090"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  api:
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}-api:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      PORT: 8080
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SPRINGDOC_API_DOCS_ENABLED: "false"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/slideforge
+      DATABASE_USER: slideforge
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      ALLOWED_ORIGINS: https://slides.encode.uz,https://slides-admin.encode.uz
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?Set BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:?Set BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
+      REFRESH_COOKIE_SECURE: "true"
+      MAIL_ENABLED: "true"
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD}
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS_ENABLE: "true"
+      SMTP_STARTTLS_REQUIRED: "true"
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
+      PUBLIC_APP_URL: https://slides.encode.uz
+      PUBLIC_ADMIN_URL: https://slides-admin.encode.uz
+      EMAIL_VERIFICATION_TOKEN_TTL_HOURS: ${EMAIL_VERIFICATION_TOKEN_TTL_HOURS:-24}
+      PASSWORD_RECOVERY_TOKEN_TTL_MINUTES: ${PASSWORD_RECOVERY_TOKEN_TTL_MINUTES:-30}
+      RENDERER_URL: http://renderer:8090
+      EXPORT_STORAGE_PATH: /var/lib/slideforge/exports
+      EXPORT_WORKER_ENABLED: "true"
+      EXPORT_POLL_INTERVAL_MS: "1000"
+      EXPORT_STALE_RUNNING_MINUTES: "5"
+      AI_PROVIDER_BASE_URL: ${AI_PROVIDER_BASE_URL:-}
+      AI_PROVIDER_MODEL: ${AI_PROVIDER_MODEL:-}
+      AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      GENERATION_WORKER_ENABLED: "true"
+      GENERATION_POLL_INTERVAL_MS: "1000"
+    volumes:
+      - exports_data:/var/lib/slideforge/exports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      renderer:
+        condition: service_healthy
+    expose:
+      - "8080"
+
+  web:
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}-web:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "8080"
+
+  admin:
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}-admin:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - admin
+      - api
+
+volumes:
+  postgres_data:
+  exports_data:
+  caddy_data:
+  caddy_config:

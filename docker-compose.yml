@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-slideforge}
+      POSTGRES_USER: ${POSTGRES_USER:-slideforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 10
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+  rustfs-volume-permissions:
+    image: alpine:3.21
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - chown -R 10001:10001 /data/rustfs0 /data/rustfs1 /data/rustfs2 /data/rustfs3
+    volumes:
+      - rustfs_data_0:/data/rustfs0
+      - rustfs_data_1:/data/rustfs1
+      - rustfs_data_2:/data/rustfs2
+      - rustfs_data_3:/data/rustfs3
+    restart: "no"
+  object-storage:
+    image: rustfs/rustfs:1.0.1
+    restart: unless-stopped
+    depends_on:
+      rustfs-volume-permissions:
+        condition: service_completed_successfully
+    environment:
+      RUSTFS_VOLUMES: /data/rustfs{0...3}
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-slideforge}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-local-development-secret}
+      RUSTFS_UNSAFE_BYPASS_DISK_CHECK: "true"
+    ports: ["9000:9000", "9001:9001"]
+    volumes:
+      - rustfs_data_0:/data/rustfs0
+      - rustfs_data_1:/data/rustfs1
+      - rustfs_data_2:/data/rustfs2
+      - rustfs_data_3:/data/rustfs3
+    healthcheck:
+      test:
+        - CMD
+        - sh
+        - -ec
+        - curl -fsS http://127.0.0.1:9000/health && curl -fsS http://127.0.0.1:9001/rustfs/console/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  renderer:
+    build:
+      context: ./services/presentation-renderer
+    restart: unless-stopped
+    environment:
+      PORT: 8090
+    expose: ["8090"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+  api:
+    build:
+      context: ./backend/api
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-slideforge}
+      DATABASE_USER: ${POSTGRES_USER:-slideforge}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:-}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+      RENDERER_URL: ${RENDERER_URL:-http://renderer:8090}
+      EXPORT_STORAGE_PATH: /var/lib/slideforge/exports
+      EXPORT_WORKER_ENABLED: ${EXPORT_WORKER_ENABLED:-true}
+      EXPORT_POLL_INTERVAL_MS: ${EXPORT_POLL_INTERVAL_MS:-1000}
+      EXPORT_STALE_RUNNING_MINUTES: ${EXPORT_STALE_RUNNING_MINUTES:-5}
+      S3_ENDPOINT: http://object-storage:9000
+      S3_BUCKET: ${S3_BUCKET:-slideforge}
+    ports: ["${API_PORT:-8080}:8080"]
+    volumes:
+      - exports_data:/var/lib/slideforge/exports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      renderer:
+        condition: service_healthy
+
+volumes:
+  rustfs_data_0:
+  rustfs_data_1:
+  rustfs_data_2:
+  rustfs_data_3:
+  exports_data:

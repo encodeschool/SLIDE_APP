@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.idea/
+*.iml
+node_modules/
+target/
+build/
+out/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+dist/
+*.log

@@ -1,0 +1,86 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: slideforge-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/slideforge}
+    username: ${DATABASE_USER:slideforge}
+    password: ${DATABASE_PASSWORD:change-me}
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:25}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+            required: ${SMTP_STARTTLS_REQUIRED:true}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    placeholders:
+      bootstrapAdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:}
+      bootstrapAdminPasswordHashBase64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175}
+  auth:
+    jwt-secret: ${JWT_SECRET:change-me-to-a-long-random-string}
+    access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
+    refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:false}
+    rate-limit-max-requests: ${AUTH_RATE_LIMIT_MAX_REQUESTS:10}
+    rate-limit-window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+    email-verification-token-ttl-hours: ${EMAIL_VERIFICATION_TOKEN_TTL_HOURS:24}
+    password-recovery-token-ttl-minutes: ${PASSWORD_RECOVERY_TOKEN_TTL_MINUTES:30}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@slideforge.invalid}
+    public-base-url: ${PUBLIC_APP_URL:http://localhost:5173}
+    admin-base-url: ${PUBLIC_ADMIN_URL:http://localhost:5174}
+  exports:
+    renderer-url: ${RENDERER_URL:http://localhost:8090}
+    storage-path: ${EXPORT_STORAGE_PATH:${java.io.tmpdir}/slideforge-exports}
+    worker-enabled: ${EXPORT_WORKER_ENABLED:true}
+    poll-interval-ms: ${EXPORT_POLL_INTERVAL_MS:1000}
+    stale-running-minutes: ${EXPORT_STALE_RUNNING_MINUTES:5}
+  generations:
+    provider-base-url: ${AI_PROVIDER_BASE_URL:}
+    provider-model: ${AI_PROVIDER_MODEL:}
+    provider-api-key: ${AI_PROVIDER_API_KEY:}
+    worker-enabled: ${GENERATION_WORKER_ENABLED:true}
+    poll-interval-ms: ${GENERATION_POLL_INTERVAL_MS:1000}
+  payments:
+    sandbox:
+      enabled: ${PAYMENTS_SANDBOX_ENABLED:false}
+
+info:
+  app:
+    name: Slideforge API
+    version: 0.1.0
