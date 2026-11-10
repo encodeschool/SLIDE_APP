@@ -11,12 +11,14 @@ class PresentationEditorScreen extends StatefulWidget {
     required this.detail,
     required this.accessToken,
     required this.isRussian,
+    required this.isUzbek,
     required this.repository,
   });
 
   final PresentationDetail detail;
   final String accessToken;
   final bool isRussian;
+  final bool isUzbek;
   final PresentationRepository repository;
 
   @override
@@ -25,7 +27,12 @@ class PresentationEditorScreen extends StatefulWidget {
 }
 
 class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
-  static const _fontFamilies = ['Arial', 'Georgia', 'Times New Roman', 'Roboto'];
+  static const _fontFamilies = [
+    'Arial',
+    'Georgia',
+    'Times New Roman',
+    'Roboto',
+  ];
   static const _palette = [
     '#242A28',
     '#FFFFFF',
@@ -51,6 +58,13 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
   String? _savedMessage;
 
   bool get _ru => widget.isRussian;
+  bool get _uz => widget.isUzbek;
+  String _text(String english, String russian, String uzbek) =>
+      _uz
+          ? uzbek
+          : _ru
+          ? russian
+          : english;
   List<dynamic> get _slides => _document['slides'] as List<dynamic>;
   Map<String, dynamic> get _activeSlide =>
       Map<String, dynamic>.from(_slides[_selectedSlideIndex] as Map);
@@ -98,9 +112,10 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     final selectedId = _selectedElementId;
     final slides = List<dynamic>.from(_slides);
     final slide = Map<String, dynamic>.from(slides[_selectedSlideIndex] as Map);
-    final elements = (slide['elements'] as List<dynamic>)
-        .map((element) => Map<String, dynamic>.from(element as Map))
-        .toList();
+    final elements =
+        (slide['elements'] as List<dynamic>)
+            .map((element) => Map<String, dynamic>.from(element as Map))
+            .toList();
     final selectedIndex = elements.indexWhere(
       (element) => element['id'] == selectedId && element['type'] == 'text',
     );
@@ -108,11 +123,9 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
       elements[selectedIndex]['text'] = _bodyController.text;
     } else if (_bodyController.text.trim().isNotEmpty) {
       final size = Map<String, dynamic>.from(_document['size'] as Map);
-      elements.add(_newTextElement(
-        size,
-        text: _bodyController.text,
-        preset: 'paragraph',
-      ));
+      elements.add(
+        _newTextElement(size, text: _bodyController.text, preset: 'paragraph'),
+      );
       _selectedElementId = elements.last['id'] as String;
     }
     slide['elements'] = elements;
@@ -156,9 +169,10 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     final selectedId = _selectedElementId;
     final slides = List<dynamic>.from(_slides);
     final slide = Map<String, dynamic>.from(slides[_selectedSlideIndex] as Map);
-    final elements = (slide['elements'] as List<dynamic>)
-        .map((element) => Map<String, dynamic>.from(element as Map))
-        .toList();
+    final elements =
+        (slide['elements'] as List<dynamic>)
+            .map((element) => Map<String, dynamic>.from(element as Map))
+            .toList();
     final index = elements.indexWhere((element) => element['id'] == selectedId);
     if (index < 0) return;
     final element = elements[index];
@@ -218,8 +232,7 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     if (_slides.length <= 1) return;
     _commitText();
     setState(() {
-      final slides = List<dynamic>.from(_slides)
-        ..removeAt(_selectedSlideIndex);
+      final slides = List<dynamic>.from(_slides)..removeAt(_selectedSlideIndex);
       _document = {..._document, 'slides': slides};
       _selectedSlideIndex = min(_selectedSlideIndex, slides.length - 1);
       _selectInitialText();
@@ -247,9 +260,10 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     _commitText();
     final slides = List<dynamic>.from(_slides);
     final slide = Map<String, dynamic>.from(slides[_selectedSlideIndex] as Map);
-    final elements = (slide['elements'] as List<dynamic>)
-        .map((element) => Map<String, dynamic>.from(element as Map))
-        .toList();
+    final elements =
+        (slide['elements'] as List<dynamic>)
+            .map((element) => Map<String, dynamic>.from(element as Map))
+            .toList();
     if (elements.length >= 100) return;
     final element = _newTextElement(
       Map<String, dynamic>.from(_document['size'] as Map),
@@ -279,18 +293,24 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
       final bytes = await image.readAsBytes();
       if (bytes.length > 3 * 1024 * 1024) {
         setState(
-          () => _error = _ru
-              ? 'Изображение слишком большое (максимум 3 МБ).'
-              : 'Image is too large (maximum 3 MB).',
+          () =>
+              _error = _text(
+                'Image is too large (maximum 3 MB).',
+                'Изображение слишком большое (максимум 3 МБ).',
+                'Rasm hajmi juda katta (eng koʻpi 3 MB).',
+              ),
         );
         return;
       }
       _commitText();
       final slides = List<dynamic>.from(_slides);
-      final slide = Map<String, dynamic>.from(slides[_selectedSlideIndex] as Map);
-      final elements = (slide['elements'] as List<dynamic>)
-          .map((element) => Map<String, dynamic>.from(element as Map))
-          .toList();
+      final slide = Map<String, dynamic>.from(
+        slides[_selectedSlideIndex] as Map,
+      );
+      final elements =
+          (slide['elements'] as List<dynamic>)
+              .map((element) => Map<String, dynamic>.from(element as Map))
+              .toList();
       if (elements.length >= 100) return;
       final mime = switch (image.mimeType) {
         'image/png' => 'image/png',
@@ -316,9 +336,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
       final updatedDocument = {..._document, 'slides': slides};
       if (utf8.encode(jsonEncode(updatedDocument)).length > 5 * 1024 * 1024) {
         setState(
-          () => _error = _ru
-              ? 'Размер презентации превышает лимит сервера 5 МБ.'
-              : 'The presentation exceeds the server 5 MB limit.',
+          () =>
+              _error = _text(
+                'The presentation exceeds the server 5 MB limit.',
+                'Размер презентации превышает лимит сервера 5 МБ.',
+                'Taqdimot hajmi serverning 5 MB cheklovidan oshib ketdi.',
+              ),
         );
         return;
       }
@@ -330,9 +353,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = _ru
-              ? 'Не удалось добавить изображение.'
-              : 'Could not add the image.',
+          () =>
+              _error = _text(
+                'Could not add the image.',
+                'Не удалось добавить изображение.',
+                'Rasmni qoʻshib boʻlmadi.',
+              ),
         );
       }
     }
@@ -357,58 +383,61 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     final controller = TextEditingController(text: initialColor);
     final chosen = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: _palette
-                  .map(
-                    (color) => InkWell(
-                      key: Key('color-option-$color'),
-                      onTap: () => Navigator.pop(context, color),
-                      child: CircleAvatar(
-                        backgroundColor: _color(color),
-                        radius: 17,
-                        child: color == initialColor
-                            ? const Icon(Icons.check, size: 18)
-                            : null,
-                      ),
-                    ),
-                  )
-                  .toList(),
+      builder:
+          (context) => AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children:
+                      _palette
+                          .map(
+                            (color) => InkWell(
+                              key: Key('color-option-$color'),
+                              onTap: () => Navigator.pop(context, color),
+                              child: CircleAvatar(
+                                backgroundColor: _color(color),
+                                radius: 17,
+                                child:
+                                    color == initialColor
+                                        ? const Icon(Icons.check, size: 18)
+                                        : null,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('custom-color-field'),
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Hex color',
+                    hintText: '#336699',
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('custom-color-field'),
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Hex color',
-                hintText: '#336699',
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(_text('Cancel', 'Отмена', 'Bekor qilish')),
               ),
-              textCapitalization: TextCapitalization.characters,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_ru ? 'Отмена' : 'Cancel'),
+              FilledButton(
+                onPressed: () {
+                  final value = controller.text.trim();
+                  if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
+                    Navigator.pop(context, value.toUpperCase());
+                  }
+                },
+                child: Text(_text('Apply', 'Применить', 'Qoʻllash')),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
-                Navigator.pop(context, value.toUpperCase());
-              }
-            },
-            child: Text(_ru ? 'Применить' : 'Apply'),
-          ),
-        ],
-      ),
     );
     controller.dispose();
     if (chosen != null) onSelected(chosen);
@@ -429,9 +458,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       setState(
-        () => _error = _ru
-            ? 'Введите название презентации.'
-            : 'Enter a presentation title.',
+        () =>
+            _error = _text(
+              'Enter a presentation title.',
+              'Введите название презентации.',
+              'Taqdimot nomini kiriting.',
+            ),
       );
       return;
     }
@@ -456,7 +488,11 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
         _selectedSlideIndex = min(_selectedSlideIndex, _slides.length - 1);
         _titleController.text = saved.title;
         _selectInitialText();
-        _savedMessage = _ru ? 'Изменения сохранены' : 'Changes saved';
+        _savedMessage = _text(
+          'Changes saved',
+          'Изменения сохранены',
+          'Oʻzgarishlar saqlandi',
+        );
       });
     } on PresentationException catch (exception) {
       if (mounted) {
@@ -468,9 +504,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = _ru
-              ? 'Не удалось сохранить изменения. Попробуйте ещё раз.'
-              : 'Could not save changes. Please try again.',
+          () =>
+              _error = _text(
+                'Could not save changes. Please try again.',
+                'Не удалось сохранить изменения. Попробуйте ещё раз.',
+                'Oʻzgarishlarni saqlab boʻlmadi. Qayta urinib koʻring.',
+              ),
         );
       }
     } finally {
@@ -496,18 +535,23 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
         _titleController.text = latest.title;
         _selectInitialText();
         _versionConflict = false;
-        _savedMessage = _ru
-            ? 'Загружена последняя версия. Несохранённые изменения удалены.'
-            : 'Latest version loaded. Unsaved changes were discarded.';
+        _savedMessage = _text(
+          'Latest version loaded. Unsaved changes were discarded.',
+          'Загружена последняя версия. Несохранённые изменения удалены.',
+          'Soʻnggi versiya yuklandi. Saqlanmagan oʻzgarishlar bekor qilindi.',
+        );
       });
     } on PresentationException catch (exception) {
       if (mounted) setState(() => _error = exception.message);
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = _ru
-              ? 'Не удалось загрузить последнюю версию.'
-              : 'Could not load the latest version.',
+          () =>
+              _error = _text(
+                'Could not load the latest version.',
+                'Не удалось загрузить последнюю версию.',
+                'Soʻnggi versiyani yuklab boʻlmadi.',
+              ),
         );
       }
     } finally {
@@ -536,9 +580,19 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_ru ? 'Редактор презентации' : 'Presentation editor'),
             Text(
-              _ru ? 'Версия $_currentVersion' : 'Version $_currentVersion',
+              _text(
+                'Presentation editor',
+                'Редактор презентации',
+                'Taqdimot muharriri',
+              ),
+            ),
+            Text(
+              _text(
+                'Version $_currentVersion',
+                'Версия $_currentVersion',
+                '$_currentVersion-versiya',
+              ),
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
@@ -547,14 +601,15 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
           TextButton.icon(
             key: const Key('save-presentation'),
             onPressed: _isSaving ? null : _save,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: Text(_ru ? 'Сохранить' : 'Save'),
+            icon:
+                _isSaving
+                    ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.save_outlined),
+            label: Text(_text('Save', 'Сохранить', 'Saqlash')),
           ),
         ],
       ),
@@ -565,205 +620,264 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-            TextField(
-              key: const Key('editor-title-field'),
-              controller: _titleController,
-              maxLength: 200,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: _ru ? 'Название презентации' : 'Presentation title',
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _ru ? 'Слайды' : 'Slides',
+                TextField(
+                  key: const Key('editor-title-field'),
+                  controller: _titleController,
+                  maxLength: 200,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: _text(
+                      'Presentation title',
+                      'Название презентации',
+                      'Taqdimot nomi',
+                    ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _text('Slides', 'Слайды', 'Slaydlar'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('move-slide-up'),
+                      tooltip: _text(
+                        'Move slide earlier',
+                        'Переместить раньше',
+                        'Slaydni oldinga surish',
+                      ),
+                      onPressed:
+                          _selectedSlideIndex > 0 ? () => _moveSlide(-1) : null,
+                      icon: const Icon(Icons.arrow_upward),
+                    ),
+                    IconButton(
+                      key: const Key('move-slide-down'),
+                      tooltip: _text(
+                        'Move slide later',
+                        'Переместить позже',
+                        'Slaydni keyinga surish',
+                      ),
+                      onPressed:
+                          _selectedSlideIndex < _slides.length - 1
+                              ? () => _moveSlide(1)
+                              : null,
+                      icon: const Icon(Icons.arrow_downward),
+                    ),
+                    IconButton(
+                      key: const Key('remove-slide'),
+                      tooltip: _text(
+                        'Remove slide',
+                        'Удалить слайд',
+                        'Slaydni oʻchirish',
+                      ),
+                      onPressed: _slides.length > 1 ? _removeSlide : null,
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    IconButton(
+                      key: const Key('add-slide'),
+                      tooltip: _text(
+                        'Add slide',
+                        'Добавить слайд',
+                        'Slayd qoʻshish',
+                      ),
+                      onPressed: _slides.length < 150 ? _addSlide : null,
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List<Widget>.generate(_slides.length, (index) {
+                    final number = index + 1;
+                    return ChoiceChip(
+                      key: Key('slide-tab-$number'),
+                      label: Text(
+                        _text(
+                          'Slide $number',
+                          'Слайд $number',
+                          '$number-slayd',
+                        ),
+                      ),
+                      selected: index == _selectedSlideIndex,
+                      onSelected: (_) => _selectSlide(index),
+                    );
+                  }),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _error!,
+                    key: const Key('editor-error'),
+                    style: TextStyle(color: colors.error),
+                  ),
+                ],
+                if (_versionConflict) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    key: const Key('reload-latest-version'),
+                    onPressed: _isReloading ? null : _reloadLatest,
+                    icon:
+                        _isReloading
+                            ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.refresh),
+                    label: Text(
+                      _text(
+                        'Reload latest version (discard my changes)',
+                        'Загрузить последнюю версию (отменить мои изменения)',
+                        'Soʻnggi versiyani yuklash (oʻzgarishlarim bekor qilinadi)',
+                      ),
+                    ),
+                  ),
+                ],
+                if (_savedMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _savedMessage!,
+                    key: const Key('editor-saved'),
+                    style: TextStyle(color: colors.primary),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                TextField(
+                  key: const Key('editor-slide-text-field'),
+                  controller: _bodyController,
+                  minLines: 3,
+                  maxLines: 8,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() => _savedMessage = null),
+                  decoration: InputDecoration(
+                    labelText: _text(
+                      'Element text',
+                      'Текст элемента',
+                      'Element matni',
+                    ),
+                    hintText: _text(
+                      'Enter text',
+                      'Введите текст',
+                      'Matn kiriting',
+                    ),
+                    alignLabelWithHint: true,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildSlidePreview(),
+                const SizedBox(height: 12),
+                Text(
+                  _text(
+                    'Add to slide',
+                    'Добавить на слайд',
+                    'Slaydga qoʻshish',
+                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _actionChip(
+                      key: const Key('add-title-text'),
+                      icon: Icons.title,
+                      label: _text('Title', 'Заголовок', 'Sarlavha'),
+                      onPressed: () => _addTextPreset('title'),
+                    ),
+                    _actionChip(
+                      key: const Key('add-heading-text'),
+                      icon: Icons.format_size,
+                      label: _text(
+                        'Heading',
+                        'Подзаголовок',
+                        'Kichik sarlavha',
+                      ),
+                      onPressed: () => _addTextPreset('heading'),
+                    ),
+                    _actionChip(
+                      key: const Key('add-paragraph-text'),
+                      icon: Icons.notes,
+                      label: _text('Paragraph', 'Абзац', 'Abzas'),
+                      onPressed: () => _addTextPreset('paragraph'),
+                    ),
+                    _actionChip(
+                      key: const Key('add-icon-text'),
+                      icon: Icons.emoji_emotions_outlined,
+                      label: _text('Icon', 'Значок', 'Belgi'),
+                      onPressed: _chooseIcon,
+                    ),
+                    _actionChip(
+                      key: const Key('add-image'),
+                      icon: Icons.image_outlined,
+                      label: _text('Image', 'Изображение', 'Rasm'),
+                      onPressed: _addImage,
+                    ),
+                  ],
+                ),
+                if (textElements.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _text(
+                      'Text elements',
+                      'Текстовые элементы',
+                      'Matn elementlari',
+                    ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ),
-                IconButton(
-                  key: const Key('move-slide-up'),
-                  tooltip: _ru ? 'Переместить раньше' : 'Move slide earlier',
-                  onPressed: _selectedSlideIndex > 0 ? () => _moveSlide(-1) : null,
-                  icon: const Icon(Icons.arrow_upward),
-                ),
-                IconButton(
-                  key: const Key('move-slide-down'),
-                  tooltip: _ru ? 'Переместить позже' : 'Move slide later',
-                  onPressed: _selectedSlideIndex < _slides.length - 1
-                      ? () => _moveSlide(1)
-                      : null,
-                  icon: const Icon(Icons.arrow_downward),
-                ),
-                IconButton(
-                  key: const Key('remove-slide'),
-                  tooltip: _ru ? 'Удалить слайд' : 'Remove slide',
-                  onPressed: _slides.length > 1 ? _removeSlide : null,
-                  icon: const Icon(Icons.remove_circle_outline),
-                ),
-                IconButton(
-                  key: const Key('add-slide'),
-                  tooltip: _ru ? 'Добавить слайд' : 'Add slide',
-                  onPressed: _slides.length < 150 ? _addSlide : null,
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List<Widget>.generate(_slides.length, (index) {
-                final number = index + 1;
-                return ChoiceChip(
-                  key: Key('slide-tab-$number'),
-                  label: Text(_ru ? 'Слайд $number' : 'Slide $number'),
-                  selected: index == _selectedSlideIndex,
-                  onSelected: (_) => _selectSlide(index),
-                );
-              }),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                key: const Key('editor-error'),
-                style: TextStyle(color: colors.error),
-              ),
-            ],
-            if (_versionConflict) ...[
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                key: const Key('reload-latest-version'),
-                onPressed: _isReloading ? null : _reloadLatest,
-                icon: _isReloading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh),
-                label: Text(
-                  _ru
-                      ? 'Загрузить последнюю версию (отменить мои изменения)'
-                      : 'Reload latest version (discard my changes)',
-                ),
-              ),
-            ],
-            if (_savedMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _savedMessage!,
-                key: const Key('editor-saved'),
-                style: TextStyle(color: colors.primary),
-              ),
-            ],
-            const SizedBox(height: 8),
-            TextField(
-              key: const Key('editor-slide-text-field'),
-              controller: _bodyController,
-              minLines: 3,
-              maxLines: 8,
-              textCapitalization: TextCapitalization.sentences,
-              onChanged: (_) => setState(() => _savedMessage = null),
-              decoration: InputDecoration(
-                labelText: _ru ? 'Текст элемента' : 'Element text',
-                hintText: _ru ? 'Введите текст' : 'Enter text',
-                alignLabelWithHint: true,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildSlidePreview(),
-            const SizedBox(height: 12),
-            Text(
-              _ru ? 'Добавить на слайд' : 'Add to slide',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
-                _actionChip(
-                  key: const Key('add-title-text'),
-                  icon: Icons.title,
-                  label: _ru ? 'Заголовок' : 'Title',
-                  onPressed: () => _addTextPreset('title'),
-                ),
-                _actionChip(
-                  key: const Key('add-heading-text'),
-                  icon: Icons.format_size,
-                  label: _ru ? 'Подзаголовок' : 'Heading',
-                  onPressed: () => _addTextPreset('heading'),
-                ),
-                _actionChip(
-                  key: const Key('add-paragraph-text'),
-                  icon: Icons.notes,
-                  label: _ru ? 'Абзац' : 'Paragraph',
-                  onPressed: () => _addTextPreset('paragraph'),
-                ),
-                _actionChip(
-                  key: const Key('add-icon-text'),
-                  icon: Icons.emoji_emotions_outlined,
-                  label: _ru ? 'Значок' : 'Icon',
-                  onPressed: _chooseIcon,
-                ),
-                _actionChip(
-                  key: const Key('add-image'),
-                  icon: Icons.image_outlined,
-                  label: _ru ? 'Изображение' : 'Image',
-                  onPressed: _addImage,
-                ),
-              ],
-            ),
-            if (textElements.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                _ru ? 'Текстовые элементы' : 'Text elements',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              ...textElements.map(
-                (element) => ListTile(
-                  dense: true,
-                  key: Key('text-element-${element['id']}'),
-                  selected: element['id'] == _selectedElementId,
-                  leading: const Icon(Icons.text_fields),
-                  title: Text(
-                    (element['text'] as String? ?? '').trim().isEmpty
-                        ? (_ru ? 'Пустой текст' : 'Empty text')
-                        : (element['text'] as String).replaceAll('\n', ' '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ...textElements.map(
+                    (element) => ListTile(
+                      dense: true,
+                      key: Key('text-element-${element['id']}'),
+                      selected: element['id'] == _selectedElementId,
+                      leading: const Icon(Icons.text_fields),
+                      title: Text(
+                        (element['text'] as String? ?? '').trim().isEmpty
+                            ? _text('Empty text', 'Пустой текст', 'Boʻsh matn')
+                            : (element['text'] as String).replaceAll('\n', ' '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => _selectTextElement(element['id'] as String),
+                    ),
                   ),
-                  onTap: () => _selectTextElement(element['id'] as String),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            _buildTextStyleControls(style, selected != null),
-            const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                key: const Key('slide-background-control'),
-                leading: const Icon(Icons.wallpaper_outlined),
-                title: Text(_ru ? 'Фон слайда' : 'Slide background'),
-                subtitle: Text(
-                  (background['color'] as String?) ?? '#FFFFFF',
-                ),
-                trailing: CircleAvatar(
-                  backgroundColor: _color(
-                    (background['color'] as String?) ?? '#FFFFFF',
-                    fallback: Colors.white,
+                ],
+                const SizedBox(height: 8),
+                _buildTextStyleControls(style, selected != null),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    key: const Key('slide-background-control'),
+                    leading: const Icon(Icons.wallpaper_outlined),
+                    title: Text(
+                      _text('Slide background', 'Фон слайда', 'Slayd foni'),
+                    ),
+                    subtitle: Text(
+                      (background['color'] as String?) ?? '#FFFFFF',
+                    ),
+                    trailing: CircleAvatar(
+                      backgroundColor: _color(
+                        (background['color'] as String?) ?? '#FFFFFF',
+                        fallback: Colors.white,
+                      ),
+                      radius: 15,
+                    ),
+                    onTap:
+                        () => _chooseColor(
+                          title: _text(
+                            'Background color',
+                            'Цвет фона',
+                            'Fon rangi',
+                          ),
+                          initialColor:
+                              (background['color'] as String?) ?? '#FFFFFF',
+                          onSelected: _setBackground,
+                        ),
                   ),
-                  radius: 15,
                 ),
-                onTap: () => _chooseColor(
-                  title: _ru ? 'Цвет фона' : 'Background color',
-                  initialColor: (background['color'] as String?) ?? '#FFFFFF',
-                  onSelected: _setBackground,
-                ),
-              ),
-            ),
               ],
             ),
           ),
@@ -790,16 +904,16 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     final align = style['align'] as String? ?? 'left';
     return Card(
       elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-        alpha: 0.45,
-      ),
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _ru ? 'Стиль текста' : 'Text style',
+              _text('Text style', 'Стиль текста', 'Matn uslubi'),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -811,24 +925,26 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                     key: const Key('font-family-control'),
                     initialValue: _fontFamilies.contains(font) ? font : 'Arial',
                     decoration: InputDecoration(
-                      labelText: _ru ? 'Шрифт' : 'Font family',
+                      labelText: _text('Font family', 'Шрифт', 'Shrift turi'),
                       isDense: true,
                     ),
-                    items: _fontFamilies
-                        .map(
-                          (family) => DropdownMenuItem(
-                            value: family,
-                            child: Text(family),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: enabled
-                        ? (value) {
-                            if (value != null) {
-                              _updateSelectedTextStyle({'fontFamily': value});
+                    items:
+                        _fontFamilies
+                            .map(
+                              (family) => DropdownMenuItem(
+                                value: family,
+                                child: Text(family),
+                              ),
+                            )
+                            .toList(),
+                    onChanged:
+                        enabled
+                            ? (value) {
+                              if (value != null) {
+                                _updateSelectedTextStyle({'fontFamily': value});
+                              }
                             }
-                          }
-                        : null,
+                            : null,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -842,14 +958,13 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: _ru ? 'Размер' : 'Size',
+                      labelText: _text('Size', 'Размер', 'Oʻlcham'),
                       suffixText: 'px',
                       isDense: true,
                     ),
                     onSubmitted: _applyFontSize,
-                    onTapOutside: (_) => _applyFontSize(
-                      _fontSizeController.text,
-                    ),
+                    onTapOutside:
+                        (_) => _applyFontSize(_fontSizeController.text),
                   ),
                 ),
               ],
@@ -861,38 +976,45 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
               children: [
                 IconButton.filledTonal(
                   key: const Key('bold-text'),
-                  tooltip: _ru ? 'Полужирный' : 'Bold',
+                  tooltip: _text('Bold', 'Полужирный', 'Qalin'),
                   isSelected: (style['fontWeight'] as num? ?? 400) >= 600,
-                  onPressed: enabled
-                      ? () => _updateSelectedTextStyle({
-                          'fontWeight':
-                              (style['fontWeight'] as num? ?? 400) >= 600
-                                  ? 400
-                                  : 700,
-                        })
-                      : null,
+                  onPressed:
+                      enabled
+                          ? () => _updateSelectedTextStyle({
+                            'fontWeight':
+                                (style['fontWeight'] as num? ?? 400) >= 600
+                                    ? 400
+                                    : 700,
+                          })
+                          : null,
                   icon: const Icon(Icons.format_bold),
                 ),
                 IconButton.filledTonal(
                   key: const Key('italic-text'),
-                  tooltip: _ru ? 'Курсив' : 'Italic',
+                  tooltip: _text('Italic', 'Курсив', 'Kursiv'),
                   isSelected: style['italic'] == true,
-                  onPressed: enabled
-                      ? () => _updateSelectedTextStyle({
-                          'italic': style['italic'] != true,
-                        })
-                      : null,
+                  onPressed:
+                      enabled
+                          ? () => _updateSelectedTextStyle({
+                            'italic': style['italic'] != true,
+                          })
+                          : null,
                   icon: const Icon(Icons.format_italic),
                 ),
                 IconButton.filledTonal(
                   key: const Key('underline-text'),
-                  tooltip: _ru ? 'Подчёркнутый' : 'Underline',
+                  tooltip: _text(
+                    'Underline',
+                    'Подчёркнутый',
+                    'Tagiga chizilgan',
+                  ),
                   isSelected: style['underline'] == true,
-                  onPressed: enabled
-                      ? () => _updateSelectedTextStyle({
-                          'underline': style['underline'] != true,
-                        })
-                      : null,
+                  onPressed:
+                      enabled
+                          ? () => _updateSelectedTextStyle({
+                            'underline': style['underline'] != true,
+                          })
+                          : null,
                   icon: const Icon(Icons.format_underline),
                 ),
                 ToggleButtons(
@@ -902,11 +1024,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                     align == 'center',
                     align == 'right',
                   ],
-                  onPressed: enabled
-                      ? (index) => _updateSelectedTextStyle({
-                          'align': ['left', 'center', 'right'][index],
-                        })
-                      : null,
+                  onPressed:
+                      enabled
+                          ? (index) => _updateSelectedTextStyle({
+                            'align': ['left', 'center', 'right'][index],
+                          })
+                          : null,
                   children: const [
                     Icon(Icons.format_align_left),
                     Icon(Icons.format_align_center),
@@ -915,16 +1038,22 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                 ),
                 OutlinedButton.icon(
                   key: const Key('text-color-control'),
-                  onPressed: enabled
-                      ? () => _chooseColor(
-                          title: _ru ? 'Цвет текста' : 'Text color',
-                          initialColor: color,
-                          onSelected: (value) =>
-                              _updateSelectedTextStyle({'color': value}),
-                        )
-                      : null,
+                  onPressed:
+                      enabled
+                          ? () => _chooseColor(
+                            title: _text(
+                              'Text color',
+                              'Цвет текста',
+                              'Matn rangi',
+                            ),
+                            initialColor: color,
+                            onSelected:
+                                (value) =>
+                                    _updateSelectedTextStyle({'color': value}),
+                          )
+                          : null,
                   icon: Icon(Icons.palette_outlined, color: _color(color)),
-                  label: Text(_ru ? 'Цвет' : 'Color'),
+                  label: Text(_text('Color', 'Цвет', 'Rang')),
                 ),
               ],
             ),
@@ -948,21 +1077,23 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
     const icons = ['★', '✓', '➜', '●', '◆', '♥', '✦', '!'];
     final icon = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          children: icons
-              .map(
-                (value) => IconButton(
-                  key: Key('icon-option-$value'),
-                  iconSize: 32,
-                  onPressed: () => Navigator.pop(context, value),
-                  icon: Text(value),
-                ),
-              )
-              .toList(),
-        ),
-      ),
+      builder:
+          (context) => SafeArea(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              children:
+                  icons
+                      .map(
+                        (value) => IconButton(
+                          key: Key('icon-option-$value'),
+                          iconSize: 32,
+                          onPressed: () => Navigator.pop(context, value),
+                          icon: Text(value),
+                        ),
+                      )
+                      .toList(),
+            ),
+          ),
     );
     if (icon != null) _addTextPreset('icon', text: icon);
   }
@@ -987,25 +1118,34 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: LayoutBuilder(
-          builder: (context, constraints) => Stack(
-            children: [
-              for (final element in elements)
-                Positioned(
-                  left: (element['x'] as num).toDouble() / width *
-                      constraints.maxWidth,
-                  top: (element['y'] as num).toDouble() / height *
-                      constraints.maxHeight,
-                  width: (element['w'] as num).toDouble() / width *
-                      constraints.maxWidth,
-                  height: (element['h'] as num).toDouble() / height *
-                      constraints.maxHeight,
-                  child: _previewElement(
-                    element,
-                    constraints.maxWidth / width,
-                  ),
-                ),
-            ],
-          ),
+          builder:
+              (context, constraints) => Stack(
+                children: [
+                  for (final element in elements)
+                    Positioned(
+                      left:
+                          (element['x'] as num).toDouble() /
+                          width *
+                          constraints.maxWidth,
+                      top:
+                          (element['y'] as num).toDouble() /
+                          height *
+                          constraints.maxHeight,
+                      width:
+                          (element['w'] as num).toDouble() /
+                          width *
+                          constraints.maxWidth,
+                      height:
+                          (element['h'] as num).toDouble() /
+                          height *
+                          constraints.maxHeight,
+                      child: _previewElement(
+                        element,
+                        constraints.maxWidth / width,
+                      ),
+                    ),
+                ],
+              ),
         ),
       ),
     );
@@ -1046,9 +1186,12 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
       key: Key('preview-text-$id'),
       onTap: () => _selectTextElement(id),
       child: Container(
-        decoration: id == _selectedElementId
-            ? BoxDecoration(border: Border.all(color: Colors.blue, width: 1))
-            : null,
+        decoration:
+            id == _selectedElementId
+                ? BoxDecoration(
+                  border: Border.all(color: Colors.blue, width: 1),
+                )
+                : null,
         alignment: Alignment.topLeft,
         child: Text(
           element['text'] as String? ?? '',
@@ -1061,17 +1204,18 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
           style: TextStyle(
             fontFamily: style['fontFamily'] as String? ?? 'Arial',
             fontSize: ((style['fontSize'] as num?)?.toDouble() ?? 28) * scale,
-            fontStyle: style['italic'] == true
-                ? FontStyle.italic
-                : FontStyle.normal,
-            decoration: style['underline'] == true
-                ? TextDecoration.underline
-                : TextDecoration.none,
-            fontWeight: FontWeight.values[
-              (((style['fontWeight'] as num?)?.toInt() ?? 400) ~/ 100)
-                  .clamp(1, 9) -
-                  1
-            ],
+            fontStyle:
+                style['italic'] == true ? FontStyle.italic : FontStyle.normal,
+            decoration:
+                style['underline'] == true
+                    ? TextDecoration.underline
+                    : TextDecoration.none,
+            fontWeight:
+                FontWeight.values[(((style['fontWeight'] as num?)?.toInt() ??
+                                400) ~/
+                            100)
+                        .clamp(1, 9) -
+                    1],
             color: _color(style['color'] as String? ?? '#242A28'),
           ),
         ),

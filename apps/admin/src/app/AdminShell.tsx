@@ -1,10 +1,11 @@
-import { Globe2, Layers3, LogOut, ShieldCheck, UsersRound } from "lucide-react";
+import { Globe2, Layers3, LogOut, ShieldCheck, Store, UsersRound } from "lucide-react";
 import type { Locale, Translations } from "./translations";
 
 interface AdminShellProps {
   locale: Locale;
   translations: Translations;
   authenticated: boolean;
+  superadmin: boolean;
   onSignOut: () => void;
   onToggleLocale: () => void;
   children: React.ReactNode;
@@ -14,6 +15,7 @@ export function AdminShell({
   locale,
   translations: t,
   authenticated,
+  superadmin,
   onSignOut,
   onToggleLocale,
   children,
@@ -27,7 +29,9 @@ export function AdminShell({
         </a>
         <div className="console-label">{t.console}</div>
         <nav className="admin-nav" aria-label={t.console}>
-          <div className="admin-nav-item active"><UsersRound size={17} aria-hidden="true" /><span>{t.users}</span></div>
+          <a className="admin-nav-item active" href="#admin-users"><UsersRound size={17} aria-hidden="true" /><span>{t.users}</span></a>
+          <a className="admin-nav-item" href="#marketplace-monitoring"><Store size={17} aria-hidden="true" /><span>{t.marketplace}</span></a>
+          {superadmin && <a className="admin-nav-item" href="#marketplace-categories"><Store size={17} aria-hidden="true" /><span>{t.categories}</span></a>}
         </nav>
         <div className="admin-sidebar-bottom"><ShieldCheck size={15} aria-hidden="true" /><span>{t.staffOnly}</span></div>
       </aside>
@@ -38,8 +42,8 @@ export function AdminShell({
           <div className="topbar-actions">
             {authenticated && <button className="text-button" type="button" onClick={onSignOut}><LogOut size={15} />{t.signOut}</button>}
             <button className="admin-language" type="button"
-              title={locale === "en" ? "Switch language" : "Сменить язык"}
-              aria-label={locale === "en" ? "Switch language" : "Сменить язык"}
+              title={locale === "uz" ? "Tilni almashtirish" : locale === "en" ? "Switch language" : "Сменить язык"}
+              aria-label={locale === "uz" ? "Tilni almashtirish" : locale === "en" ? "Switch language" : "Сменить язык"}
               onClick={onToggleLocale}>
               <Globe2 size={16} aria-hidden="true" />{locale.toUpperCase()}
             </button>

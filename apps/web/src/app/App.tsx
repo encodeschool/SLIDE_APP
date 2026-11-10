@@ -17,6 +17,7 @@ import { ProfilePanel } from "../features/auth/ProfilePanel";
 import { GenerationPanel } from "../features/generation/GenerationPanel";
 import { PresentationLibrary } from "../features/presentations/PresentationLibrary";
 import { PresentationEditor } from "../features/presentations/PresentationEditor";
+import { Marketplace } from "../features/marketplace/Marketplace";
 import {
   ArrowUpRight,
   BookOpen,
@@ -32,8 +33,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const translations = {
-  en: {
+const en = {
     workspace: "Workspace",
     library: "My presentations",
     create: "Create with AI",
@@ -161,7 +161,10 @@ const translations = {
     exportRequestFailed: "Could not start the export. Please try again.",
     undo: "Undo",
     redo: "Redo",
-  },
+};
+
+const translations = {
+  en,
   ru: {
     workspace: "Рабочее пространство",
     library: "Мои презентации",
@@ -291,6 +294,138 @@ const translations = {
     undo: "Отменить",
     redo: "Повторить",
   },
+  uz: {
+    ...en,
+    ...{
+      workspace: "Ish maydoni",
+      library: "Taqdimotlarim",
+      create: "AI bilan yaratish",
+      marketplace: "Marketpleys",
+      purchases: "Xaridlar",
+      coming: "Keyingi bosqichda mavjud boʻladi",
+      foundation: "Gʻoyalaringizni yorqin namoyish eting.",
+      intro: "Taqdimotlar yaratish uchun qulay ish maydoni. Slideforge API bilan ulanish tayyorlanmoqda.",
+      status: "Platforma holati",
+      api: "API holati",
+      checking: "API tekshirilmoqda",
+      ready: "API ishlayapti",
+      unavailable: "API bilan aloqa yoʻq",
+      docs: "API hujjatlari",
+      docsCopy: "Ishlayotgan API tavsifini koʻrish",
+      model: "Umumiy taqdimot modeli",
+      modelCopy: "Tekshirilgan tahrirlash amallariga ega JSON modeli",
+      export: "Taqdimotni eksport qilish",
+      exportCopy: "PDF formatiga aylantirish imkoniyatiga ega PowerPoint",
+      roadmap: "Ishlab chiqish jarayoni",
+      language: "Tilni almashtirish",
+      signIn: "Kirish",
+      register: "Hisob yaratish",
+      loginTitle: "Ish maydoningizga kiring",
+      registerTitle: "Slideforge hisobini yarating",
+      forgotTitle: "Parolni tiklash",
+      resetTitle: "Yangi parol oʻrnating",
+      email: "Elektron pochta",
+      password: "Parol",
+      newPassword: "Yangi parol",
+      forgotPassword: "Parol esdan chiqdimi?",
+      resendVerification: "Tasdiqlash xatini qayta yuborish",
+      sendInstructions: "Koʻrsatmalarni yuborish",
+      resetPassword: "Parolni tiklash",
+      registrationSent: "Agar hisob mos kelsa, tasdiqlash koʻrsatmalari yuboriladi.",
+      recoverySent: "Agar hisob mavjud boʻlsa, tiklash koʻrsatmalari yuboriladi.",
+      verificationComplete: "Elektron pochta tasdiqlandi. Endi kirishingiz mumkin.",
+      verificationFailed: "Tasdiqlash havolasi notoʻgʻri yoki muddati tugagan.",
+      passwordResetComplete: "Parol yangilandi. Endi kirishingiz mumkin.",
+      resetLinkInvalid: "Parolni tiklash havolasi notoʻgʻri yoki muddati tugagan.",
+      displayName: "Ismingiz",
+      profile: "Profil",
+      profileLocale: "Til sozlamasi",
+      saveProfile: "Profilni saqlash",
+      savingProfile: "Profil saqlanmoqda",
+      profileSaved: "Profil yangilandi",
+      profileSaveFailed: "Profilni yangilab boʻlmadi. Qayta urinib koʻring.",
+      authLoading: "Sessiya tekshirilmoqda",
+      authFailed: "Kirish amalga oshmadi. Maʼlumotlaringizni tekshiring.",
+      signOut: "Chiqish",
+      createDraft: "Yangi taqdimot",
+      generationTitle: "AI yordamida taqdimot yarating",
+      generationCopy: "Kerakli taqdimotni tasvirlab bering. Soʻrov faqat slaydlar mazmuni uchun ishlatiladi.",
+      generationPrompt: "Taqdimot tavsifi",
+      generationLanguage: "Taqdimot tili",
+      generationSlides: "Slaydlar soni",
+      generationSubmit: "Taqdimot yaratish",
+      generationSubmitting: "Yaratish boshlanmoqda",
+      generationQueued: "Soʻrov navbatga qoʻshildi",
+      generationRunning: "Taqdimot yaratilmoqda",
+      generationSucceeded: "Taqdimot tayyor",
+      generationFailed: "Taqdimotni yaratib boʻlmadi",
+      generationRequestFailed: "Yaratishni boshlash amalga oshmadi.",
+      generationSaveOpen: "Saqlash va ochish",
+      generationSaving: "Taqdimot saqlanmoqda",
+      generationSaveFailed: "Yaratilgan taqdimotni saqlab boʻlmadi.",
+      generationRequired: "Yaratmoqchi boʻlgan taqdimotingizni tasvirlab bering.",
+      loadingProjects: "Taqdimotlaringiz yuklanmoqda",
+      emptyProjects: "Hozircha taqdimot yoʻq",
+      emptyProjectsCopy: "Yangi boʻsh taqdimotdan boshlang.",
+      lastUpdated: "Yangilangan",
+      deletePresentation: "Taqdimotni oʻchirish",
+      deleteConfirm: "Bu taqdimotni arxivga oʻtkazilsinmi?",
+      createFailed: "Taqdimotni yaratib boʻlmadi. Qayta urinib koʻring.",
+      presentations: "Taqdimotlarim",
+      openPresentation: "Taqdimotni ochish",
+      openingPresentation: "Taqdimot ochilmoqda",
+      backToLibrary: "Taqdimotlarga qaytish",
+      presentationTitle: "Taqdimot sarlavhasi",
+      discardChanges: "Saqlanmagan oʻzgarishlar bekor qilinsinmi?",
+      alternativeText: "Muqobil matn",
+      saveChanges: "Oʻzgarishlarni saqlash",
+      savingChanges: "Oʻzgarishlar saqlanmoqda",
+      saveFailed: "Taqdimotni saqlab boʻlmadi. Qayta urinib koʻring.",
+      openFailed: "Taqdimotni ochib boʻlmadi. Qayta urinib koʻring.",
+      presentationSaved: "Taqdimot saqlandi",
+      slideCount: "slayd",
+      elementCount: "element",
+      slide: "Slayd",
+      textElements: "Matn elementlari",
+      elements: "Elementlar",
+      textContent: "Matn mazmuni",
+      addText: "Matn qoʻshish",
+      newText: "Matn",
+      addRectangle: "Toʻrtburchak qoʻshish",
+      addEllipse: "Ellips qoʻshish",
+      deleteElement: "Tanlangan elementni oʻchirish",
+      rectangle: "Toʻrtburchak",
+      ellipse: "Ellips",
+      addSlide: "Slayd qoʻshish",
+      removeSlide: "Slaydni oʻchirish",
+      moveSlideUp: "Slaydni yuqoriga surish",
+      moveSlideDown: "Slaydni pastga surish",
+      position: "Joylashuv va oʻlcham",
+      textStyle: "Matn uslubi",
+      fontSize: "Shrift oʻlchami",
+      textColor: "Matn rangi",
+      fillColor: "Toʻldirish rangi",
+      backgroundColor: "Slayd foni",
+      alignment: "Tekislash",
+      leftAlign: "Chapga",
+      centerAlign: "Markazga",
+      rightAlign: "Oʻngga",
+      slideNotes: "Taqdimotchi qaydlari",
+      addImage: "Rasm qoʻshish",
+      invalidImage: "2 MB dan kichik rasm tanlang.",
+      exportPptx: "PPTX eksporti",
+      exportPdf: "PDF eksporti",
+      exportQueued: "Eksport navbatga qoʻshildi",
+      exportRunning: "Eksport tayyorlanmoqda",
+      exportFailed: "Eksport amalga oshmadi. Qayta urinib koʻring.",
+      exportReady: "Eksport tayyor",
+      exportDownload: "Yuklab olish",
+      saveBeforeExport: "Eksportdan oldin oʻzgarishlarni saqlang.",
+      exportRequestFailed: "Eksportni boshlash amalga oshmadi.",
+      undo: "Bekor qilish",
+      redo: "Qaytarish",
+    },
+  },
 } satisfies Record<Locale, Record<string, string>>;
 
 const disabledSections = [
@@ -301,6 +436,8 @@ const disabledSections = [
 ] as const;
 
 function App() {
+  const [marketplaceActive, setMarketplaceActive] = useState(() => window.location.hash === "#marketplace");
+  const [marketplaceAuthOpen, setMarketplaceAuthOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("en");
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>(() =>
@@ -353,7 +490,19 @@ function App() {
   const authVerificationStarted = useRef(false);
   const copy = translations[locale];
 
+  useEffect(() => {
+    const updateSection = () => setMarketplaceActive(window.location.hash === "#marketplace");
+    window.addEventListener("hashchange", updateSection);
+    return () => window.removeEventListener("hashchange", updateSection);
+  }, []);
+
+  function requireMarketplaceAuth() {
+    setAuthMode("login");
+    setMarketplaceAuthOpen(true);
+  }
+
   function applySession(session: AuthResponse) {
+    setMarketplaceAuthOpen(false);
     setAccessToken(session.accessToken);
     setAuthUser(session.user);
     setLocale(session.user.locale);
@@ -1146,7 +1295,12 @@ function App() {
         </a>
         <div className="workspace-label">{copy.workspace}</div>
         <nav className="side-nav" aria-label={copy.workspace}>
-          {disabledSections.map(({ icon: Icon, labelKey }) => authUser && (labelKey === "library" || labelKey === "create") ? (
+          {disabledSections.map(({ icon: Icon, labelKey }) => labelKey === "marketplace" ? (
+            <a className="nav-item" href="#marketplace" key={labelKey}>
+              <Icon size={17} aria-hidden="true" />
+              <span>{copy[labelKey]}</span>
+            </a>
+          ) : authUser && (labelKey === "library" || labelKey === "create") ? (
             <a className="nav-item" href={labelKey === "library" ? "#presentations" : "#generate"} key={labelKey}>
               <Icon size={17} aria-hidden="true" />
               <span>{copy[labelKey]}</span>
@@ -1177,7 +1331,7 @@ function App() {
             type="button"
             title={copy.language}
             aria-label={copy.language}
-            onClick={() => setLocale(locale === "en" ? "ru" : "en")}
+            onClick={() => setLocale(locale === "en" ? "ru" : locale === "ru" ? "uz" : "en")}
           >
             <Globe2 size={17} aria-hidden="true" />
             {locale.toUpperCase()}
@@ -1189,7 +1343,7 @@ function App() {
           )}
         </header>
 
-        <section className="welcome-section" aria-labelledby="welcome-title">
+        {!marketplaceActive && <section className="welcome-section" aria-labelledby="welcome-title">
           <div className="eyebrow"><span className="eyebrow-dot" />{copy.status}</div>
           <h1 id="welcome-title">{copy.foundation}</h1>
           <p className="welcome-copy">{copy.intro}</p>
@@ -1198,10 +1352,20 @@ function App() {
             <div><strong>{copy.api}</strong><span>{apiStatusText}</span></div>
             <span className={`status-indicator ${apiAvailable === null ? "status-checking" : apiAvailable ? "" : "status-unavailable"}`} aria-label={apiStatusText} />
           </div>
-        </section>
+        </section>}
 
-        {!authUser && !authRestoring && (
-          <AuthPanel
+        {!authUser && !authRestoring && (!marketplaceActive || marketplaceAuthOpen) && (
+          <div className={marketplaceActive ? "market-auth-overlay" : undefined}>
+            {marketplaceActive && (
+              <button
+                className="market-auth-close"
+                type="button"
+                onClick={() => setMarketplaceAuthOpen(false)}
+              >
+                {locale === "uz" ? "Doʻkonga qaytish" : locale === "ru" ? "Вернуться в магазин" : "Back to shop"}
+              </button>
+            )}
+            <AuthPanel
             authMode={authMode}
             copy={copy}
             authSubmitting={authSubmitting}
@@ -1219,12 +1383,13 @@ function App() {
             onSubmitAuth={submitAuth}
             onSubmitAuthAction={submitAuthAction}
             onSubmitPasswordReset={submitPasswordReset}
-          />
+            />
+          </div>
         )}
 
         {authRestoring && <p className="session-loading" role="status"><LoaderCircle className="spin-icon" size={16} aria-hidden="true" />{copy.authLoading}</p>}
 
-        {authUser && (
+        {authUser && !marketplaceActive && (
           <ProfilePanel
             user={authUser}
             copy={copy}
@@ -1239,7 +1404,18 @@ function App() {
           />
         )}
 
-        {authUser && !editorPresentation && (
+        {marketplaceActive && (
+          <Marketplace
+            locale={locale}
+            token={accessToken}
+            presentations={presentations}
+            onSession={applySession}
+            onExpired={clearSession}
+            onRequireAuth={requireMarketplaceAuth}
+          />
+        )}
+
+        {authUser && !marketplaceActive && !editorPresentation && (
           <GenerationPanel
             copy={copy}
             prompt={generationPrompt}
@@ -1257,7 +1433,7 @@ function App() {
           />
         )}
 
-        {authUser && !editorPresentation && (
+        {authUser && !marketplaceActive && !editorPresentation && (
           <PresentationLibrary
             user={authUser}
             copy={copy}
@@ -1274,7 +1450,7 @@ function App() {
           />
         )}
 
-        {authUser && editorPresentation && (
+        {authUser && !marketplaceActive && editorPresentation && (
           <PresentationEditor
             copy={copy}
             presentation={editorPresentation}

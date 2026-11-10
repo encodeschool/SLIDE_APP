@@ -1,10 +1,10 @@
 import { Layers3, LoaderCircle, Pencil, Plus, Trash2 } from "lucide-react";
-import type { PresentationSummary, UserProfile } from "../../shared/types";
+import type { Locale, PresentationSummary, UserProfile } from "../../shared/types";
 
 interface PresentationLibraryProps {
   user: UserProfile;
   copy: Record<string, string>;
-  locale: "en" | "ru";
+  locale: Locale;
   presentations: PresentationSummary[];
   projectsLoading: boolean;
   editorLoading: boolean;

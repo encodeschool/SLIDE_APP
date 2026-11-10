@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
@@ -50,6 +52,13 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> logout() async {
     restoredSession = null;
   }
+}
+
+class DelayedAuthRepository extends FakeAuthRepository {
+  final Completer<AuthSession?> restoreCompleter = Completer<AuthSession?>();
+
+  @override
+  Future<AuthSession?> restoreSession() => restoreCompleter.future;
 }
 
 class FakePresentationRepository implements PresentationRepository {
@@ -163,12 +172,22 @@ class FakePresentationRepository implements PresentationRepository {
 }
 
 void main() {
-  testWidgets('auth screen switches between English and Russian', (
+  testWidgets('shop is the first screen and auth switches language', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      SlideforgeApp(authRepository: FakeAuthRepository()),
-    );
+    final repository = DelayedAuthRepository();
+    await tester.pumpWidget(SlideforgeApp(authRepository: repository));
+    expect(find.text('Presentation marketplace'), findsOneWidget);
+    expect(find.byKey(const Key('auth-screen')), findsNothing);
+    expect(find.text('Demo catalog · sample presentations'), findsOneWidget);
+    expect(find.text('Investor pitch deck'), findsOneWidget);
+    repository.restoreCompleter.complete(null);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Presentation marketplace'), findsOneWidget);
+    await tester.tap(find.text('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign in or create an account'));
     await tester.pumpAndSettle();
 
     expect(find.text('Your ideas, in their best light.'), findsOneWidget);
@@ -177,6 +196,84 @@ void main() {
 
     expect(find.text('Ваши идеи в лучшем свете.'), findsOneWidget);
   });
+
+  testWidgets('demo shop displays sample products in two columns', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: FakePresentationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Demo catalog · sample presentations'), findsOneWidget);
+    expect(find.text('Investor pitch deck'), findsOneWidget);
+    final grid = tester.widget<GridView>(
+      find.byKey(const ValueKey('market-product-grid')),
+    );
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('market-product-grid')),
+        matching: find.byType(Card),
+      ),
+      findsNWidgets(10),
+    );
+    final loadMore = find.text('Load 10 more');
+    await tester.scrollUntilVisible(
+      loadMore,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(loadMore);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('market-product-grid')),
+        matching: find.byType(Card),
+      ),
+      findsNWidgets(12),
+    );
+    expect(find.text('Customer journey map'), findsOneWidget);
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('guest checkout returns to payment after cancelling sign-in', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: FakePresentationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final addToCart = find.byTooltip('Add to cart').first;
+    await tester.ensureVisible(addToCart);
+    await tester.pumpAndSettle();
+    await tester.tap(addToCart);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cart'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to checkout'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to payment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign in to continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('auth-screen')), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to shop'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Payment'), findsOneWidget);
+    expect(find.text('Sign in to continue'), findsOneWidget);
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
 
   testWidgets(
     'registration requests verification and returns to sign in without creating a session',
@@ -190,6 +287,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Account'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sign in or create an account'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-mode-switch')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -379,9 +480,10 @@ void main() {
     await tester.tap(find.byKey(const Key('slide-tab-1')));
     await tester.pumpAndSettle();
     expect(
-      tester.widget<TextField>(
-        find.byKey(const Key('editor-slide-text-field')),
-      ).controller!.text,
+      tester
+          .widget<TextField>(find.byKey(const Key('editor-slide-text-field')))
+          .controller!
+          .text,
       '',
     );
     await tester.enterText(
@@ -391,9 +493,10 @@ void main() {
     await tester.tap(find.byKey(const Key('slide-tab-2')));
     await tester.pumpAndSettle();
     expect(
-      tester.widget<TextField>(
-        find.byKey(const Key('editor-slide-text-field')),
-      ).controller!.text,
+      tester
+          .widget<TextField>(find.byKey(const Key('editor-slide-text-field')))
+          .controller!
+          .text,
       'Second slide content',
     );
     await tester.tap(find.byKey(const Key('save-presentation')));
@@ -473,11 +576,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       final fontFamily = find.byKey(const Key('font-family-control'));
-      await tester.scrollUntilVisible(
-        fontFamily,
-        250,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(fontFamily, 250, scrollable: scrollable);
       await tester.tap(fontFamily);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Georgia').last);
@@ -505,8 +604,9 @@ void main() {
       await tester.tap(find.byKey(const Key('color-option-#1976D2')));
       await tester.pumpAndSettle();
 
-      final backgroundControl =
-          find.byKey(const Key('slide-background-control'));
+      final backgroundControl = find.byKey(
+        const Key('slide-background-control'),
+      );
       await tester.scrollUntilVisible(
         backgroundControl,
         250,
@@ -522,10 +622,9 @@ void main() {
       final slide =
           (presentations.savedDocument?['slides'] as List).first as Map;
       expect((slide['background'] as Map)['color'], '#D84343');
-      final text =
-          (slide['elements'] as List).cast<Map>().singleWhere(
-            (element) => element['text'] == 'A styled heading',
-          );
+      final text = (slide['elements'] as List).cast<Map>().singleWhere(
+        (element) => element['text'] == 'A styled heading',
+      );
       final style = text['style'] as Map;
       expect(style['fontSize'], 38.0);
       expect(style['fontFamily'], 'Georgia');
@@ -616,15 +715,17 @@ void main() {
     expect(presentations.readCalls, 1);
     expect(find.text('Version 4'), findsOneWidget);
     expect(
-      tester.widget<TextField>(
-        find.byKey(const Key('editor-title-field')),
-      ).controller!.text,
+      tester
+          .widget<TextField>(find.byKey(const Key('editor-title-field')))
+          .controller!
+          .text,
       'Latest server title',
     );
     expect(
-      tester.widget<TextField>(
-        find.byKey(const Key('editor-slide-text-field')),
-      ).controller!.text,
+      tester
+          .widget<TextField>(find.byKey(const Key('editor-slide-text-field')))
+          .controller!
+          .text,
       'Latest server content',
     );
   });

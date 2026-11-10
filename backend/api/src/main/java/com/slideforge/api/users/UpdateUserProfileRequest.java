@@ -6,5 +6,5 @@ import jakarta.validation.constraints.Size;
 
 public record UpdateUserProfileRequest(
         @NotBlank @Size(max = 120) String displayName,
-        @NotBlank @Pattern(regexp = "en|ru") String locale) {
+        @NotBlank @Pattern(regexp = "en|ru|uz") String locale) {
 }

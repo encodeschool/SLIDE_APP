@@ -51,11 +51,14 @@ public class SecurityConfiguration {
                 .addFilterAfter(new AccountStatusFilter(userRepository, objectMapper), BearerTokenAuthenticationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/admin/marketplace/categories/**").hasRole("SUPERADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/catalog/preferences").authenticated()
                         .requestMatchers(
                                 "/api/v1/status",
                                 "/api/v1/catalog",
-                                "/api/v1/catalog/**",
+                                "/api/v1/catalog/categories",
+                                "/api/v1/catalog/*",
                                 "/api/v1/auth/**",
                                 "/actuator/health",
                                 "/actuator/health/**",

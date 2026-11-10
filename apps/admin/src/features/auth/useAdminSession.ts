@@ -4,6 +4,7 @@ import { isAdmin, login, logout, refreshSession } from "./authApi";
 
 export function useAdminSession(t: Translations) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -11,7 +12,10 @@ export function useAdminSession(t: Translations) {
     let active = true;
     refreshSession().then((session) => {
       if (!active) return;
-      if (isAdmin(session)) setAccessToken(session.accessToken);
+      if (isAdmin(session)) {
+        setAccessToken(session.accessToken);
+        setRoles(session.user.roles);
+      }
       else if (session) setError(t.notAdmin);
     }).finally(() => {
       if (active) setLoading(false);
@@ -30,6 +34,7 @@ export function useAdminSession(t: Translations) {
         setError(t.notAdmin);
       } else {
         setAccessToken(session.accessToken);
+        setRoles(session.user.roles);
       }
       return true;
     } catch (reason) {
@@ -43,13 +48,18 @@ export function useAdminSession(t: Translations) {
   async function signOut() {
     await logout();
     setAccessToken(null);
+    setRoles([]);
     setError("");
   }
 
-  const clearSession = useCallback(() => setAccessToken(null), []);
+  const clearSession = useCallback(() => {
+    setAccessToken(null);
+    setRoles([]);
+  }, []);
 
   return {
     accessToken,
+    isSuperAdmin: roles.includes("SUPERADMIN"),
     loading,
     error,
     signIn,

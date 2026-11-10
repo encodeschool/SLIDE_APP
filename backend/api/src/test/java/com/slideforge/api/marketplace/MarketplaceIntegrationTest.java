@@ -2,6 +2,7 @@ package com.slideforge.api.marketplace;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,7 +14,9 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.slideforge.api.auth.AuthTestSupport;
 import com.slideforge.api.auth.MailDelivery;
+import com.slideforge.api.auth.LoginRequest;
 import com.slideforge.api.auth.RegisterRequest;
+import jakarta.persistence.EntityManager;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,8 +42,66 @@ class MarketplaceIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private EntityManager entityManager;
+
     @MockBean
     private MailDelivery mailDelivery;
+
+    @Test
+    void categoryManagementIsSuperadminOnlyAndPublishesLocalizedNames() throws Exception {
+        Account administrator = register("category-admin");
+        Account superadministrator = register("category-superadmin");
+        jdbcTemplate.update(
+                "INSERT INTO user_roles (user_id, role) VALUES (?, 'ADMIN')",
+                administrator.id());
+        jdbcTemplate.update(
+                "INSERT INTO user_roles (user_id, role) VALUES (?, 'ADMIN'), (?, 'SUPERADMIN')",
+                superadministrator.id(),
+                superadministrator.id());
+        entityManager.clear();
+        String adminToken = login(administrator);
+        String superadminToken = login(superadministrator);
+
+        mockMvc.perform(get("/api/v1/admin/marketplace/categories")
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/admin/marketplace/categories")
+                        .header("Authorization", bearer(superadminToken)))
+                .andExpect(status().isOk());
+
+        String category = """
+                {"slug":"science","nameEn":"Science","nameRu":"Наука","nameUz":"Ilm-fan"}
+                """;
+        mockMvc.perform(post("/api/v1/admin/marketplace/categories")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(category))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/admin/marketplace/categories")
+                        .header("Authorization", bearer(superadminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(category))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nameUz").value("Ilm-fan"));
+        mockMvc.perform(post("/api/v1/admin/marketplace/categories")
+                        .header("Authorization", bearer(superadminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(category))
+                .andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/catalog/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.slug == 'science')].nameUz").value("Ilm-fan"));
+        mockMvc.perform(patch("/api/v1/admin/marketplace/categories/science/status")
+                        .header("Authorization", bearer(superadminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+        mockMvc.perform(get("/api/v1/catalog/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.slug == 'science')]").isEmpty());
+    }
 
     @Test
     void ownersControlDraftsAndOnlyPublishedListingsAppearInThePublicCatalog() throws Exception {
@@ -48,6 +109,14 @@ class MarketplaceIntegrationTest {
         Account stranger = register("stranger");
         UUID deckId = createPresentation(seller.token(), "Seller deck");
         UUID listingId = createListing(seller, deckId, 1, 1500);
+        mockMvc.perform(get("/api/v1/seller/listings")
+                        .header("Authorization", bearer(seller.token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(listingId.toString()));
+        mockMvc.perform(get("/api/v1/seller/listings")
+                        .header("Authorization", bearer(stranger.token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
 
         mockMvc.perform(get("/api/v1/catalog"))
                 .andExpect(status().isOk())
@@ -93,10 +162,87 @@ class MarketplaceIntegrationTest {
                 .andExpect(jsonPath("$.items[0].listingId").value(listingId.toString()))
                 .andExpect(jsonPath("$.items[0].version").value(2))
                 .andExpect(jsonPath("$.items[0].priceTiyin").value(2500))
+                .andExpect(jsonPath("$.items[0].category").value("education"))
+                .andExpect(jsonPath("$.items[0].sellerName").value("seller"))
                 .andExpect(jsonPath("$.items[0].document").doesNotExist());
+        mockMvc.perform(get("/api/v1/catalog?category=business"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+        mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sellerName").value("seller"))
+                .andExpect(jsonPath("$.licenseTerms").value("commercial license"))
+                .andExpect(jsonPath("$.category").value("education"));
         mockMvc.perform(get("/api/v1/catalog?page=-1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_PAGE"));
+        mockMvc.perform(get("/api/v1/catalog?category=unknown"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
+    }
+
+    @Test
+    void marketplacePreferencesRequireAnAccountAndAreOwnerScoped() throws Exception {
+        Account account = register("market-preference");
+        mockMvc.perform(get("/api/v1/catalog/preferences"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/v1/catalog/preferences")
+                        .header("Authorization", bearer(account.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new MarketplacePreferenceRequest("technology"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.preferredCategory").value("technology"));
+        mockMvc.perform(get("/api/v1/catalog/preferences")
+                        .header("Authorization", bearer(account.token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.preferredCategory").value("technology"));
+        mockMvc.perform(put("/api/v1/catalog/preferences")
+                        .header("Authorization", bearer(account.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new MarketplacePreferenceRequest("invalid"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
+    }
+
+    @Test
+    void marketplaceModerationRequiresAnAdministrator() throws Exception {
+        Account seller = register("moderation");
+        UUID deckId = createPresentation(seller.token(), "Moderated deck");
+        UUID listingId = createListing(seller, deckId, 1, 2000);
+        mockMvc.perform(get("/api/v1/admin/marketplace/listings")
+                        .header("Authorization", bearer(seller.token())))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                                "/api/v1/admin/marketplace/listings/{id}/status", listingId)
+                        .header("Authorization", bearer(seller.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new AdminListingStatusRequest("SUSPENDED"))))
+                .andExpect(status().isForbidden());
+
+        jdbcTemplate.update("INSERT INTO user_roles (user_id, role) VALUES (?, 'ADMIN')", seller.id());
+        entityManager.clear();
+        String adminToken = login(seller);
+        mockMvc.perform(get("/api/v1/admin/marketplace/listings")
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].sellerEmail").exists());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                                "/api/v1/admin/marketplace/listings/{id}/status", listingId)
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new AdminListingStatusRequest("SUSPENDED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUSPENDED"));
+        mockMvc.perform(get("/api/v1/catalog"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                                "/api/v1/admin/marketplace/listings/{id}/status", listingId)
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new AdminListingStatusRequest("PUBLISHED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
     }
 
     @Test
@@ -194,7 +340,7 @@ class MarketplaceIntegrationTest {
         MvcResult result = mockMvc.perform(post("/api/v1/seller/listings")
                         .header("Authorization", bearer(seller.token()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(new CreateListingRequest(presentationId, version, price, "A slide deck", "Personal use"))))
+                        .content(json(new CreateListingRequest(presentationId, version, price, "A slide deck", "Personal use", "education"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn();
@@ -236,6 +382,16 @@ class MarketplaceIntegrationTest {
 
     private String bearer(String token) {
         return "Bearer " + token;
+    }
+
+    private String login(Account account) throws Exception {
+        String email = jdbcTemplate.queryForObject("SELECT email FROM users WHERE id = ?", String.class, account.id());
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new LoginRequest(email, "long-enough-test-password"))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("accessToken").asText();
     }
 
     private String json(Object value) throws Exception {

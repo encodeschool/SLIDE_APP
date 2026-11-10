@@ -9,5 +9,5 @@ public record RegisterRequest(
         @NotBlank @Email @Size(max = 255) String email,
         @NotBlank @Size(min = 12, max = 72) String password,
         @NotBlank @Size(max = 120) String displayName,
-        @Pattern(regexp = "en|ru") String locale) {
+        @Pattern(regexp = "en|ru|uz") String locale) {
 }

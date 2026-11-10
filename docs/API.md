@@ -25,7 +25,7 @@ Login and refresh are available only to active, verified users. Login returns a 
 
 `GET /api/v1/users/me` requires `Authorization: Bearer <accessToken>`.
 
-`PUT /api/v1/users/me` requires the same bearer token and accepts `{ "displayName": "Person", "locale": "en" }`. Display name must be non-blank and at most 120 characters; locale must be `en` or `ru`. It returns the updated profile. Email, verification status, and roles cannot be changed through this endpoint.
+`PUT /api/v1/users/me` requires the same bearer token and accepts `{ "displayName": "Person", "locale": "en" }`. Display name must be non-blank and at most 120 characters; locale must be `en`, `ru`, or `uz`. It returns the updated profile. Email, verification status, and roles cannot be changed through this endpoint.
 
 `POST /api/v1/auth/password/forgot` accepts an email and returns a generic response whether or not an eligible account exists. `POST /api/v1/auth/password/reset` accepts `{ "token": "...", "newPassword": "at-least-12-characters" }`; successful reset consumes the single-use token and revokes refresh sessions. Verification and recovery links require configured SMTP for delivery; see [local development](DEVELOPMENT.md).
 
@@ -55,14 +55,22 @@ The server calls an OpenAI-compatible chat-completions provider. Configure `AI_P
 
 | Group | Purpose | Status |
 |---|---|---|
-| `/api/v1/seller/listings` | Create/update/publish/archive owner-scoped listing snapshots | Implemented; authenticated |
-| `/api/v1/catalog` | Paginated published listing catalog | Implemented |
+| `/api/v1/seller/listings` | List and create/update/publish/archive owner-scoped listing snapshots | Implemented; authenticated |
+| `/api/v1/catalog` | Paginated published listing catalog, category filter, seller display name, listing detail and category preferences | Implemented; clients load 10 at a time |
+| `/api/v1/admin/marketplace/categories` | Create/list marketplace categories with English, Russian, and Uzbek names; activate/deactivate categories | Implemented; requires SUPERADMIN |
 | `/api/v1/orders` | Create idempotent buyer orders for published listings | Implemented; authenticated |
 | `/api/v1/orders/{orderId}/sandbox-confirm` | Developer sandbox confirmation and entitlement grant | Disabled by default; only enabled with the sandbox profile and explicit configuration |
 | `/api/v1/admin/users` | Admin-only user search/status controls | Implemented; requires ADMIN role |
 | `/api/v1/admin/users/invitations` | Invite an administrator to register and set their own password | Implemented; requires ADMIN role and configured SMTP |
+| `/api/v1/admin/marketplace/listings` | Monitor listings and suspend/restore catalog visibility | Implemented; requires ADMIN role |
 
-These are API foundations; the web app does not yet include a marketplace storefront or buyer library UI. No production payment provider is integrated. Obtain current merchant specifications and credentials before implementing real Payme, Click, or Uzum processing; see [payment notes](PAYMENTS.md).
+The web and mobile clients allow public catalog browsing, listing details, and cart use before sign-in; sign-in is required to create orders or publish a listing. They provide cart and sandbox-gated checkout. Admins can inspect listings and suspend or restore catalog visibility; only SUPERADMIN can manage category definitions. A buyer library/purchase entitlement UI is not yet implemented. No production payment provider is integrated. Obtain current merchant specifications and credentials before implementing real Payme, Click, or Uzum processing; see [payment notes](PAYMENTS.md).
+
+`GET /api/v1/catalog/categories` returns active category `{slug,name,nameRu,nameUz}` entries. `GET /api/v1/catalog?page=0&size=10&category=education` returns only published snapshots, with seller display names; page size is bounded to 50. `GET /api/v1/catalog/{listingId}` returns public listing metadata, seller, price, category, and license terms (not the deck document). Any signed-in account may read/update its own `GET/PUT /api/v1/catalog/preferences` using `{ "preferredCategory": "education" }` or `null`. Seller listing `POST` accepts an optional category slug; any verified ordinary account may publish its own listing. No client-supplied role is accepted.
+
+The SUPERADMIN-only category manager uses `POST /api/v1/admin/marketplace/categories` with `{ "slug": "science", "nameEn": "Science", "nameRu": "Наука", "nameUz": "Ilm-fan" }` and `PATCH /api/v1/admin/marketplace/categories/{slug}/status` with `{ "active": false }`. A category with published listings cannot be deactivated.
+
+The web and mobile storefronts create orders using the server-side listing price and call the existing `/api/v1/orders/{orderId}/sandbox-confirm` only as a developer sandbox flow. That endpoint remains disabled unless the sandbox profile and explicit enablement are both configured. A disabled sandbox leaves the order pending; it does not simulate a payment or grant entitlement. There are no real payment-provider integrations.
 
 Errors use RFC 9457 Problem Details with a stable `code` property. Order creation is idempotent per buyer-supplied key; generation job submission does not currently have an idempotency key.
 

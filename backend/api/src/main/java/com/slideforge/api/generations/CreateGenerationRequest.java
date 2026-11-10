@@ -9,6 +9,6 @@ import jakarta.validation.constraints.Size;
 
 public record CreateGenerationRequest(
         @NotBlank @Size(max = 4000) String prompt,
-        @NotNull @Pattern(regexp = "en|ru") String language,
+        @NotNull @Pattern(regexp = "en|ru|uz") String language,
         @Min(1) @Max(20) int slideCount) {
 }

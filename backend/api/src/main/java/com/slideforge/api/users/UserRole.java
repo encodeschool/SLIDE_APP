@@ -4,5 +4,6 @@ public enum UserRole {
     USER,
     SELLER,
     MODERATOR,
-    ADMIN
+    ADMIN,
+    SUPERADMIN
 }

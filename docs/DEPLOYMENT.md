@@ -54,7 +54,7 @@ Pop-Location
 
 Enter a unique administrator password and store only the emitted Base64 hash in `PROD_BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64`. Set the matching email in `PROD_BOOTSTRAP_ADMIN_EMAIL`.
 
-The bootstrap is a one-time Flyway migration. These values must be present before the first production database migration runs. Changing them after migration V8 has completed does not rotate or recreate the account; use the normal password-recovery flow to change its password. Do not put a reusable or shared default password in source control.
+The bootstrap is a one-time Flyway migration. These values must be present before the first production database migration runs. V8 creates the configured first administrator; V11 grants `SUPERADMIN` only to that same verified, active administrator. For upgrades to V11, provide the existing bootstrap email and a valid BCrypt hash in the configured secrets so the role can be attached to the existing administrator. Changing them after the migrations have completed does not rotate or recreate the account; use the normal password-recovery flow to change its password. Do not put a reusable or shared default password in source control.
 
 ## 4. Deploy
 

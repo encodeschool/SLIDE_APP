@@ -91,7 +91,7 @@ export function UserManagement({ accessToken, translations: t, locale, onSession
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <section className="admin-content users-content">
+    <section id="admin-users" className="admin-content users-content">
       <div className="admin-kicker"><ShieldCheck size={15} aria-hidden="true" />{t.users}</div>
       <h1>{t.usersTitle}</h1>
       <p className="admin-intro">{t.usersIntro}</p>

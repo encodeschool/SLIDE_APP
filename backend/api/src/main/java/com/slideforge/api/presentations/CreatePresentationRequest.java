@@ -8,6 +8,6 @@ import jakarta.validation.constraints.Size;
 
 public record CreatePresentationRequest(
         @NotBlank @Size(max = 200) String title,
-        @NotBlank @Pattern(regexp = "en|ru") String language,
+        @NotBlank @Pattern(regexp = "en|ru|uz") String language,
         @NotNull JsonNode document) {
 }

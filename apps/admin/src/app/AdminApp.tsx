@@ -5,6 +5,8 @@ import { SignIn } from "../features/auth/SignIn";
 import { AdminInvitationCompletion } from "../features/auth/AdminInvitationCompletion";
 import { AdminInvitationRequest } from "../features/auth/AdminInvitationRequest";
 import { UserManagement } from "../features/users/UserManagement";
+import { MarketplaceMonitoring } from "../features/marketplace/MarketplaceMonitoring";
+import { MarketplaceCategories } from "../features/marketplace/MarketplaceCategories";
 import { translations, type Locale } from "./translations";
 import { LoaderCircle } from "lucide-react";
 
@@ -29,8 +31,9 @@ export default function AdminApp() {
       locale={locale}
       translations={t}
       authenticated={Boolean(session.accessToken)}
+      superadmin={session.isSuperAdmin}
       onSignOut={() => void session.signOut()}
-      onToggleLocale={() => setLocale((current) => current === "en" ? "ru" : "en")}
+      onToggleLocale={() => setLocale((current) => current === "en" ? "ru" : current === "ru" ? "uz" : "en")}
     >
       {invitationToken ? (
         <AdminInvitationCompletion
@@ -56,12 +59,26 @@ export default function AdminApp() {
           onRegister={() => setRegistering(true)}
         />
       ) : (
-        <UserManagement
-          accessToken={session.accessToken}
-          translations={t}
-          locale={locale}
-          onSessionExpired={session.clearSession}
-        />
+        <>
+          <UserManagement
+            accessToken={session.accessToken}
+            translations={t}
+            locale={locale}
+            onSessionExpired={session.clearSession}
+          />
+          <MarketplaceMonitoring
+            accessToken={session.accessToken}
+            locale={locale}
+            onSessionExpired={session.clearSession}
+          />
+          {session.isSuperAdmin && (
+            <MarketplaceCategories
+              accessToken={session.accessToken}
+              locale={locale}
+              onSessionExpired={session.clearSession}
+            />
+          )}
+        </>
       )}
     </AdminShell>
   );

@@ -12,5 +12,7 @@ public record CatalogItemResponse(
         int version,
         long priceTiyin,
         String currency,
-        Instant publishedAt) {
+        Instant publishedAt,
+        String category,
+        String sellerName) {
 }

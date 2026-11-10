@@ -8,8 +8,8 @@
 | 2b Editor core (deck types, ops, undo/redo) | **Done**, typecheck passes and all 6 tests pass |
 | 3 Web editor + export integration | **Implemented** (visual editor, versioned saves, authenticated PPTX/PDF jobs and downloads; production smoke test pending) |
 | 4 AI generation | **Implemented, provider-gated** (authenticated persisted jobs and validated web flow; no live provider compatibility test) |
-| 5 Marketplace + payments | Provider-independent listings/orders/sandbox implemented; real payment processing blocked on merchant specifications and credentials |
-| 6 Admin panel | **Implemented** (role-protected sign-in and user management) |
+| 5 Marketplace + payments | Catalog, category filters/preferences, listing details, web/mobile storefronts, seller publishing, orders, and sandbox UX implemented; real payment processing blocked on merchant specifications and credentials |
+| 6 Admin panel | **Implemented** (role-protected sign-in, user management, and marketplace listing moderation) |
 | 7 Flutter MVP | Partial (auth, library, create/open, multi-slide text/title editing, versioned saves and conflict reload; export pending; signed AAB workflow awaits operator signing secrets) |
 | 8 Quality + release | In progress (backend, web, admin, shared types, mobile, and renderer checks pass; live VDS deployment, backups, monitoring and production smoke tests pending) |
 
@@ -33,5 +33,6 @@
 - Email verification and password recovery are implemented with generic action responses; production SMTP delivery still needs testing with the chosen provider.
 - A fresh PostgreSQL 16 run passed all 32 backend tests both with and without the V8 bootstrap admin configured.
 - The V8 migration seeds an admin only from the configured email and Base64 BCrypt hash; there are no committed default credentials.
+- Marketplace clients can browse a published catalog, filter by category, inspect seller/license metadata, create orders, and publish an owned presentation. Sandbox checkout remains disabled unless explicitly enabled under the sandbox profile. V11 grants SUPERADMIN only to the configured existing verified administrator.
 - Flyway migrations are append-only. Preserve migrations already applied in any shared environment.
 - Real Payme, Click, and Uzum payment adapters must not be activated until current merchant technical materials and credentials verify protocol authentication, amount units, lifecycle, replay protection, and sandbox behavior. See `PAYMENTS.md`.

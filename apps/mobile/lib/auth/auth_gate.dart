@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
 import 'package:slideforge_mobile/auth/auth_screen.dart';
+import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_library_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
@@ -17,11 +18,24 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   late final AuthRepository _repository;
   AuthSession? _session;
-  bool _isRussian = false;
+  String _locale = 'en';
   bool _isRestoring = true;
   bool _isSubmitting = false;
+  bool _authRequested = false;
+  int _guestReturnSection = 0;
+  int _guestReturnCheckoutStep = 0;
+  List<Map<String, dynamic>> _cartItems = [];
   String? _error;
   String? _notice;
+
+  bool get _isRussian => _locale == 'ru';
+  bool get _isUzbek => _locale == 'uz';
+  String _text(String english, String russian, String uzbek) =>
+      _isUzbek
+          ? uzbek
+          : _isRussian
+          ? russian
+          : english;
 
   @override
   void initState() {
@@ -44,7 +58,12 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) {
         setState(() {
           _session = session;
-          if (session != null) _isRussian = session.user.locale == 'ru';
+          if (session != null) {
+            _locale =
+                ['en', 'ru', 'uz'].contains(session.user.locale)
+                    ? session.user.locale
+                    : 'en';
+          }
         });
       }
     } on AuthException catch (exception) {
@@ -52,10 +71,11 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error =
-              _isRussian
-                  ? 'Не удалось связаться с сервером. Проверьте подключение.'
-                  : 'Could not reach the server. Check your connection.';
+          _error = _text(
+            'Could not reach the server. Check your connection.',
+            'Не удалось связаться с сервером. Проверьте подключение.',
+            'Serverga ulanib boʻlmadi. Internet aloqasini tekshiring.',
+          );
         });
       }
     } finally {
@@ -76,18 +96,14 @@ class _AuthGateState extends State<AuthGate> {
     });
     try {
       if (createAccount) {
-        await _repository.register(
-          email,
-          password,
-          displayName,
-          _isRussian ? 'ru' : 'en',
-        );
+        await _repository.register(email, password, displayName, _locale);
         if (mounted) {
           setState(() {
-            _notice =
-                _isRussian
-                    ? 'Если аккаунт доступен, письмо для подтверждения будет отправлено.'
-                    : 'If eligible, verification instructions will be sent to your email.';
+            _notice = _text(
+              'If eligible, verification instructions will be sent to your email.',
+              'Если аккаунт доступен, письмо для подтверждения будет отправлено.',
+              'Agar hisob mos boʻlsa, tasdiqlash koʻrsatmalari elektron pochtangizga yuboriladi.',
+            );
           });
         }
         return AuthSubmitResult.registered;
@@ -96,7 +112,10 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) {
         setState(() {
           _session = session;
-          _isRussian = session.user.locale == 'ru';
+          _locale =
+              ['en', 'ru', 'uz'].contains(session.user.locale)
+                  ? session.user.locale
+                  : 'en';
         });
       }
       return AuthSubmitResult.signedIn;
@@ -107,10 +126,11 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) {
         setState(
           () =>
-              _error =
-                  _isRussian
-                      ? 'Не удалось связаться с сервером. Проверьте подключение.'
-                      : 'Could not reach the server. Check your connection.',
+              _error = _text(
+                'Could not reach the server. Check your connection.',
+                'Не удалось связаться с сервером. Проверьте подключение.',
+                'Serverga ulanib boʻlmadi. Internet aloqasini tekshiring.',
+              ),
         );
       }
       return AuthSubmitResult.failed;
@@ -138,12 +158,16 @@ class _AuthGateState extends State<AuthGate> {
         setState(() {
           _notice =
               verification
-                  ? (_isRussian
-                      ? 'Если аккаунт доступен, письмо для подтверждения будет отправлено.'
-                      : 'If eligible, verification instructions will be sent to your email.')
-                  : (_isRussian
-                      ? 'Если аккаунт существует, инструкции для сброса пароля будут отправлены.'
-                      : 'If the account exists, password reset instructions will be sent.');
+                  ? _text(
+                    'If eligible, verification instructions will be sent to your email.',
+                    'Если аккаунт доступен, письмо для подтверждения будет отправлено.',
+                    'Agar hisob mos boʻlsa, tasdiqlash koʻrsatmalari elektron pochtangizga yuboriladi.',
+                  )
+                  : _text(
+                    'If the account exists, password reset instructions will be sent.',
+                    'Если аккаунт существует, инструкции для сброса пароля будут отправлены.',
+                    'Agar hisob mavjud boʻlsa, parolni tiklash koʻrsatmalari yuboriladi.',
+                  );
         });
       }
     } on AuthException catch (exception) {
@@ -151,10 +175,11 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error =
-              _isRussian
-                  ? 'Не удалось связаться с сервером. Проверьте подключение.'
-                  : 'Could not reach the server. Check your connection.';
+          _error = _text(
+            'Could not reach the server. Check your connection.',
+            'Не удалось связаться с сервером. Проверьте подключение.',
+            'Serverga ulanib boʻlmadi. Internet aloqasini tekshiring.',
+          );
         });
       }
     } finally {
@@ -168,49 +193,76 @@ class _AuthGateState extends State<AuthGate> {
     } on AuthException catch (exception) {
       if (mounted) setState(() => _error = exception.message);
     } finally {
-      if (mounted) setState(() => _session = null);
+      if (mounted) {
+        setState(() {
+          _session = null;
+          _authRequested = false;
+        });
+      }
     }
   }
 
   void _toggleLanguage() {
-    setState(() => _isRussian = !_isRussian);
+    setState(() {
+      _locale = switch (_locale) {
+        'en' => 'ru',
+        'ru' => 'uz',
+        _ => 'en',
+      };
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isRestoring) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.layers_rounded,
-                size: 30,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              const CircularProgressIndicator(),
-            ],
-          ),
-        ),
-      );
-    }
-
     final session = _session;
     if (session != null) {
       return WorkspaceScreen(
         user: session.user,
         accessToken: session.accessToken,
         isRussian: _isRussian,
+        isUzbek: _isUzbek,
         error: _error,
         onSignOut: _signOut,
         onToggleLanguage: _toggleLanguage,
         presentationRepository: widget.presentationRepository,
+        cartItems: _cartItems,
+        onCartChanged: (items) => setState(() => _cartItems = items),
+        initialTab: _cartItems.isNotEmpty ? 1 : 2,
+        initialMarketplaceSection: _cartItems.isNotEmpty ? 1 : 0,
+        initialCheckoutStep: _cartItems.isNotEmpty ? 2 : 0,
+      );
+    }
+    if (!_authRequested) {
+      return MarketplaceScreen(
+        accessToken: null,
+        isRussian: _isRussian,
+        isUzbek: _isUzbek,
+        presentationRepository:
+            widget.presentationRepository ??
+            ApiPresentationRepository(
+              baseUrl: const String.fromEnvironment(
+                'API_BASE_URL',
+                defaultValue: 'http://10.0.2.2:8080',
+              ),
+            ),
+        cartItems: _cartItems,
+        onCartChanged: (items) => setState(() => _cartItems = items),
+        initialSection: _guestReturnSection,
+        initialCheckoutStep: _guestReturnCheckoutStep,
+        isRestoringSession: _isRestoring,
+        startupError: _error,
+        onRequireAuth:
+            (section, checkoutStep) => setState(() {
+              _guestReturnSection = section;
+              _guestReturnCheckoutStep = checkoutStep;
+              _authRequested = true;
+            }),
+        onToggleLanguage: _toggleLanguage,
       );
     }
     return AuthScreen(
       isRussian: _isRussian,
+      isUzbek: _isUzbek,
       isSubmitting: _isSubmitting,
       error: _error,
       notice: _notice,
@@ -220,6 +272,7 @@ class _AuthGateState extends State<AuthGate> {
       onRequestPasswordRecovery:
           (email) => _requestEmailAction(email, verification: false),
       onToggleLanguage: _toggleLanguage,
+      onBack: () => setState(() => _authRequested = false),
     );
   }
 }

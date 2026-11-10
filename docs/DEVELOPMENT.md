@@ -47,11 +47,15 @@ npm run dev -- --port 5175
 
 The web app supports account/profile workflows, presentation library management, a visual deck editor with versioned saves, asynchronous PPTX/PDF exports, and AI generation. Flutter supports registration/login, secure session restore, a presentation library, create/open, title and text editing across slides, add/remove slide operations, versioned saves, and reloading the server version after a save conflict. Mobile exports remain future work.
 
+The marketplace is available to signed-out visitors in both clients: browsing, categories, listing details, seller information, and cart are public; checkout requires an account. Seller listings require a signed-in user with an owned presentation. Category preferences are saved for signed-in shoppers. The marketplace UI supports English, Russian, and Uzbek (Latin script). The admin category manager is available only to `SUPERADMIN`.
+
+For a storefront demo without creating orders, set `VITE_MARKETPLACE_DEMO=true` when building/running the web app, or launch Flutter with `--dart-define=MARKETPLACE_DEMO=true`. Both modes use local sample listings and paginate by 10; demo checkout explicitly does not create an order or charge. Real payment-provider integrations are not enabled: the API has a development-only sandbox adapter that is disabled by default, and production checkout requires a provider-specific integration and credentials.
+
 For AI generation, configure `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`, and `AI_PROVIDER_API_KEY` on the API server (never in a `VITE_*` variable or client `.env`). The API expects an OpenAI-compatible chat-completions endpoint with JSON-object output support; see [the API contract](API.md) for request/response assumptions and limits. Without provider configuration, generation jobs fail explicitly.
 
 ### Bootstrap the first administrator
 
-There are no committed default administrator credentials. On the first database migration, V8 inserts one verified administrator only when both `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64` are configured. The hash is generated with the application's Spring password encoder and contains no plaintext password.
+There are no committed default administrator credentials. On the first database migration, V8 inserts one verified administrator only when both `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64` are configured. V11 grants `SUPERADMIN` only to that configured email when it is already a verified, active `ADMIN`; partial/invalid configuration and accounts without the `ADMIN` role fail migration. Neither migration assigns privileged roles during public registration. The hash is generated with the application's Spring password encoder and contains no plaintext password.
 
 From an interactive terminal:
 
@@ -61,7 +65,7 @@ mvn -q -DskipTests compile exec:java
 Pop-Location
 ```
 
-Enter a unique password when prompted and copy the emitted `BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64` value to a secret store. Set `BOOTSTRAP_ADMIN_EMAIL` and the hash in `.env` before running Flyway for the first time (`docker compose up --build -d`). Do not commit `.env` or paste the password/hash in tickets or chat.
+Enter a unique password when prompted and copy the emitted `BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64` value to a secret store. Set `BOOTSTRAP_ADMIN_EMAIL` and the hash in `.env` before running Flyway for the first time (`docker compose up --build -d`). V11 is one-time as well; on a fresh install it elevates only the bootstrap administrator. Do not commit `.env` or paste the password/hash in tickets or chat.
 
 For production, configure GitHub Environment `production` secrets `PROD_BOOTSTRAP_ADMIN_EMAIL` and `PROD_BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64` before the first deployment; the deployment workflow supplies them to Flyway. The migration is one-time: changing these values after V8 has already run does not rotate or create an administrator. Use the normal verified password-recovery flow to rotate the bootstrap password. Never seed a shared hard-coded password.
 
@@ -95,4 +99,4 @@ Renderer PDF tests require `soffice` and `python-pptx`; missing tools fail the e
 
 ## Current checkpoint
 
-Authentication, email verification/recovery, core presentation persistence, web editor/export, role-protected admin user management, and provider-independent marketplace/sandbox API workflows are implemented. AI generation requires an operator-configured provider. Flutter supports multi-slide text/title editing and conflict reload but does not yet support exports. Android release signing requires the operator's key; the VDS web/API deployment still requires the operator's DNS, secrets, and production smoke tests. See [continuation notes](CONTINUATION.md) and the [production deployment runbook](DEPLOYMENT.md).
+Authentication, email verification/recovery, core presentation persistence, web editor/export, role-protected admin user management, and marketplace catalog/seller/sandbox workflows are implemented. AI generation requires an operator-configured provider. Flutter supports a marketplace catalog and seller publishing in addition to its presentation editor; mobile exports and a buyer entitlement library remain future work. Android release signing requires the operator's key; the VDS web/API deployment still requires the operator's DNS, secrets, and production smoke tests. See [continuation notes](CONTINUATION.md) and the [production deployment runbook](DEPLOYMENT.md).

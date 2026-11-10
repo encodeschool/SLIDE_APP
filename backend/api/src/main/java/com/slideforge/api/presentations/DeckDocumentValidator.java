@@ -34,7 +34,8 @@ public class DeckDocumentValidator {
         if (title.isBlank() || title.length() > 200 || !title.equals(requestedTitle.strip())) {
             throw invalidDocument("Document title must match the requested title and be at most 200 characters");
         }
-        if (!(language.equals("en") || language.equals("ru")) || !language.equals(requestedLanguage)) {
+        if (!(language.equals("en") || language.equals("ru") || language.equals("uz"))
+                || !language.equals(requestedLanguage)) {
             throw invalidDocument("Document language must match the requested supported language");
         }
 

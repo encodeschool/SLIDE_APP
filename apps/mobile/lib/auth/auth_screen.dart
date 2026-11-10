@@ -6,16 +6,19 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({
     super.key,
     required this.isRussian,
+    required this.isUzbek,
     required this.isSubmitting,
     required this.error,
     required this.onSubmit,
     required this.onRequestVerification,
     required this.onRequestPasswordRecovery,
     required this.onToggleLanguage,
+    this.onBack,
     this.notice,
   });
 
   final bool isRussian;
+  final bool isUzbek;
   final bool isSubmitting;
   final String? error;
   final Future<AuthSubmitResult> Function(
@@ -28,6 +31,7 @@ class AuthScreen extends StatefulWidget {
   final Future<void> Function(String email) onRequestVerification;
   final Future<void> Function(String email) onRequestPasswordRecovery;
   final VoidCallback onToggleLanguage;
+  final VoidCallback? onBack;
   final String? notice;
 
   @override
@@ -43,22 +47,53 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _emailActionError;
 
   String get _title =>
-      widget.isRussian
+      widget.isUzbek
+          ? 'Gʻoyalaringizni yorqin namoyish eting.'
+          : widget.isRussian
           ? 'Ваши идеи в лучшем свете.'
           : 'Your ideas, in their best light.';
   String get _subtitle =>
-      widget.isRussian
+      widget.isUzbek
+          ? 'Taqdimotlar ish maydoniga kiring.'
+          : widget.isRussian
           ? 'Войдите в рабочее пространство презентаций.'
           : 'Sign in to your presentation workspace.';
   String get _emailLabel =>
-      widget.isRussian ? 'Электронная почта' : 'Email address';
-  String get _passwordLabel => widget.isRussian ? 'Пароль' : 'Password';
-  String get _nameLabel => widget.isRussian ? 'Ваше имя' : 'Your name';
-  String get _signIn => widget.isRussian ? 'Войти' : 'Sign in';
+      widget.isUzbek
+          ? 'Elektron pochta'
+          : widget.isRussian
+          ? 'Электронная почта'
+          : 'Email address';
+  String get _passwordLabel =>
+      widget.isUzbek
+          ? 'Parol'
+          : widget.isRussian
+          ? 'Пароль'
+          : 'Password';
+  String get _nameLabel =>
+      widget.isUzbek
+          ? 'Ismingiz'
+          : widget.isRussian
+          ? 'Ваше имя'
+          : 'Your name';
+  String get _signIn =>
+      widget.isUzbek
+          ? 'Kirish'
+          : widget.isRussian
+          ? 'Войти'
+          : 'Sign in';
   String get _register =>
-      widget.isRussian ? 'Создать аккаунт' : 'Create account';
+      widget.isUzbek
+          ? 'Hisob yaratish'
+          : widget.isRussian
+          ? 'Создать аккаунт'
+          : 'Create account';
   String get _switchMode =>
-      widget.isRussian
+      widget.isUzbek
+          ? (_createAccount
+              ? 'Hisobingiz bormi? Kiring'
+              : 'Yangi foydalanuvchimisiz? Hisob yarating')
+          : widget.isRussian
           ? (_createAccount
               ? 'Уже есть аккаунт? Войти'
               : 'Нет аккаунта? Создать')
@@ -66,21 +101,41 @@ class _AuthScreenState extends State<AuthScreen> {
               ? 'Already registered? Sign in'
               : 'New to Slideforge? Create an account');
   String get _resendVerification =>
-      widget.isRussian
+      widget.isUzbek
+          ? 'Tasdiqlash xatini qayta yuborish'
+          : widget.isRussian
           ? 'Отправить письмо повторно'
           : 'Resend verification email';
   String get _forgotPassword =>
-      widget.isRussian ? 'Забыли пароль?' : 'Forgot password?';
+      widget.isUzbek
+          ? 'Parol esdan chiqdimi?'
+          : widget.isRussian
+          ? 'Забыли пароль?'
+          : 'Forgot password?';
   String get _invalidEmail =>
-      widget.isRussian
+      widget.isUzbek
+          ? 'Toʻgʻri elektron pochta manzilini kiriting'
+          : widget.isRussian
           ? 'Введите корректный адрес электронной почты'
           : 'Enter a valid email address';
   String get _passwordLength =>
-      widget.isRussian ? 'Не менее 12 символов' : 'Use at least 12 characters';
+      widget.isUzbek
+          ? 'Kamida 12 ta belgi kiriting'
+          : widget.isRussian
+          ? 'Не менее 12 символов'
+          : 'Use at least 12 characters';
   String get _required =>
-      widget.isRussian ? 'Обязательное поле' : 'This field is required';
+      widget.isUzbek
+          ? 'Bu maydonni toʻldirish shart'
+          : widget.isRussian
+          ? 'Обязательное поле'
+          : 'This field is required';
   String get _languageTooltip =>
-      widget.isRussian ? 'Сменить язык' : 'Switch language';
+      widget.isUzbek
+          ? 'Tilni almashtirish'
+          : widget.isRussian
+          ? 'Сменить язык'
+          : 'Switch language';
 
   @override
   void dispose() {
@@ -127,6 +182,19 @@ class _AuthScreenState extends State<AuthScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF7F8F5),
         titleSpacing: 20,
+        leading:
+            widget.onBack == null
+                ? null
+                : IconButton(
+                  tooltip:
+                      widget.isUzbek
+                          ? 'Doʻkonga qaytish'
+                          : widget.isRussian
+                          ? 'Назад в магазин'
+                          : 'Back to shop',
+                  onPressed: widget.onBack,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                ),
         title: Row(
           children: [
             Container(

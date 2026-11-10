@@ -49,6 +49,7 @@ export function GenerationPanel({
           <select value={language} onChange={(event) => setLanguage(event.target.value as Locale)}>
             <option value="en">English</option>
             <option value="ru">Русский</option>
+            <option value="uz">Oʻzbekcha</option>
           </select>
         </label>
         <label>

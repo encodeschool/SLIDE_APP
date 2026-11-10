@@ -12,5 +12,11 @@ public record CreateListingRequest(
         @Positive int presentationVersion,
         @NotNull @Positive Long priceTiyin,
         @NotBlank @Size(max = 20000) String description,
-        @NotBlank @Size(max = 20000) String licenseTerms) {
+        @NotBlank @Size(max = 20000) String licenseTerms,
+        @Size(max = 40) String category) {
+
+    public CreateListingRequest(
+            UUID presentationId, int presentationVersion, Long priceTiyin, String description, String licenseTerms) {
+        this(presentationId, presentationVersion, priceTiyin, description, licenseTerms, "other");
+    }
 }
