@@ -13,7 +13,7 @@ flowchart LR
     API -. object metadata in a later phase .-> S3[(RustFS S3-compatible storage)]
 ```
 
-The backend is one deployable Spring Boot modular monolith. Packages are grouped by business capability; PostgreSQL is the source of truth. The canonical, versioned deck JSON is shared by the editor and renderer. The renderer is a separate Node package because `pptxgenjs` is the chosen editable PowerPoint writer and LibreOffice produces PDF from that output. Local object storage uses RustFS behind the S3 API; the current marketplace snapshots canonical JSON and does not upload binaries. The web client has the editor, exports, and AI generation flow; the Flutter client has authentication, library management, multi-slide text editing, and versioned saves. The admin client provides role-protected user management.
+The backend is one deployable Spring Boot modular monolith. Packages are grouped by business capability; PostgreSQL is the source of truth. The canonical, versioned deck JSON is shared by the presentation editor and renderer. Written/interactive learning artifacts use a distinct typed JSON model with immutable PostgreSQL versions and are never encoded as decks. The renderer is a separate Node package: `pptxgenjs` writes editable PowerPoint and LibreOffice produces PDF, while artifact rendering writes editable DOCX and printable PDF. Local object storage uses RustFS behind the S3 API; the current marketplace snapshots canonical JSON and does not upload binaries. Web and Flutter provide presentation and artifact libraries/editors; the admin client provides role-protected user management.
 
 ## Request and job flows
 
@@ -21,7 +21,11 @@ Clients call the versioned `/api/v1` API. Authentication, profile, and owner-sco
 
 Export flow: the authenticated API validates presentation ownership, pins the requested immutable version, and persists an export job in PostgreSQL. The scheduled worker claims queued jobs with `FOR UPDATE SKIP LOCKED`, sends canonical JSON to the private renderer service, and stores the generated artifact on the configured persistent export volume. Clients poll the owner-scoped API and download through an authenticated route. Stale running jobs are requeued after the configured timeout.
 
+Learning-artifact saves are owner-scoped and create immutable versions. Artifact export endpoints pin either the current or requested version and invoke the private renderer synchronously; unlike presentation exports, artifact exports do not yet create export-job records. Quiz answers and crossword entries are validated server-side; clients provide interactive play controls while retaining the answer key in the editable model.
+
 AI generation flow: an authenticated API request persists a bounded owner-scoped job in PostgreSQL. The API-process worker claims queued jobs and calls a server-configured OpenAI-compatible provider with a timeout. It validates and normalizes the returned deck against the canonical schema and output limits before persisting success; provider errors or invalid output fail explicitly. Clients poll the job and save a successful result as a presentation. RabbitMQ is not used by this current workflow.
+
+Artifact AI drafting uses a separate type-specific server prompt and validates the returned structure before exposing it as an editable draft. This first artifact flow calls the configured provider synchronously and does not persist draft-job status; persisted artifact content and every later edit are versioned independently.
 
 ## Security boundaries
 

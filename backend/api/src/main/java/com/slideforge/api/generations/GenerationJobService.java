@@ -2,7 +2,7 @@ package com.slideforge.api.generations;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import com.slideforge.api.presentations.DeckDocumentValidator;
 import java.time.Clock;
 import java.time.Duration;

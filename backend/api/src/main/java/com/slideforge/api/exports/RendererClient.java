@@ -26,4 +26,17 @@ public class RendererClient {
         }
         return output;
     }
+
+    public byte[] renderArtifact(JsonNode document, String format) {
+        byte[] output = restClient.post()
+                .uri("/render/artifact/{format}", format)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(document)
+                .retrieve()
+                .body(byte[].class);
+        if (output == null || output.length == 0) {
+            throw new IllegalStateException("Renderer returned an empty artifact export");
+        }
+        return output;
+    }
 }

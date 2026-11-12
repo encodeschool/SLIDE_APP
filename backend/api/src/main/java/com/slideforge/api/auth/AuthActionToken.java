@@ -1,6 +1,6 @@
 package com.slideforge.api.auth;
 
-import com.slideforge.api.users.UserAccount;
+import com.slideforge.api.users.model.UserAccount;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

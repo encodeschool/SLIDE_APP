@@ -1,6 +1,6 @@
 package com.slideforge.api.auth;
 
-import com.slideforge.api.users.UserProfileResponse;
+import com.slideforge.api.users.dto.UserProfileResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.time.Duration;
@@ -60,6 +60,9 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(
             @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.<AuthResponse>noContent().build();
+        }
         return issueSession(authService.refresh(refreshToken), 200);
     }
 

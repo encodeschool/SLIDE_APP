@@ -26,8 +26,11 @@ public class CatalogController {
     public CatalogPageResponse list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String category) {
-        return marketplaceService.catalog(page, size, category);
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long minPriceTiyin,
+            @RequestParam(required = false) Long maxPriceTiyin,
+            @RequestParam(defaultValue = "latest") String sort) {
+        return marketplaceService.catalog(page, size, category, minPriceTiyin, maxPriceTiyin, sort);
     }
 
     @GetMapping("/categories")

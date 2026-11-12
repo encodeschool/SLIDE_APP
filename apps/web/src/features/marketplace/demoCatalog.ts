@@ -35,6 +35,29 @@ export const demoProducts: Product[] = examples.map((example, index) => ({
   currency: "UZS",
   publishedAt: new Date("2026-01-01T00:00:00Z").toISOString(),
   category: example[2],
+  previewSlides: [
+    {
+      slideNumber: 1,
+      title: example[0],
+      text: [example[1]],
+      backgroundColor: "#F3F5F1",
+      accentColor: "#28765D",
+    },
+    {
+      slideNumber: 2,
+      title: "The big idea",
+      text: [example[1]],
+      backgroundColor: "#F4F0E8",
+      accentColor: "#8A6945",
+    },
+    {
+      slideNumber: 3,
+      title: "What comes next",
+      text: ["Start with ready-to-edit slides."],
+      backgroundColor: "#EDF1F5",
+      accentColor: "#526C89",
+    },
+  ],
 }));
 
 export const demoProductDetails = new Map<string, ProductDetail>(
@@ -47,8 +70,25 @@ export const demoProductDetails = new Map<string, ProductDetail>(
   ]),
 );
 
-export const demoCatalogPage = (page: number, size: number, category: string) => {
-  const filtered = category ? demoProducts.filter((product) => product.category === category) : demoProducts;
+export const demoCatalogPage = (
+  page: number,
+  size: number,
+  category: string,
+  minPriceTiyin: number | null = null,
+  maxPriceTiyin: number | null = null,
+  sort = "latest",
+) => {
+  const filtered = demoProducts
+    .filter((product) =>
+      (!category || product.category === category)
+      && (minPriceTiyin === null || product.priceTiyin >= minPriceTiyin)
+      && (maxPriceTiyin === null || product.priceTiyin <= maxPriceTiyin),
+    )
+    .sort((left, right) => {
+      if (sort === "price_asc") return left.priceTiyin - right.priceTiyin;
+      if (sort === "price_desc") return right.priceTiyin - left.priceTiyin;
+      return right.publishedAt.localeCompare(left.publishedAt);
+    });
   return {
     items: filtered.slice(page * size, (page + 1) * size),
     page,

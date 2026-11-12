@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.slideforge.api.admin.dto.AdminInvitationRequest;
+import com.slideforge.api.admin.service.AdminUserService;
 import com.slideforge.api.auth.AdminInvitationCompletionRequest;
 import com.slideforge.api.auth.AuthActionRequest;
 import com.slideforge.api.auth.AuthActionResponse;
@@ -17,7 +19,7 @@ import com.slideforge.api.auth.LoginRequest;
 import com.slideforge.api.auth.MailDelivery;
 import com.slideforge.api.auth.RegisterRequest;
 import com.slideforge.api.auth.TokenRequest;
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;

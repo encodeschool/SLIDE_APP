@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slideforge_mobile/auth/app_state_store.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
+import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/main.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
@@ -59,6 +62,18 @@ class DelayedAuthRepository extends FakeAuthRepository {
 
   @override
   Future<AuthSession?> restoreSession() => restoreCompleter.future;
+}
+
+class MemoryAppStateStore implements MobileAppStateStore {
+  MobileAppState state = const MobileAppState();
+
+  @override
+  Future<MobileAppState> read() async => state;
+
+  @override
+  Future<void> write(MobileAppState value) async {
+    state = value;
+  }
 }
 
 class FakePresentationRepository implements PresentationRepository {
@@ -139,6 +154,18 @@ class FakePresentationRepository implements PresentationRepository {
   }
 
   @override
+  Future<PresentationDetail> generate(
+    String accessToken,
+    String prompt,
+    String language,
+    int slideCount,
+  ) async {
+    final detail = _detail(prompt);
+    presentations = [detail, ...presentations];
+    return detail;
+  }
+
+  @override
   Future<PresentationDetail> read(
     String accessToken,
     String presentationId,
@@ -172,15 +199,16 @@ class FakePresentationRepository implements PresentationRepository {
 }
 
 void main() {
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+
   testWidgets('shop is the first screen and auth switches language', (
     tester,
   ) async {
     final repository = DelayedAuthRepository();
     await tester.pumpWidget(SlideforgeApp(authRepository: repository));
-    expect(find.text('Presentation marketplace'), findsOneWidget);
+    expect(find.text('Preparing your workspace'), findsOneWidget);
+    expect(find.text('Presentation marketplace'), findsNothing);
     expect(find.byKey(const Key('auth-screen')), findsNothing);
-    expect(find.text('Demo catalog · sample presentations'), findsOneWidget);
-    expect(find.text('Investor pitch deck'), findsOneWidget);
     repository.restoreCompleter.complete(null);
     await tester.pumpAndSettle();
 
@@ -209,7 +237,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Demo catalog · sample presentations'), findsOneWidget);
-    expect(find.text('Investor pitch deck'), findsOneWidget);
+    final shopScroll =
+        find
+            .descendant(
+              of: find.byType(RefreshIndicator),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+    final scrollRect = tester.getRect(shopScroll);
+    final dragStart = Offset(scrollRect.center.dx, scrollRect.top + 60);
+    for (
+      var attempt = 0;
+      attempt < 12 && find.text('Explore all').evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.dragFrom(dragStart, const Offset(0, -240));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Explore all'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('market-product-grid')),
+        matching: find.text('Investor pitch deck'),
+      ),
+      findsNWidgets(2),
+    );
     final grid = tester.widget<GridView>(
       find.byKey(const ValueKey('market-product-grid')),
     );
@@ -217,20 +269,18 @@ void main() {
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 2);
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('market-product-grid')),
-        matching: find.byType(Card),
-      ),
-      findsNWidgets(10),
+      tester
+          .widgetList<Card>(
+            find.descendant(
+              of: find.byKey(const ValueKey('market-product-grid')),
+              matching: find.byType(Card),
+            ),
+          )
+          .length,
+      greaterThanOrEqualTo(10),
     );
     final loadMore = find.text('Load 10 more');
-    await tester.scrollUntilVisible(
-      loadMore,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(loadMore);
+    await tester.dragFrom(dragStart, const Offset(0, -1800));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
@@ -239,7 +289,168 @@ void main() {
       ),
       findsNWidgets(12),
     );
-    expect(find.text('Customer journey map'), findsOneWidget);
+    expect(find.text('Customer journey map'), findsNWidgets(2));
+    expect(loadMore, findsNothing);
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('marketplace category tile shows icon above its label', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MarketplaceScreen(
+          accessToken: null,
+          isRussian: false,
+          isUzbek: false,
+          presentationRepository: FakePresentationRepository(),
+          cartItems: const [],
+          onCartChanged: (_) {},
+          onToggleLanguage: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final category = find.byKey(const ValueKey('market-category-business'));
+    final icon = find.descendant(
+      of: category,
+      matching: find.byIcon(Icons.business_center_rounded),
+    );
+    final label = find.descendant(
+      of: category,
+      matching: find.text('Business'),
+    );
+    expect(category, findsOneWidget);
+    expect(tester.getTopLeft(icon).dy, lessThan(tester.getTopLeft(label).dy));
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('cart badge updates and remove action is accessible', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: FakePresentationRepository(),
+        appStateStore: MemoryAppStateStore(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final addButton = find.widgetWithText(FilledButton, 'Add to cart').first;
+    await tester.ensureVisible(addButton);
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(addButton).onPressed, isNotNull);
+    await tester.tap(addButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(NavigationBar), matching: find.text('1')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Cart').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Your cart'), findsOneWidget);
+    expect(
+      find.byTooltip('Remove Investor pitch deck from cart'),
+      findsOneWidget,
+    );
+    final removeButton = find.byTooltip('Remove Investor pitch deck from cart');
+    await tester.ensureVisible(removeButton);
+    await tester.pumpAndSettle();
+    await tester.tap(removeButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Your cart is empty.'), findsOneWidget);
+    expect(find.text('Your cart'), findsNothing);
+    semantics.dispose();
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('product card opens its slide details without a Details button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: FakePresentationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Details'), findsNothing);
+    final firstProduct = find.byKey(
+      const ValueKey('market-product-demo-listing-1-featured'),
+    );
+    await tester.ensureVisible(firstProduct);
+    await tester.pumpAndSettle();
+    await tester.tap(firstProduct);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Presentation preview'), findsOneWidget);
+    expect(find.text('Seller'), findsOneWidget);
+    expect(find.byType(PageView), findsWidgets);
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('product cards do not overflow at narrow width and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.binding.platformDispatcher.textScaleFactorTestValue = 2.5;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.binding.platformDispatcher.clearTextScaleFactorTestValue();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) {
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(textScaler: const TextScaler.linear(2.5)),
+            child: child!,
+          );
+        },
+        home: MarketplaceScreen(
+          accessToken: null,
+          isRussian: false,
+          isUzbek: false,
+          presentationRepository: FakePresentationRepository(),
+          cartItems: const [],
+          onCartChanged: (_) {},
+          onToggleLanguage: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Presentation marketplace'), findsOneWidget);
+    final shopScroll =
+        find
+            .descendant(
+              of: find.byType(RefreshIndicator),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+    await tester.scrollUntilVisible(
+      find.text('Explore all'),
+      220,
+      scrollable: shopScroll,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('market-product-grid')), findsOneWidget);
+    final grid = tester.widget<GridView>(
+      find.byKey(const ValueKey('market-product-grid')),
+    );
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.mainAxisExtent, lessThan(360));
+
+    final addToCart = find.byTooltip('Add to cart').first;
+    await tester.ensureVisible(addToCart);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(addToCart, findsOneWidget);
   }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
 
   testWidgets('guest checkout returns to payment after cancelling sign-in', (
@@ -253,16 +464,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final addToCart = find.byTooltip('Add to cart').first;
+    final addToCart = find.widgetWithText(FilledButton, 'Add to cart').first;
     await tester.ensureVisible(addToCart);
     await tester.pumpAndSettle();
     await tester.tap(addToCart);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cart'));
+    await tester.tap(find.text('Cart').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue to checkout'));
+    final continueToCheckout = find.text('Continue to checkout');
+    await tester.ensureVisible(continueToCheckout);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue to payment'));
+    await tester.tap(continueToCheckout);
+    await tester.pumpAndSettle();
+    final continueToPayment = find.text('Continue to payment');
+    await tester.ensureVisible(continueToPayment);
+    await tester.pumpAndSettle();
+    await tester.tap(continueToPayment);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign in to continue'));
     await tester.pumpAndSettle();
@@ -271,8 +488,61 @@ void main() {
     await tester.tap(find.byTooltip('Back to shop'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Payment'), findsOneWidget);
+    expect(find.text('Payment'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Sign in to continue'),
+      200,
+      scrollable:
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('market-cart')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+    );
     expect(find.text('Sign in to continue'), findsOneWidget);
+  }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('cart and checkout step are restored after a restart', (
+    tester,
+  ) async {
+    final appState = MemoryAppStateStore();
+    final presentationRepository = FakePresentationRepository();
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: presentationRepository,
+        appStateStore: appState,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final addToCart = find.widgetWithText(FilledButton, 'Add to cart').first;
+    await tester.ensureVisible(addToCart);
+    await tester.pumpAndSettle();
+    await tester.tap(addToCart);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cart').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to checkout'));
+    await tester.pumpAndSettle();
+
+    expect(appState.state.cartItems, hasLength(1));
+    expect(appState.state.marketplaceSection, 1);
+    expect(appState.state.checkoutStep, 1);
+
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository: FakeAuthRepository(),
+        presentationRepository: presentationRepository,
+        appStateStore: appState,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Checkout'), findsWidgets);
+    expect(find.text('Continue to payment'), findsOneWidget);
+    expect(find.text('Investor pitch deck'), findsWidgets);
   }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
 
   testWidgets(
@@ -390,6 +660,42 @@ void main() {
     expect(repository.listCalls, 2);
   });
 
+  testWidgets('AI creator previews format, language, and requested size', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository:
+            FakeAuthRepository()
+              ..restoredSession = const AuthSession(
+                user: AuthUser(
+                  id: 'user-1',
+                  email: 'person@example.test',
+                  displayName: 'Person',
+                  locale: 'en',
+                  roles: ['USER'],
+                ),
+                accessToken: 'access-token',
+              ),
+        presentationRepository: FakePresentationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('create-with-ai')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('work-format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quiz').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('work-preview')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('Quiz · English · 6 questions'), findsOneWidget);
+  });
+
   testWidgets(
     'library creates and opens a deck, then saves title and slide text',
     (tester) async {
@@ -445,6 +751,39 @@ void main() {
       expect(find.text('Version 3'), findsOneWidget);
     },
   );
+
+  testWidgets('editor controls fit a compact mobile viewport', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      SlideforgeApp(
+        authRepository:
+            FakeAuthRepository()
+              ..restoredSession = const AuthSession(
+                user: AuthUser(
+                  id: 'user-1',
+                  email: 'person@example.test',
+                  displayName: 'Person',
+                  locale: 'en',
+                  roles: ['USER'],
+                ),
+                accessToken: 'access-token',
+              ),
+        presentationRepository: FakePresentationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const Key('create-presentation')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('font-family-control')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('mobile editor adds, switches, removes, and saves slides', (
     tester,

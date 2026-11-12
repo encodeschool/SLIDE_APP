@@ -1,7 +1,7 @@
 package com.slideforge.api.auth;
 
-import com.slideforge.api.users.UserAccount;
-import com.slideforge.api.users.UserRole;
+import com.slideforge.api.users.model.UserAccount;
+import com.slideforge.api.users.model.UserRole;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

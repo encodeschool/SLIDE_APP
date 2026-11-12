@@ -5,13 +5,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
+import com.slideforge.api.common.config.SecurityConfiguration;
+import com.slideforge.api.common.config.WebCorsConfiguration;
+import com.slideforge.api.common.controller.StatusController;
+import com.slideforge.api.users.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
-import com.slideforge.api.users.UserRepository;
 
 @WebMvcTest(StatusController.class)
 @Import({SecurityConfiguration.class, com.slideforge.api.auth.JwtConfiguration.class, WebCorsConfiguration.class})

@@ -1,10 +1,10 @@
 package com.slideforge.api.auth;
 
-import com.slideforge.api.common.ApiException;
-import com.slideforge.api.users.UserAccount;
-import com.slideforge.api.users.UserRepository;
-import com.slideforge.api.users.UserRole;
-import com.slideforge.api.users.UserStatus;
+import com.slideforge.api.common.exception.ApiException;
+import com.slideforge.api.users.model.UserAccount;
+import com.slideforge.api.users.repository.UserRepository;
+import com.slideforge.api.users.model.UserRole;
+import com.slideforge.api.users.model.UserStatus;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;

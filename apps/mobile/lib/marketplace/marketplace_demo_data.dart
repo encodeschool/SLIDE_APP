@@ -38,5 +38,46 @@ List<Map<String, dynamic>> getMarketplaceDemoProducts(bool russian, bool uzbek) 
         'currency': 'UZS',
         'publishedAt': '2026-01-01T00:00:00Z',
         'licenseTerms': 'Demo license: editable for your own projects. No resale or redistribution of the source file.',
+        'previewSlides': [
+          {
+            'slideNumber': 1,
+            'title': uzbek
+                ? example['titleUz']
+                : russian
+                ? example['titleRu']
+                : example['title'],
+            'text': [example['description']],
+            'backgroundColor': '#F3F5F1',
+            'accentColor': '#28765D',
+          },
+          {
+            'slideNumber': 2,
+            'title': uzbek
+                ? 'Asosiy gʻoya'
+                : russian
+                ? 'Главная идея'
+                : 'The big idea',
+            'text': [example['description']],
+            'backgroundColor': '#F4F0E8',
+            'accentColor': '#8A6945',
+          },
+          {
+            'slideNumber': 3,
+            'title': uzbek
+                ? 'Keyingi qadamlar'
+                : russian
+                ? 'Следующие шаги'
+                : 'What comes next',
+            'text': [
+              uzbek
+                  ? 'Tahrirlanadigan slaydlar bilan boshlang.'
+                  : russian
+                  ? 'Начните с редактируемых слайдов.'
+                  : 'Start with ready-to-edit slides.',
+            ],
+            'backgroundColor': '#EDF1F5',
+            'accentColor': '#526C89',
+          },
+        ],
       };
     });

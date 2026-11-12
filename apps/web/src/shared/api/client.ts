@@ -10,7 +10,11 @@ export function restoreSessionFromCookie(): Promise<AuthResponse | null> {
       method: "POST",
       credentials: "include",
     })
-      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : null)
+      .then(async (response) =>
+        response.ok && response.status !== 204
+          ? response.json() as Promise<AuthResponse>
+          : null,
+      )
       .catch(() => null)
       .finally(() => {
         sessionRestoreRequest = null;
@@ -39,6 +43,10 @@ export async function authorizedFetch(
     method: "POST",
     credentials: "include",
   });
+  if (refreshResponse.status === 204) {
+    onExpired();
+    return response;
+  }
   if (!refreshResponse.ok) {
     onExpired();
     return response;

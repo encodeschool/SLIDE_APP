@@ -1,6 +1,7 @@
 package com.slideforge.api.marketplace;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record CatalogItemResponse(
@@ -14,5 +15,6 @@ public record CatalogItemResponse(
         String currency,
         Instant publishedAt,
         String category,
-        String sellerName) {
+        String sellerName,
+        List<CatalogSlidePreview> previewSlides) {
 }

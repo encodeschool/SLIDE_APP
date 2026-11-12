@@ -5,9 +5,10 @@ Slideforge is an AI-assisted presentation platform built from a Spring Boot modu
 ## Current checkpoint
 
 - Spring Boot API: status/health/OpenAPI, PostgreSQL/Flyway, email verification/recovery, configurable in-memory auth rate limits, owner-scoped versioned presentations, PPTX/PDF exports, validated AI generation jobs, admin user management, and provider-independent marketplace/sandbox flows.
-- Renderer: private HTTP service that generates editable PPTX files and converts them to PDF through LibreOffice. Compose builds the renderer with LibreOffice; full renderer tests also require Python `python-pptx`.
+- Renderer: private HTTP service that generates editable PPTX and DOCX files and converts presentation/artifact content to PDF through LibreOffice. Compose builds the renderer with LibreOffice; full presentation renderer tests also require Python `python-pptx`.
 - Shared TypeScript deck model and undo/redo operations back the web editor, with passing tests.
-- Web supports the visual editor, versioned saves, exports, and configured-provider AI generation. Admin supports role-protected user management. Flutter supports authentication, a presentation library, create/open, multi-slide editing, and versioned saves; mobile export and signed release builds require additional operator setup.
+- Web supports the visual editor, versioned saves, exports, and configured-provider AI generation. Admin supports role-protected user management. Flutter supports authentication, presentation and learning-document libraries, editing, and versioned saves; mobile presentation export and signed release builds require additional operator setup.
+- Web and mobile also support owner-scoped editable learning artifacts (essay, independent work, coursework, dissertation, research article, quiz, crossword, thesis abstract, glossary, and argumentative essay), with AI drafts, versioned save/reopen, interactive quiz/crossword play, and DOCX/PDF export. Slides continue to use the canonical deck model and PPTX/PDF path.
 - Real payment adapters require current merchant technical materials and credentials. Production deployment is automated for a configured Ubuntu VDS, but no live deployment has been performed.
 
 ## Start

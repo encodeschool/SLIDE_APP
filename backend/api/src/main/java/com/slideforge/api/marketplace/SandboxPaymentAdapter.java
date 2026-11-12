@@ -1,6 +1,6 @@
 package com.slideforge.api.marketplace;
 
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

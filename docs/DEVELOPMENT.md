@@ -20,9 +20,11 @@ docker compose up --build -d
 docker compose up --build -d
 ```
 
-The API starts on `http://localhost:8080`, PostgreSQL on `5432`, RabbitMQ management on `15672`, RustFS S3 API on `9000`, and its console on `9001`. Compose also builds a private renderer service with LibreOffice and persists export files in a Docker volume. Compose applies Flyway migrations during API startup. Local credentials in `.env.example` are development-only. Sign into the RustFS console with the S3 access/secret values and create the `slideforge` bucket; marketplace asset storage is a later phase.
+The API starts on `http://localhost:8080`, PostgreSQL on `5432`, RabbitMQ management on `15672`, RustFS S3 API on `9000`, and its console on `9001`. Compose also builds a private renderer service with LibreOffice and persists export files in a Docker volume. Local SMTP is routed to Mailpit; open `http://localhost:8025` to read verification, recovery, and invitation emails. Compose applies Flyway migrations during API startup. Local credentials in `.env.example` are development-only. Sign into the RustFS console with the S3 access/secret values and create the `slideforge` bucket; marketplace asset storage is a later phase.
 
-This Compose configuration is for local development only. In particular, the RustFS disk-check bypass is not suitable for production. Do not expose these ports publicly; see [security status](SECURITY.md).
+New local accounts must still verify their email before login. If an account was created while mail delivery was disabled, choose **Resend verification email** on the sign-in form, then open the newest message in Mailpit and follow its verification link.
+
+This Compose configuration is for local development only. In particular, the RustFS disk-check bypass and Mailpit are not suitable for production. Mailpit's web UI is bound to loopback; do not expose development service ports publicly. See [security status](SECURITY.md).
 
 ## Run the clients
 
@@ -45,11 +47,21 @@ npm run dev -- --port 5175
 (cd apps/admin && npm ci && npm run dev -- --port 5175)
 ```
 
-The web app supports account/profile workflows, presentation library management, a visual deck editor with versioned saves, asynchronous PPTX/PDF exports, and AI generation. Flutter supports registration/login, secure session restore, a presentation library, create/open, title and text editing across slides, add/remove slide operations, versioned saves, and reloading the server version after a save conflict. Mobile exports remain future work.
+The web app supports account/profile workflows, separate presentation and learning-artifact libraries, versioned editors, asynchronous PPTX/PDF presentation exports, synchronous DOCX/PDF artifact exports, and AI draft generation. Flutter supports registration/login, secure session restore, presentation and artifact libraries, create/open, text editing, versioned saves, interactive quiz/crossword play, and saving artifact exports into the app's documents directory. The mobile app currently stores downloaded artifact export files privately; sharing them through the operating system is not yet implemented.
 
-The marketplace is available to signed-out visitors in both clients: browsing, categories, listing details, seller information, and cart are public; checkout requires an account. Seller listings require a signed-in user with an owned presentation. Category preferences are saved for signed-in shoppers. The marketplace UI supports English, Russian, and Uzbek (Latin script). The admin category manager is available only to `SUPERADMIN`.
+Learning artifacts are not decks. They support Essay, Independent work, Coursework, Dissertation, Research article, Quiz, Crossword, Thesis abstract, Glossary, and Argumentative essay. Their distinct schema stores editable sections plus question-answer data for quizzes and grid/clue entries for crosswords. The artifact AI draft endpoint uses the same server-only provider configuration as presentation generation, but unlike `/api/v1/generations`, it currently runs synchronously and does not persist a generation-job status. Artifact content saves and exports are versioned; artifact exports run synchronously rather than using the persisted presentation export-job worker.
+
+The marketplace is available to signed-out visitors in both clients: browsing, categories, listing details, seller information, and cart are public; checkout requires an account. Seller listings require a signed-in user with an owned presentation. Category preferences are saved for signed-in shoppers. The web storefront uses versioned, validated local storage for public cart-item metadata and browsing/checkout progress; the Flutter storefront saves its validated cart, active checkout step, selected tab, and locale in device storage. These snapshots never include credentials, seller form values, order/payment secrets, or payment details, and storage failures do not block browsing. The mobile shop uses a persistent search field, horizontal category and featured-presentation rows, and accessible cart controls with a red count badge; checkout action buttons remain docked above the bottom navigation. The marketplace UI supports English, Russian, and Uzbek (Latin script). The admin category manager is available only to `SUPERADMIN`.
 
 For a storefront demo without creating orders, set `VITE_MARKETPLACE_DEMO=true` when building/running the web app, or launch Flutter with `--dart-define=MARKETPLACE_DEMO=true`. Both modes use local sample listings and paginate by 10; demo checkout explicitly does not create an order or charge. Real payment-provider integrations are not enabled: the API has a development-only sandbox adapter that is disabled by default, and production checkout requires a provider-specific integration and credentials.
+
+To insert repeatable sample listings into a local PostgreSQL database so the normal web storefront loads them from the API, first start Compose and let Flyway finish through the latest migration (currently V13). Do not set `VITE_MARKETPLACE_DEMO=true` for this path. From the repository root in PowerShell, run:
+
+```powershell
+Get-Content -Raw scripts/seed_marketplace_demo.sql | docker compose exec -T postgres psql -U slideforge -d slideforge
+```
+
+The script inserts a disabled, catalog-only seller plus three published listings with editable preview documents; rerunning it updates the same UUIDs instead of duplicating rows. If `POSTGRES_USER` or `POSTGRES_DB` differs in `.env`, use those values in the `psql` command. Verify the public catalog with `curl.exe http://localhost:8080/api/v1/catalog`, then open `http://localhost:5173` in remote-catalog mode. The seed contains no usable seller password and is for local development only.
 
 For AI generation, configure `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL`, and `AI_PROVIDER_API_KEY` on the API server (never in a `VITE_*` variable or client `.env`). The API expects an OpenAI-compatible chat-completions endpoint with JSON-object output support; see [the API contract](API.md) for request/response assumptions and limits. Without provider configuration, generation jobs fail explicitly.
 

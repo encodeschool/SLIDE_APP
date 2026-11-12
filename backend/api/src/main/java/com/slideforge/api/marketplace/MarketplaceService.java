@@ -2,7 +2,7 @@ package com.slideforge.api.marketplace;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -10,8 +10,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
@@ -156,26 +158,44 @@ public class MarketplaceService {
     }
 
     @Transactional(readOnly = true)
-    public CatalogPageResponse catalog(int page, int size, String category) {
+    public CatalogPageResponse catalog(
+            int page, int size, String category, Long minPriceTiyin, Long maxPriceTiyin, String sort) {
         validatePage(page, size);
         if (category != null && !category.isBlank()) requireCategory(category);
+        validateCatalogFilters(minPriceTiyin, maxPriceTiyin, sort);
         long offset = (long) page * size;
-        List<CatalogItemResponse> items = jdbcTemplate.query(
+        String orderBy = switch (sort) {
+            case "price_asc" -> "lv.price_tiyin ASC, l.id";
+            case "price_desc" -> "lv.price_tiyin DESC, l.id";
+            default -> "l.updated_at DESC, l.id";
+        };
+        String catalogSql =
                 """
                 SELECT l.id AS listing_id, lv.id AS version_id, lv.title, lv.description,
                        l.seller_id, u.display_name AS seller_name, lv.version, lv.price_tiyin,
-                       lv.currency, l.updated_at, l.category
+                       lv.currency, l.updated_at, l.category, lv.document::text AS document
                 FROM listings l
                 JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                 JOIN users u ON u.id = l.seller_id
                 WHERE l.status = 'PUBLISHED' AND lv.document IS NOT NULL AND lv.title IS NOT NULL
                   AND (CAST(? AS VARCHAR) IS NULL OR l.category = CAST(? AS VARCHAR))
-                ORDER BY l.updated_at DESC, l.id
-                LIMIT ? OFFSET ?
-                """,
+                  AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin >= CAST(? AS BIGINT))
+                  AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin <= CAST(? AS BIGINT))
+                ORDER BY
+                """
+                        + orderBy
+                        + """
+                         LIMIT ? OFFSET ?
+                        """;
+        List<CatalogItemResponse> items = jdbcTemplate.query(
+                catalogSql,
                 catalogRowMapper(),
                 category,
                 category,
+                minPriceTiyin,
+                minPriceTiyin,
+                maxPriceTiyin,
+                maxPriceTiyin,
                 size,
                 offset);
         Long total = jdbcTemplate.queryForObject(
@@ -185,10 +205,16 @@ public class MarketplaceService {
                 JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                 WHERE l.status = 'PUBLISHED' AND lv.document IS NOT NULL AND lv.title IS NOT NULL
                   AND (CAST(? AS VARCHAR) IS NULL OR l.category = CAST(? AS VARCHAR))
+                  AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin >= CAST(? AS BIGINT))
+                  AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin <= CAST(? AS BIGINT))
                 """,
                 Long.class,
                 category,
-                category);
+                category,
+                minPriceTiyin,
+                minPriceTiyin,
+                maxPriceTiyin,
+                maxPriceTiyin);
         return new CatalogPageResponse(items, page, size, total == null ? 0 : total);
     }
 
@@ -199,7 +225,7 @@ public class MarketplaceService {
                     """
                     SELECT l.id AS listing_id, lv.id AS version_id, lv.title, lv.description,
                            lv.license_terms, l.seller_id, u.display_name AS seller_name, lv.version,
-                           lv.price_tiyin, lv.currency, l.category, l.updated_at
+                           lv.price_tiyin, lv.currency, l.category, l.updated_at, lv.document::text AS document
                     FROM listings l
                     JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                     JOIN users u ON u.id = l.seller_id
@@ -218,11 +244,64 @@ public class MarketplaceService {
                             rs.getLong("price_tiyin"),
                             rs.getString("currency"),
                             rs.getString("category"),
-                            rs.getTimestamp("updated_at").toInstant()),
+                            rs.getTimestamp("updated_at").toInstant(),
+                            previewSlides(rs.getString("document"))),
                     listingId);
         } catch (EmptyResultDataAccessException exception) {
             throw listingNotFound();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<PurchaseResponse> purchases(UUID buyerId) {
+        return jdbcTemplate.query(
+                """
+                SELECT e.id AS entitlement_id, l.id AS listing_id, lv.id AS listing_version_id,
+                       o.id AS order_id, lv.title, u.display_name AS seller_name, oi.price_tiyin,
+                       lv.currency, e.granted_at
+                FROM entitlements e
+                JOIN orders o ON o.id = e.order_id AND o.status = 'PAID'
+                JOIN order_items oi ON oi.order_id = o.id AND oi.listing_version_id = e.listing_version_id
+                JOIN listing_versions lv ON lv.id = e.listing_version_id
+                JOIN listings l ON l.id = lv.listing_id
+                JOIN users u ON u.id = l.seller_id
+                WHERE e.user_id = ? AND e.revoked_at IS NULL
+                ORDER BY e.granted_at DESC, e.id
+                """,
+                (rs, row) -> new PurchaseResponse(
+                        rs.getObject("entitlement_id", UUID.class),
+                        rs.getObject("listing_id", UUID.class),
+                        rs.getObject("listing_version_id", UUID.class),
+                        rs.getObject("order_id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("seller_name"),
+                        rs.getLong("price_tiyin"),
+                        rs.getString("currency"),
+                        rs.getTimestamp("granted_at").toInstant()),
+                buyerId);
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseContentResponse purchasedContent(UUID buyerId, UUID entitlementId) {
+        List<PurchaseContentResponse> rows = jdbcTemplate.query(
+                """
+                SELECT e.id AS entitlement_id, lv.title, lv.document::text AS document
+                FROM entitlements e
+                JOIN orders o ON o.id = e.order_id AND o.status = 'PAID'
+                JOIN listing_versions lv ON lv.id = e.listing_version_id
+                WHERE e.id = ? AND e.user_id = ? AND e.revoked_at IS NULL
+                  AND lv.document IS NOT NULL
+                """,
+                (rs, row) -> new PurchaseContentResponse(
+                        rs.getObject("entitlement_id", UUID.class),
+                        rs.getString("title"),
+                        decodeDocument(rs.getString("document"))),
+                entitlementId,
+                buyerId);
+        if (rows.isEmpty()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "PURCHASE_NOT_FOUND", "Purchase was not found");
+        }
+        return rows.getFirst();
     }
 
     @Transactional(readOnly = true)
@@ -645,6 +724,66 @@ public class MarketplaceService {
         }
     }
 
+    private void validateCatalogFilters(Long minPriceTiyin, Long maxPriceTiyin, String sort) {
+        if ((minPriceTiyin != null && minPriceTiyin < 0)
+                || (maxPriceTiyin != null && maxPriceTiyin < 0)
+                || (minPriceTiyin != null && maxPriceTiyin != null && minPriceTiyin > maxPriceTiyin)
+                || sort == null
+                || !Set.of("latest", "price_asc", "price_desc").contains(sort)) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_FILTER",
+                    "Catalog price range or sort order is invalid");
+        }
+    }
+
+    private List<CatalogSlidePreview> previewSlides(String serializedDocument) {
+        JsonNode slides = decodeDocument(serializedDocument).path("slides");
+        if (!slides.isArray()) {
+            return List.of();
+        }
+        int count = Math.min(5, slides.size());
+        List<CatalogSlidePreview> previews = new ArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            JsonNode slide = slides.get(index);
+            List<String> text = new ArrayList<>(3);
+            JsonNode elements = slide.path("elements");
+            if (elements.isArray()) {
+                for (JsonNode element : elements) {
+                    if (!"text".equals(element.path("type").asText()) || !element.path("text").isTextual()) {
+                        continue;
+                    }
+                    String content = element.path("text").asText().strip().replaceAll("\\s+", " ");
+                    if (content.isEmpty()) {
+                        continue;
+                    }
+                    text.add(content.substring(0, Math.min(240, content.length())));
+                    if (text.size() == 3) {
+                        break;
+                    }
+                }
+            }
+            String title = slide.path("title").asText("").strip();
+            if (title.isEmpty() && !text.isEmpty()) {
+                title = text.removeFirst();
+            }
+            if (title.isEmpty()) {
+                title = "Slide " + (index + 1);
+            }
+            previews.add(new CatalogSlidePreview(
+                    index + 1,
+                    title.substring(0, Math.min(120, title.length())),
+                    text,
+                    safePreviewColor(slide.path("backgroundColor").asText(null), "#F3F5F1"),
+                    safePreviewColor(slide.path("accentColor").asText(null), "#28765D")));
+        }
+        return previews;
+    }
+
+    private String safePreviewColor(String color, String fallback) {
+        return color != null && color.matches("#[0-9A-Fa-f]{6}") ? color : fallback;
+    }
+
     private RowMapper<Listing> listingRowMapper() {
         return (rs, row) -> new Listing(
                 rs.getObject("id", UUID.class),
@@ -668,7 +807,8 @@ public class MarketplaceService {
                 rs.getString("currency"),
                 rs.getTimestamp("updated_at").toInstant(),
                 rs.getString("category"),
-                rs.getString("seller_name"));
+                rs.getString("seller_name"),
+                previewSlides(rs.getString("document")));
     }
 
     private ApiException listingNotFound() {

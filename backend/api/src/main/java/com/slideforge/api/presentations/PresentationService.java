@@ -1,10 +1,10 @@
 package com.slideforge.api.presentations;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.slideforge.api.common.ApiException;
-import com.slideforge.api.users.UserAccount;
-import com.slideforge.api.users.UserRepository;
-import com.slideforge.api.users.UserStatus;
+import com.slideforge.api.common.exception.ApiException;
+import com.slideforge.api.users.model.UserAccount;
+import com.slideforge.api.users.repository.UserRepository;
+import com.slideforge.api.users.model.UserStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.time.Clock;

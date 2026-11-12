@@ -9,8 +9,9 @@
 | 3 Web editor + export integration | **Implemented** (visual editor, versioned saves, authenticated PPTX/PDF jobs and downloads; production smoke test pending) |
 | 4 AI generation | **Implemented, provider-gated** (authenticated persisted jobs and validated web flow; no live provider compatibility test) |
 | 5 Marketplace + payments | Catalog, category filters/preferences, listing details, web/mobile storefronts, seller publishing, orders, and sandbox UX implemented; real payment processing blocked on merchant specifications and credentials |
-| 6 Admin panel | **Implemented** (role-protected sign-in, user management, and marketplace listing moderation) |
+| 6 Admin panel | **Implemented** (role-protected sign-in, user management, marketplace listing moderation, and SUPERADMIN category management) |
 | 7 Flutter MVP | Partial (auth, library, create/open, multi-slide text/title editing, versioned saves and conflict reload; export pending; signed AAB workflow awaits operator signing secrets) |
+| 7b Multi-format learning artifacts | Vertical slice implemented: typed non-deck schema, versioned owner-scoped API, AI drafts for 10 formats, web/mobile editing/library, interactive quiz/crossword, DOCX/PDF export. Artifact drafts/exports are synchronous; mobile files are app-private. |
 | 8 Quality + release | In progress (backend, web, admin, shared types, mobile, and renderer checks pass; live VDS deployment, backups, monitoring and production smoke tests pending) |
 
 ## Phase 1 checkpoint details

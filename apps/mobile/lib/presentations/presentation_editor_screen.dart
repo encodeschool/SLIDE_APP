@@ -634,9 +634,13 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 2,
+                  runSpacing: 2,
                   children: [
-                    Expanded(
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
                       child: Text(
                         _text('Slides', 'Слайды', 'Slaydlar'),
                         style: Theme.of(context).textTheme.titleMedium,
@@ -917,57 +921,62 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    key: const Key('font-family-control'),
-                    initialValue: _fontFamilies.contains(font) ? font : 'Arial',
-                    decoration: InputDecoration(
-                      labelText: _text('Font family', 'Шрифт', 'Shrift turi'),
-                      isDense: true,
-                    ),
-                    items:
-                        _fontFamilies
-                            .map(
-                              (family) => DropdownMenuItem(
-                                value: family,
-                                child: Text(family),
-                              ),
-                            )
-                            .toList(),
-                    onChanged:
-                        enabled
-                            ? (value) {
-                              if (value != null) {
-                                _updateSelectedTextStyle({'fontFamily': value});
-                              }
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final fontField = DropdownButtonFormField<String>(
+                  key: const Key('font-family-control'),
+                  isExpanded: true,
+                  initialValue: _fontFamilies.contains(font) ? font : 'Arial',
+                  decoration: InputDecoration(
+                    labelText: _text('Font family', 'Шрифт', 'Shrift turi'),
+                    isDense: true,
+                  ),
+                  items:
+                      _fontFamilies
+                          .map(
+                            (family) => DropdownMenuItem(
+                              value: family,
+                              child: Text(family),
+                            ),
+                          )
+                          .toList(),
+                  onChanged:
+                      enabled
+                          ? (value) {
+                            if (value != null) {
+                              _updateSelectedTextStyle({'fontFamily': value});
                             }
-                            : null,
+                          }
+                          : null,
+                );
+                final sizeField = TextField(
+                  key: const Key('font-size-control'),
+                  controller: _fontSizeController,
+                  enabled: enabled,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    key: const Key('font-size-control'),
-                    controller: _fontSizeController,
-                    enabled: enabled,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: _text('Size', 'Размер', 'Oʻlcham'),
-                      suffixText: 'px',
-                      isDense: true,
-                    ),
-                    onSubmitted: _applyFontSize,
-                    onTapOutside:
-                        (_) => _applyFontSize(_fontSizeController.text),
+                  decoration: InputDecoration(
+                    labelText: _text('Size', 'Размер', 'Oʻlcham'),
+                    suffixText: 'px',
+                    isDense: true,
                   ),
-                ),
-              ],
+                  onSubmitted: _applyFontSize,
+                  onTapOutside: (_) => _applyFontSize(_fontSizeController.text),
+                );
+                if (constraints.maxWidth < 360) {
+                  return Column(
+                    children: [fontField, const SizedBox(height: 8), sizeField],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(flex: 3, child: fontField),
+                    const SizedBox(width: 8),
+                    Expanded(flex: 2, child: sizeField),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 8),
             Wrap(

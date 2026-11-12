@@ -6,6 +6,7 @@ interface AdminShellProps {
   translations: Translations;
   authenticated: boolean;
   superadmin: boolean;
+  activePage: "users" | "marketplace" | "categories";
   onSignOut: () => void;
   onToggleLocale: () => void;
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export function AdminShell({
   translations: t,
   authenticated,
   superadmin,
+  activePage,
   onSignOut,
   onToggleLocale,
   children,
@@ -29,9 +31,20 @@ export function AdminShell({
         </a>
         <div className="console-label">{t.console}</div>
         <nav className="admin-nav" aria-label={t.console}>
-          <a className="admin-nav-item active" href="#admin-users"><UsersRound size={17} aria-hidden="true" /><span>{t.users}</span></a>
-          <a className="admin-nav-item" href="#marketplace-monitoring"><Store size={17} aria-hidden="true" /><span>{t.marketplace}</span></a>
-          {superadmin && <a className="admin-nav-item" href="#marketplace-categories"><Store size={17} aria-hidden="true" /><span>{t.categories}</span></a>}
+          <a className={`admin-nav-item${activePage === "users" ? " active" : ""}`} href="#admin-users"
+            aria-current={activePage === "users" ? "page" : undefined}>
+            <UsersRound size={17} aria-hidden="true" /><span>{t.users}</span>
+          </a>
+          <a className={`admin-nav-item${activePage === "marketplace" ? " active" : ""}`} href="#marketplace-monitoring"
+            aria-current={activePage === "marketplace" ? "page" : undefined}>
+            <Store size={17} aria-hidden="true" /><span>{t.marketplace}</span>
+          </a>
+          {superadmin && (
+            <a className={`admin-nav-item${activePage === "categories" ? " active" : ""}`} href="#marketplace-categories"
+              aria-current={activePage === "categories" ? "page" : undefined}>
+              <Store size={17} aria-hidden="true" /><span>{t.categories}</span>
+            </a>
+          )}
         </nav>
         <div className="admin-sidebar-bottom"><ShieldCheck size={15} aria-hidden="true" /><span>{t.staffOnly}</span></div>
       </aside>

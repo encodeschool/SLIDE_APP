@@ -3,6 +3,7 @@ package com.slideforge.api.common;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.slideforge.api.common.security.AuthRateLimitFilter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

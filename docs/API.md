@@ -45,6 +45,18 @@ All presentation endpoints require a bearer access token. IDs are UUIDs and ever
 
 `GET /api/v1/exports/{jobId}` returns the owner-scoped job status (`QUEUED`, `RUNNING`, `SUCCEEDED`, or `FAILED`). A succeeded job includes `downloadUrl`. `GET /api/v1/exports/{jobId}/file` downloads the artifact and requires the same bearer token. Exports use an immutable presentation version; files are stored on the configured API export volume.
 
+## Learning artifacts
+
+Slides continue to use `/presentations` and the canonical deck model. The authenticated `/api/v1/artifacts` routes store non-slide content as a separate versioned artifact model. Supported `type` values are `essay`, `independent-work`, `coursework`, `dissertation`, `research-article`, `quiz`, `crossword`, `thesis-abstract`, `glossary`, and `argumentative-essay`.
+
+`POST /api/v1/artifacts/draft` accepts `{ "type": "quiz", "prompt": "A water cycle quiz for grade 6", "language": "en", "itemCount": 8 }` and returns `{ "document": { ...artifact schema v1... } }`. `itemCount` is optional (defaults to 5) and must be between 1 and 20; it requests the number of questions for quizzes, crossword entries for crosswords, terms for glossaries, or sections for other formats. It uses the server-configured AI provider and type-specific JSON instructions; AI drafts are validated and are not saved until the user chooses to save. Provider configuration is the same server-only configuration as deck generation. This route runs synchronously and currently does not create a pollable generation job.
+
+An artifact document has `schemaVersion: 1`, `id`, `type`, `title`, `language`, and editable `sections: [{id,heading,body}]`. Quizzes additionally contain `questions: [{id,question,options,answerIndex,explanation?}]`; crosswords contain `crossword: {rows,columns,entries:[{id,clue,answer,row,column,direction}]}` with zero-based grid coordinates and `across`/`down` direction. Quiz answers must refer to an existing option. Crossword entries must fit the declared grid and crossing letters must agree. Non-quiz documents cannot include quiz data, and non-crossword documents cannot include a crossword grid.
+
+`POST /api/v1/artifacts` accepts `{ "type": "essay", "title": "Field notes", "language": "en", "document": { ... } }` and stores version 1. `GET /api/v1/artifacts?page=0&size=20` lists only the authenticated owner's artifacts. `GET /api/v1/artifacts/{id}` reads the current version; `?version=N` reads an immutable earlier version and returns both `currentVersion` and the selected `version`. `PUT /api/v1/artifacts/{id}` accepts `{ "expectedVersion": 1, "document": { ... } }`; successful saves append an immutable version and stale writes return `409 VERSION_CONFLICT`. `DELETE /api/v1/artifacts/{id}` deletes the owner-scoped artifact and its versions.
+
+`GET /api/v1/artifacts/{id}/exports/docx?version=N` downloads an editable Word document; `GET /api/v1/artifacts/{id}/exports/pdf?version=N` downloads a printable PDF. Version is optional and defaults to current. These endpoints are authenticated and owner-scoped, invoke the private renderer synchronously, and do not yet create export-job records. Quiz PDF output contains questions and an answer key; crossword output contains a blank grid, clues, and answer key.
+
 ## AI generation
 
 `POST /api/v1/generations` requires a bearer token and accepts a prompt (up to 4,000 characters), language, and requested slide count (1–20). It returns `202` with a persisted job and `Location` header. Poll `GET /api/v1/generations/{jobId}`; the response is owner-scoped and includes the validated canonical document on success or a safe failure code/message. The web client can save the generated document as an owned presentation and open it in the editor.

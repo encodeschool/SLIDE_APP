@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { renderPdf } = require("./render-pdf");
+const { renderArtifact } = require("./render-artifact");
 const { renderPptx } = require("./render-pptx");
 const { validateDeck } = require("./validate");
 
@@ -43,6 +44,36 @@ function createRendererServer() {
     const url = new URL(request.url, "http://localhost");
     if (request.method === "GET" && url.pathname === "/health") {
       return sendJson(response, 200, { status: "available" });
+    }
+
+    const artifactFormat = url.pathname.match(/^\/render\/artifact\/(pdf|docx)$/)?.[1];
+    if (request.method === "POST" && artifactFormat) {
+      if (!request.headers["content-type"]?.startsWith("application/json")) {
+        return sendJson(response, 415, { error: "Content-Type must be application/json" });
+      }
+      let directory;
+      try {
+        const document = await readJson(request);
+        directory = fs.mkdtempSync(path.join(os.tmpdir(), "slideforge-artifact-"));
+        const outputPath = await renderArtifact(document, artifactFormat, directory);
+        const output = fs.readFileSync(outputPath);
+        response.writeHead(200, {
+          "content-type": artifactFormat === "docx"
+            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            : "application/pdf",
+          "content-length": output.length,
+          "cache-control": "no-store",
+        });
+        response.end(output);
+      } catch (error) {
+        console.error("Artifact render request failed:", error);
+        sendJson(response, error.statusCode ?? 500, {
+          error: error.statusCode ? error.message : "Artifact rendering failed",
+        });
+      } finally {
+        if (directory) fs.rmSync(directory, { recursive: true, force: true });
+      }
+      return;
     }
 
     const format = url.pathname.match(/^\/render\/(pdf|pptx)$/)?.[1];

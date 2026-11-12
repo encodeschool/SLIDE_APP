@@ -1,6 +1,6 @@
 # Data model
 
-UUIDs are primary keys, timestamps are `TIMESTAMPTZ`, and monetary values are integer tiyin plus ISO currency. Deck versions hold immutable canonical JSON documents in JSONB. See the Flyway migrations for exact constraints and indexes.
+UUIDs are primary keys, timestamps are `TIMESTAMPTZ`, and monetary values are integer tiyin plus ISO currency. Deck and learning-artifact versions hold immutable canonical JSON documents in JSONB. See the Flyway migrations for exact constraints and indexes.
 
 ```mermaid
 erDiagram
@@ -9,6 +9,8 @@ erDiagram
     USERS ||--o{ AUTH_ACTION_TOKENS : receives
     USERS ||--o{ PRESENTATIONS : owns
     PRESENTATIONS ||--o{ PRESENTATION_VERSIONS : versions
+    USERS ||--o{ LEARNING_ARTIFACTS : owns
+    LEARNING_ARTIFACTS ||--o{ LEARNING_ARTIFACT_VERSIONS : versions
     USERS ||--o{ GENERATION_JOBS : requests
     USERS ||--o{ LISTINGS : sells
     LISTINGS ||--o{ LISTING_VERSIONS : snapshots
@@ -58,6 +60,20 @@ erDiagram
       json document
       int schema_version
     }
+    LEARNING_ARTIFACTS {
+      uuid id PK
+      uuid owner_id FK
+      string artifact_type
+      string title
+      string language
+      int current_version
+    }
+    LEARNING_ARTIFACT_VERSIONS {
+      uuid artifact_id PK,FK
+      int version PK
+      json document
+      timestamptz created_at
+    }
     GENERATION_JOBS {
       uuid id PK
       uuid owner_id FK
@@ -104,4 +120,4 @@ erDiagram
     }
 ```
 
-Flyway migrations create users/roles/sessions/presentations, hashed verification and password-recovery tokens, persisted generation jobs, marketplace listing snapshots, idempotent orders, payment events, and entitlements. V8 conditionally bootstraps the first administrator from operator-provided email and BCrypt hash. The current marketplace has listing/catalog/order API foundations and sandbox confirmation only; real provider callbacks and storefront/library workflows are not implemented. Usage metering, uploaded assets, moderation, reviews, notifications, and immutable admin audit events remain future work.
+Flyway migrations create users/roles/sessions/presentations, learning artifacts and immutable artifact versions (V13), hashed verification and password-recovery tokens, persisted presentation generation jobs, marketplace listing snapshots, idempotent orders, payment events, and entitlements. V8 conditionally bootstraps the first administrator from operator-provided email and BCrypt hash. The marketplace has listing/catalog/order API foundations and sandbox confirmation only; real provider callbacks, usage metering, uploaded assets, moderation, reviews, notifications, and immutable admin audit events remain future work.

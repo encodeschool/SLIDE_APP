@@ -58,6 +58,12 @@ class AuthIntegrationTest {
     @Autowired
     private JwtEncoder jwtEncoder;
 
+    @Test
+    void refreshWithoutCookieReturnsNoContentForSignedOutClient() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh"))
+                .andExpect(status().isNoContent());
+    }
+
     @MockBean
     private MailDelivery mailDelivery;
 
@@ -203,7 +209,7 @@ class AuthIntegrationTest {
         JsonNode registeredUser = objectMapper.readTree(session.getResponse().getContentAsString()).path("user");
         String accessToken = objectMapper.readTree(session.getResponse().getContentAsString()).path("accessToken").asText();
         String request = objectMapper.writeValueAsString(
-                new com.slideforge.api.users.UpdateUserProfileRequest("  Updated Name  ", "ru"));
+                new com.slideforge.api.users.dto.UpdateUserProfileRequest("  Updated Name  ", "ru"));
 
         mockMvc.perform(put("/api/v1/users/me")
                         .header("Authorization", "Bearer " + accessToken)

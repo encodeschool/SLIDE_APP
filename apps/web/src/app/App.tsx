@@ -15,6 +15,9 @@ import type {
 import { AuthPanel } from "../features/auth/AuthPanel";
 import { ProfilePanel } from "../features/auth/ProfilePanel";
 import { GenerationPanel } from "../features/generation/GenerationPanel";
+import type { CreationType } from "../features/generation/GenerationPanel";
+import { ArtifactWorkspace } from "../features/artifacts/ArtifactWorkspace";
+import type { ArtifactDocument } from "../../../../packages/shared-types/src/artifact.ts";
 import { PresentationLibrary } from "../features/presentations/PresentationLibrary";
 import { PresentationEditor } from "../features/presentations/PresentationEditor";
 import { Marketplace } from "../features/marketplace/Marketplace";
@@ -25,7 +28,6 @@ import {
   CircleHelp,
   Globe2,
   Layers3,
-  LoaderCircle,
   Library,
   LockKeyhole,
   LogOut,
@@ -85,12 +87,24 @@ const en = {
     authFailed: "Unable to sign in. Check your details and try again.",
     signOut: "Sign out",
     createDraft: "New presentation",
-    generationTitle: "Create a presentation with AI",
-    generationCopy: "Describe the presentation you need. Your prompt is used only to create slide content.",
-    generationPrompt: "Presentation brief",
-    generationLanguage: "Presentation language",
+    generationTitle: "Create with AI",
+    generationCopy: "Choose a format, describe your topic and preview the scope before generating.",
+    generationFormat: "Format",
+    generationPresentationType: "Presentation",
+    generationPrompt: "Topic and requirements",
+    generationLanguage: "Output language",
     generationSlides: "Number of slides",
+    generationItemCount: "Output size",
+    generationSlidesUnit: "slides",
+    generationSectionsUnit: "sections",
+    generationQuestionsUnit: "questions",
+    generationCluesUnit: "clues",
+    generationTermsUnit: "terms",
+    generationPreview: "Your draft",
+    generationTopicPlaceholder: "Your topic will appear here",
     generationSubmit: "Generate presentation",
+    generationDraftSubmit: "Generate editable draft",
+    generationDraftReady: "Draft ready. You can edit it below before saving.",
     generationSubmitting: "Starting generation",
     generationQueued: "Generation queued",
     generationRunning: "Creating your presentation",
@@ -217,12 +231,24 @@ const translations = {
     authFailed: "Не удалось войти. Проверьте данные и попробуйте снова.",
     signOut: "Выйти",
     createDraft: "Новая презентация",
-    generationTitle: "Создать презентацию с ИИ",
-    generationCopy: "Опишите нужную презентацию. Запрос используется только для создания содержимого слайдов.",
-    generationPrompt: "Описание презентации",
-    generationLanguage: "Язык презентации",
+    generationTitle: "Создать с помощью ИИ",
+    generationCopy: "Выберите формат, опишите тему и проверьте объём перед созданием.",
+    generationFormat: "Формат",
+    generationPresentationType: "Презентация",
+    generationPrompt: "Тема и требования",
+    generationLanguage: "Язык результата",
     generationSlides: "Количество слайдов",
+    generationItemCount: "Объём результата",
+    generationSlidesUnit: "слайдов",
+    generationSectionsUnit: "разделов",
+    generationQuestionsUnit: "вопросов",
+    generationCluesUnit: "слов",
+    generationTermsUnit: "терминов",
+    generationPreview: "Параметры результата",
+    generationTopicPlaceholder: "Здесь появится ваша тема",
     generationSubmit: "Создать презентацию",
+    generationDraftSubmit: "Создать редактируемый черновик",
+    generationDraftReady: "Черновик готов. Отредактируйте его ниже и сохраните.",
     generationSubmitting: "Запускаем создание",
     generationQueued: "Запрос добавлен в очередь",
     generationRunning: "Создаём презентацию",
@@ -348,12 +374,24 @@ const translations = {
       authFailed: "Kirish amalga oshmadi. Maʼlumotlaringizni tekshiring.",
       signOut: "Chiqish",
       createDraft: "Yangi taqdimot",
-      generationTitle: "AI yordamida taqdimot yarating",
-      generationCopy: "Kerakli taqdimotni tasvirlab bering. Soʻrov faqat slaydlar mazmuni uchun ishlatiladi.",
-      generationPrompt: "Taqdimot tavsifi",
-      generationLanguage: "Taqdimot tili",
+      generationTitle: "AI yordamida yarating",
+      generationCopy: "Formatni tanlang, mavzuni yozing va yaratishdan oldin hajmni koʻring.",
+      generationFormat: "Format",
+      generationPresentationType: "Taqdimot",
+      generationPrompt: "Mavzu va talablar",
+      generationLanguage: "Natija tili",
       generationSlides: "Slaydlar soni",
+      generationItemCount: "Natija hajmi",
+      generationSlidesUnit: "slayd",
+      generationSectionsUnit: "boʻlim",
+      generationQuestionsUnit: "savol",
+      generationCluesUnit: "topishmoq",
+      generationTermsUnit: "atama",
+      generationPreview: "Natija parametrlari",
+      generationTopicPlaceholder: "Mavzuingiz shu yerda koʻrinadi",
       generationSubmit: "Taqdimot yaratish",
+      generationDraftSubmit: "Tahrirlanadigan qoralama yaratish",
+      generationDraftReady: "Qoralama tayyor. Saqlashdan oldin uni quyida tahrirlashingiz mumkin.",
       generationSubmitting: "Yaratish boshlanmoqda",
       generationQueued: "Soʻrov navbatga qoʻshildi",
       generationRunning: "Taqdimot yaratilmoqda",
@@ -464,10 +502,13 @@ function App() {
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [generationLanguage, setGenerationLanguage] = useState<Locale>("en");
   const [generationSlideCount, setGenerationSlideCount] = useState(6);
+  const [creationType, setCreationType] = useState<CreationType>("slides");
   const [generationJob, setGenerationJob] = useState<GenerationJobResponse | null>(null);
   const [generationStarting, setGenerationStarting] = useState(false);
   const [generationSaving, setGenerationSaving] = useState(false);
   const [generationError, setGenerationError] = useState("");
+  const [artifactGenerationStarting, setArtifactGenerationStarting] = useState(false);
+  const [artifactDraft, setArtifactDraft] = useState<ArtifactDocument | null>(null);
   const [editorPresentation, setEditorPresentation] = useState<PresentationDetail | null>(null);
   const [editorDocument, setEditorDocument] = useState<Deck | null>(null);
   const [editorTitle, setEditorTitle] = useState("");
@@ -534,6 +575,8 @@ function App() {
     setGenerationStarting(false);
     setGenerationSaving(false);
     setGenerationError("");
+    setArtifactGenerationStarting(false);
+    setArtifactDraft(null);
     editorHistory.current = null;
   }
 
@@ -924,6 +967,7 @@ function App() {
     setGenerationStarting(true);
     setGenerationError("");
     setGenerationJob(null);
+    setArtifactDraft(null);
     try {
       const response = await authorizedFetch("/api/v1/generations", accessToken, {
         method: "POST",
@@ -943,6 +987,45 @@ function App() {
       setGenerationError(error instanceof Error ? error.message : copy.generationRequestFailed);
     } finally {
       setGenerationStarting(false);
+    }
+  }
+
+  async function submitArtifactDraft(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessToken || creationType === "slides") return;
+    setArtifactGenerationStarting(true);
+    setGenerationError("");
+    setGenerationJob(null);
+    setArtifactDraft(null);
+    try {
+      const response = await authorizedFetch("/api/v1/artifacts/draft", accessToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: creationType,
+          prompt: generationPrompt.trim(),
+          language: generationLanguage,
+          itemCount: generationSlideCount,
+        }),
+      }, applySession, clearSession);
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? copy.generationRequestFailed);
+      }
+      const result = await response.json() as { document: ArtifactDocument };
+      setArtifactDraft(result.document);
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : copy.generationRequestFailed);
+    } finally {
+      setArtifactGenerationStarting(false);
+    }
+  }
+
+  function submitCreation(event: React.FormEvent<HTMLFormElement>) {
+    if (creationType === "slides") {
+      void submitGeneration(event);
+    } else {
+      void submitArtifactDraft(event);
     }
   }
 
@@ -1125,6 +1208,20 @@ function App() {
   const activeElements = activeSlide?.elements ?? [];
   const selectedElement = activeElements.find((element) => element.id === selectedElementId);
   const selectedText = selectedElement?.type === "text" ? selectedElement : undefined;
+
+  if (authRestoring) {
+    return (
+      <main className="app-loading-screen" role="status" aria-live="polite">
+        <div className="app-loading-card">
+          <span className="app-loading-mark"><Layers3 size={24} strokeWidth={2.2} aria-hidden="true" /></span>
+          <span className="app-loading-brand">slideforge</span>
+          <span className="app-loading-spinner" aria-hidden="true" />
+          <strong>{copy.authLoading}</strong>
+          <span className="app-loading-caption">{copy.workspace}</span>
+        </div>
+      </main>
+    );
+  }
 
   function addTextElement() {
     if (!editorDocument || !activeSlideId) return;
@@ -1387,8 +1484,6 @@ function App() {
           </div>
         )}
 
-        {authRestoring && <p className="session-loading" role="status"><LoaderCircle className="spin-icon" size={16} aria-hidden="true" />{copy.authLoading}</p>}
-
         {authUser && !marketplaceActive && (
           <ProfilePanel
             user={authUser}
@@ -1418,18 +1513,31 @@ function App() {
         {authUser && !marketplaceActive && !editorPresentation && (
           <GenerationPanel
             copy={copy}
+            locale={locale}
+            workType={creationType}
+            itemCount={generationSlideCount}
             prompt={generationPrompt}
             language={generationLanguage}
-            slideCount={generationSlideCount}
-            job={generationJob}
-            starting={generationStarting}
+            job={creationType === "slides" ? generationJob : null}
+            starting={generationStarting || artifactGenerationStarting}
             saving={generationSaving}
             error={generationError}
+            draftReady={artifactDraft !== null}
+            setWorkType={setCreationType}
+            setItemCount={setGenerationSlideCount}
             setPrompt={setGenerationPrompt}
             setLanguage={setGenerationLanguage}
-            setSlideCount={setGenerationSlideCount}
-            onSubmit={submitGeneration}
+            onSubmit={submitCreation}
             onSaveAndOpen={saveAndOpenGeneratedDeck}
+          />
+        )}
+
+        {authUser && !marketplaceActive && !editorPresentation && accessToken && (
+          <ArtifactWorkspace
+            token={accessToken}
+            initialDraft={artifactDraft}
+            onSession={applySession}
+            onExpired={clearSession}
           />
         )}
 

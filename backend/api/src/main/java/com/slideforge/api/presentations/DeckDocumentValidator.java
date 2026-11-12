@@ -3,7 +3,7 @@ package com.slideforge.api.presentations;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;

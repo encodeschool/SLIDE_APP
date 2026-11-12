@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:slideforge_mobile/auth/app_state_store.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
 import 'package:slideforge_mobile/auth/auth_screen.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
@@ -6,10 +7,16 @@ import 'package:slideforge_mobile/presentations/presentation_library_screen.dart
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, this.authRepository, this.presentationRepository});
+  const AuthGate({
+    super.key,
+    this.authRepository,
+    this.presentationRepository,
+    this.appStateStore,
+  });
 
   final AuthRepository? authRepository;
   final PresentationRepository? presentationRepository;
+  final MobileAppStateStore? appStateStore;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -17,13 +24,15 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   late final AuthRepository _repository;
+  late final MobileAppStateStore _appStateStore;
   AuthSession? _session;
   String _locale = 'en';
   bool _isRestoring = true;
   bool _isSubmitting = false;
   bool _authRequested = false;
-  int _guestReturnSection = 0;
-  int _guestReturnCheckoutStep = 0;
+  int _workspaceTab = 0;
+  int _marketplaceSection = 0;
+  int _checkoutStep = 0;
   List<Map<String, dynamic>> _cartItems = [];
   String? _error;
   String? _notice;
@@ -49,21 +58,17 @@ class _AuthGateState extends State<AuthGate> {
           ),
           sessionStore: DeviceSecureSessionStore(),
         );
+    _appStateStore = widget.appStateStore ?? DeviceMobileAppStateStore();
     _restoreSession();
   }
 
   Future<void> _restoreSession() async {
+    final savedStateFuture = _appStateStore.read();
     try {
       final session = await _repository.restoreSession();
       if (mounted) {
         setState(() {
           _session = session;
-          if (session != null) {
-            _locale =
-                ['en', 'ru', 'uz'].contains(session.user.locale)
-                    ? session.user.locale
-                    : 'en';
-          }
         });
       }
     } on AuthException catch (exception) {
@@ -79,8 +84,68 @@ class _AuthGateState extends State<AuthGate> {
         });
       }
     } finally {
-      if (mounted) setState(() => _isRestoring = false);
+      final savedState = await savedStateFuture;
+      if (mounted) {
+        setState(() {
+          _cartItems = savedState.cartItems;
+          _marketplaceSection = savedState.marketplaceSection;
+          _checkoutStep = savedState.checkoutStep;
+          _workspaceTab = savedState.workspaceTab;
+          if (savedState.localeIsSaved) {
+            _locale = savedState.locale;
+          } else if (_session != null) {
+            _locale =
+                ['en', 'ru', 'uz'].contains(_session!.user.locale)
+                    ? _session!.user.locale
+                    : 'en';
+          }
+          if (_session == null) {
+            _marketplaceSection =
+                savedState.marketplaceSection == 2
+                    ? 2
+                    : savedState.marketplaceSection;
+            _workspaceTab = _marketplaceSection == 1 ? 1 : 0;
+          }
+          _isRestoring = false;
+        });
+      }
     }
+  }
+
+  MobileAppState _currentAppState() => MobileAppState(
+    cartItems: _cartItems,
+    marketplaceSection: _marketplaceSection,
+    checkoutStep: _checkoutStep,
+    workspaceTab: _workspaceTab,
+    locale: _locale,
+  );
+
+  Future<void> _saveAppState() => _appStateStore.write(_currentAppState());
+
+  void _updateCart(List<Map<String, dynamic>> items) {
+    setState(() {
+      _cartItems = items;
+      if (items.isEmpty) _checkoutStep = 0;
+    });
+    _saveAppState();
+  }
+
+  void _updateMarketplaceState(int section, int checkoutStep) {
+    setState(() {
+      _marketplaceSection = section.clamp(0, 2).toInt();
+      _checkoutStep = _cartItems.isEmpty ? 0 : checkoutStep.clamp(0, 2).toInt();
+      if (_marketplaceSection < 2) _workspaceTab = _marketplaceSection;
+    });
+    _saveAppState();
+  }
+
+  void _updateWorkspaceTab(int tab) {
+    setState(() {
+      _workspaceTab = tab.clamp(0, 2).toInt();
+      _marketplaceSection = tab == 1 ? 1 : 0;
+      if (_cartItems.isEmpty) _checkoutStep = 0;
+    });
+    _saveAppState();
   }
 
   Future<AuthSubmitResult> _authenticate(
@@ -116,8 +181,10 @@ class _AuthGateState extends State<AuthGate> {
               ['en', 'ru', 'uz'].contains(session.user.locale)
                   ? session.user.locale
                   : 'en';
+          _workspaceTab = _marketplaceSection == 1 ? 1 : 0;
         });
       }
+      _saveAppState();
       return AuthSubmitResult.signedIn;
     } on AuthException catch (exception) {
       if (mounted) setState(() => _error = exception.message);
@@ -197,7 +264,9 @@ class _AuthGateState extends State<AuthGate> {
         setState(() {
           _session = null;
           _authRequested = false;
+          _workspaceTab = 0;
         });
+        _saveAppState();
       }
     }
   }
@@ -210,10 +279,14 @@ class _AuthGateState extends State<AuthGate> {
         _ => 'en',
       };
     });
+    _saveAppState();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isRestoring) {
+      return _StartupLoadingScreen(isRussian: _isRussian, isUzbek: _isUzbek);
+    }
     final session = _session;
     if (session != null) {
       return WorkspaceScreen(
@@ -226,10 +299,12 @@ class _AuthGateState extends State<AuthGate> {
         onToggleLanguage: _toggleLanguage,
         presentationRepository: widget.presentationRepository,
         cartItems: _cartItems,
-        onCartChanged: (items) => setState(() => _cartItems = items),
-        initialTab: _cartItems.isNotEmpty ? 1 : 2,
-        initialMarketplaceSection: _cartItems.isNotEmpty ? 1 : 0,
-        initialCheckoutStep: _cartItems.isNotEmpty ? 2 : 0,
+        onCartChanged: _updateCart,
+        initialTab: _workspaceTab,
+        initialMarketplaceSection: _marketplaceSection,
+        initialCheckoutStep: _checkoutStep,
+        onTabChanged: _updateWorkspaceTab,
+        onMarketplaceStateChanged: _updateMarketplaceState,
       );
     }
     if (!_authRequested) {
@@ -246,17 +321,16 @@ class _AuthGateState extends State<AuthGate> {
               ),
             ),
         cartItems: _cartItems,
-        onCartChanged: (items) => setState(() => _cartItems = items),
-        initialSection: _guestReturnSection,
-        initialCheckoutStep: _guestReturnCheckoutStep,
+        onCartChanged: _updateCart,
+        initialSection: _marketplaceSection,
+        initialCheckoutStep: _checkoutStep,
+        onStateChanged: _updateMarketplaceState,
         isRestoringSession: _isRestoring,
         startupError: _error,
-        onRequireAuth:
-            (section, checkoutStep) => setState(() {
-              _guestReturnSection = section;
-              _guestReturnCheckoutStep = checkoutStep;
-              _authRequested = true;
-            }),
+        onRequireAuth: (section, checkoutStep) {
+          _updateMarketplaceState(section, checkoutStep);
+          setState(() => _authRequested = true);
+        },
         onToggleLanguage: _toggleLanguage,
       );
     }
@@ -273,6 +347,112 @@ class _AuthGateState extends State<AuthGate> {
           (email) => _requestEmailAction(email, verification: false),
       onToggleLanguage: _toggleLanguage,
       onBack: () => setState(() => _authRequested = false),
+    );
+  }
+}
+
+class _StartupLoadingScreen extends StatelessWidget {
+  const _StartupLoadingScreen({required this.isRussian, required this.isUzbek});
+
+  final bool isRussian;
+  final bool isUzbek;
+
+  String _text(String english, String russian, String uzbek) =>
+      isUzbek
+          ? uzbek
+          : isRussian
+          ? russian
+          : english;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colors.surface,
+              colors.primaryContainer.withValues(alpha: .55),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const SizedBox(
+                        width: 58,
+                        height: 58,
+                        child: Icon(
+                          Icons.layers_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'slideforge',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.5,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: colors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      _text(
+                        'Preparing your workspace',
+                        'Подготавливаем рабочее пространство',
+                        'Ish maydoni tayyorlanmoqda',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      _text(
+                        'Checking your session',
+                        'Проверяем сессию',
+                        'Sessiya tekshirilmoqda',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 package com.slideforge.api.exports;
 
-import com.slideforge.api.common.ApiException;
+import com.slideforge.api.common.exception.ApiException;
 import com.slideforge.api.presentations.PresentationDetailResponse;
 import com.slideforge.api.presentations.PresentationService;
 import java.nio.file.Files;

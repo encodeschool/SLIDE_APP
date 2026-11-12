@@ -72,6 +72,12 @@ abstract interface class PresentationRepository {
     String title,
     String language,
   );
+  Future<PresentationDetail> generate(
+    String accessToken,
+    String prompt,
+    String language,
+    int slideCount,
+  );
   Future<PresentationDetail> read(String accessToken, String presentationId);
   Future<PresentationDetail> save(
     String accessToken,
@@ -140,6 +146,68 @@ class ApiPresentationRepository implements PresentationRepository {
     );
     return PresentationDetail.fromJson(
       Map<String, dynamic>.from(response.data as Map),
+    );
+  }
+
+  @override
+  Future<PresentationDetail> generate(
+    String accessToken,
+    String prompt,
+    String language,
+    int slideCount,
+  ) async {
+    final response = await _request(
+      () => _dio.post<dynamic>(
+        '/api/v1/generations',
+        data: {
+          'prompt': prompt,
+          'language': language,
+          'slideCount': slideCount,
+        },
+        options: _authorized(accessToken),
+      ),
+    );
+    var job = Map<String, dynamic>.from(response.data as Map);
+    final jobId = job['id'] as String;
+    final pollTimer = Stopwatch()..start();
+    while (pollTimer.elapsed < const Duration(minutes: 2)) {
+      final status = job['status'] as String;
+      if (status == 'SUCCEEDED') {
+        final document = Map<String, dynamic>.from(job['document'] as Map);
+        final created = await _request(
+          () => _dio.post<dynamic>(
+            '/api/v1/presentations',
+            data: {
+              'title': document['title'],
+              'language': document['language'],
+              'document': document,
+            },
+            options: _authorized(accessToken),
+          ),
+        );
+        return PresentationDetail.fromJson(
+          Map<String, dynamic>.from(created.data as Map),
+        );
+      }
+      if (status == 'FAILED') {
+        final message = job['failureMessage'];
+        throw PresentationException(
+          message is String && message.isNotEmpty
+              ? message
+              : 'AI generation failed. Please try again.',
+        );
+      }
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final updated = await _request(
+        () => _dio.get<dynamic>(
+          '/api/v1/generations/$jobId',
+          options: _authorized(accessToken),
+        ),
+      );
+      job = Map<String, dynamic>.from(updated.data as Map);
+    }
+    throw const PresentationException(
+      'Generation is taking longer than expected. Please try again.',
     );
   }
 
