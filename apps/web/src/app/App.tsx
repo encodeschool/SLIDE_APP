@@ -1697,6 +1697,11 @@ function App() {
             <div className="version-mark"><span />{authUser ? authUser.displayName : "Phase 2 · Core data"}</div>
           </span>
           <div className="mr-5">
+            {authUser && (
+              <button className="text-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
+                <LogOut size={16} aria-hidden="true" />
+              </button>
+            )}
             <button
               className="language-button"
               type="button"
@@ -1707,11 +1712,6 @@ function App() {
               <Globe2 size={17} aria-hidden="true" />
               {locale.toUpperCase()}
             </button>
-            {authUser && (
-              <button className="language-button signout-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
-                <LogOut size={16} aria-hidden="true" />
-              </button>
-            )}
           </div>
         </header>
 

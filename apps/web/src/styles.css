@@ -162,7 +162,9 @@ a.foundation-item:hover .item-copy strong { color: var(--green); }
 .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 39px; border: 1px solid #28765d; border-radius: 5px; padding: 0 13px; background: #28765d; color: white; cursor: pointer; font-size: 12px; font-weight: 700; }
 .primary-button:hover:not(:disabled) { background: #21644e; }
 .primary-button:disabled { cursor: wait; opacity: .7; }
-.text-button { min-height: 36px; border: 0; padding: 0 5px; background: transparent; color: #28765d; cursor: pointer; font-size: 12px; font-weight: 700; }
+.text-button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 2px; border: 0; background: transparent; color: #59645d; cursor: pointer; font-size: 11px; }
+
+/* .text-button { min-height: 36px; border: 0; padding: 0 5px; background: transparent; color: #28765d; cursor: pointer; font-size: 12px; font-weight: 700; } */
 .form-error { grid-column: 1 / -1; margin: 0; color: #a4493e; font-size: 12px; line-height: 1.5; }
 .form-success { grid-column: 1 / -1; margin: 0; color: #28765d; font-size: 12px; line-height: 1.5; }
 .session-loading, .project-state { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
