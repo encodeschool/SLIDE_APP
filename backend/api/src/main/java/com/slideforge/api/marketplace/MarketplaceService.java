@@ -232,20 +232,24 @@ public class MarketplaceService {
                     WHERE l.id = ? AND l.status = 'PUBLISHED'
                       AND lv.document IS NOT NULL AND lv.title IS NOT NULL
                     """,
-                    (rs, row) -> new ListingDetailResponse(
-                            rs.getObject("listing_id", UUID.class),
-                            rs.getObject("version_id", UUID.class),
-                            rs.getString("title"),
-                            rs.getString("description"),
-                            rs.getString("license_terms"),
-                            rs.getObject("seller_id", UUID.class),
-                            rs.getString("seller_name"),
-                            rs.getInt("version"),
-                            rs.getLong("price_tiyin"),
-                            rs.getString("currency"),
-                            rs.getString("category"),
-                            rs.getTimestamp("updated_at").toInstant(),
-                            previewSlides(rs.getString("document"))),
+                    (rs, row) -> {
+                        PreviewData preview = previewData(rs.getString("document"));
+                        return new ListingDetailResponse(
+                                rs.getObject("listing_id", UUID.class),
+                                rs.getObject("version_id", UUID.class),
+                                rs.getString("title"),
+                                rs.getString("description"),
+                                rs.getString("license_terms"),
+                                rs.getObject("seller_id", UUID.class),
+                                rs.getString("seller_name"),
+                                rs.getInt("version"),
+                                rs.getLong("price_tiyin"),
+                                rs.getString("currency"),
+                                rs.getString("category"),
+                                rs.getTimestamp("updated_at").toInstant(),
+                                preview.slideCount(),
+                                preview.slides());
+                    },
                     listingId);
         } catch (EmptyResultDataAccessException exception) {
             throw listingNotFound();
@@ -258,7 +262,7 @@ public class MarketplaceService {
                 """
                 SELECT e.id AS entitlement_id, l.id AS listing_id, lv.id AS listing_version_id,
                        o.id AS order_id, lv.title, u.display_name AS seller_name, oi.price_tiyin,
-                       lv.currency, e.granted_at
+                       lv.currency, e.granted_at, lv.document::text AS document
                 FROM entitlements e
                 JOIN orders o ON o.id = e.order_id AND o.status = 'PAID'
                 JOIN order_items oi ON oi.order_id = o.id AND oi.listing_version_id = e.listing_version_id
@@ -268,16 +272,21 @@ public class MarketplaceService {
                 WHERE e.user_id = ? AND e.revoked_at IS NULL
                 ORDER BY e.granted_at DESC, e.id
                 """,
-                (rs, row) -> new PurchaseResponse(
-                        rs.getObject("entitlement_id", UUID.class),
-                        rs.getObject("listing_id", UUID.class),
-                        rs.getObject("listing_version_id", UUID.class),
-                        rs.getObject("order_id", UUID.class),
-                        rs.getString("title"),
-                        rs.getString("seller_name"),
-                        rs.getLong("price_tiyin"),
-                        rs.getString("currency"),
-                        rs.getTimestamp("granted_at").toInstant()),
+                (rs, row) -> {
+                    PreviewData preview = previewData(rs.getString("document"));
+                    return new PurchaseResponse(
+                            rs.getObject("entitlement_id", UUID.class),
+                            rs.getObject("listing_id", UUID.class),
+                            rs.getObject("listing_version_id", UUID.class),
+                            rs.getObject("order_id", UUID.class),
+                            rs.getString("title"),
+                            rs.getString("seller_name"),
+                            rs.getLong("price_tiyin"),
+                            rs.getString("currency"),
+                            rs.getTimestamp("granted_at").toInstant(),
+                            preview.slideCount(),
+                            preview.slides());
+                },
                 buyerId);
     }
 
@@ -607,6 +616,50 @@ public class MarketplaceService {
                 orderId);
     }
 
+    @Transactional
+    OrderResponse markOrderPaid(UUID buyerId, UUID orderId, String provider, String providerEventId) {
+        Instant now = clock.instant();
+        jdbcTemplate.update(
+                """
+                INSERT INTO payment_events
+                    (id, order_id, provider, provider_event_id, event_type, payload, processed_at, created_at)
+                VALUES (?, ?, ?, ?, 'CONFIRMED', '{}'::jsonb, ?, ?)
+                ON CONFLICT (provider, provider_event_id) DO NOTHING
+                """,
+                UUID.randomUUID(),
+                orderId,
+                provider,
+                providerEventId,
+                now.atOffset(ZoneOffset.UTC),
+                now.atOffset(ZoneOffset.UTC));
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE orders SET status = 'PAID', provider = ?, paid_at = ?
+                WHERE id = ? AND buyer_id = ? AND status = 'PENDING'
+                """,
+                provider,
+                now.atOffset(ZoneOffset.UTC),
+                orderId,
+                buyerId);
+        if (updated != 1) {
+            throw new ApiException(HttpStatus.CONFLICT, "ORDER_NOT_PAYABLE", "Order is no longer awaiting payment");
+        }
+        jdbcTemplate.update(
+                """
+                INSERT INTO entitlements (id, user_id, listing_version_id, order_id, granted_at)
+                SELECT ?, ?, oi.listing_version_id, ?, ?
+                FROM order_items oi
+                WHERE oi.order_id = ?
+                ON CONFLICT (user_id, listing_version_id) DO NOTHING
+                """,
+                UUID.randomUUID(),
+                buyerId,
+                orderId,
+                now.atOffset(ZoneOffset.UTC),
+                orderId);
+        return orderResponse(orderId);
+    }
+
     private ExistingOrder findIdempotentOrder(UUID buyerId, String key) {
         List<ExistingOrder> rows = jdbcTemplate.query(
                 """
@@ -737,12 +790,12 @@ public class MarketplaceService {
         }
     }
 
-    private List<CatalogSlidePreview> previewSlides(String serializedDocument) {
+    private PreviewData previewData(String serializedDocument) {
         JsonNode slides = decodeDocument(serializedDocument).path("slides");
         if (!slides.isArray()) {
-            return List.of();
+            return new PreviewData(0, List.of());
         }
-        int count = Math.min(5, slides.size());
+        int count = Math.min(3, slides.size());
         List<CatalogSlidePreview> previews = new ArrayList<>(count);
         for (int index = 0; index < count; index++) {
             JsonNode slide = slides.get(index);
@@ -777,7 +830,7 @@ public class MarketplaceService {
                     safePreviewColor(slide.path("backgroundColor").asText(null), "#F3F5F1"),
                     safePreviewColor(slide.path("accentColor").asText(null), "#28765D")));
         }
-        return previews;
+        return new PreviewData(slides.size(), previews);
     }
 
     private String safePreviewColor(String color, String fallback) {
@@ -796,19 +849,23 @@ public class MarketplaceService {
     }
 
     private RowMapper<CatalogItemResponse> catalogRowMapper() {
-        return (rs, row) -> new CatalogItemResponse(
-                rs.getObject("listing_id", UUID.class),
-                rs.getObject("version_id", UUID.class),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getObject("seller_id", UUID.class),
-                rs.getInt("version"),
-                rs.getLong("price_tiyin"),
-                rs.getString("currency"),
-                rs.getTimestamp("updated_at").toInstant(),
-                rs.getString("category"),
-                rs.getString("seller_name"),
-                previewSlides(rs.getString("document")));
+        return (rs, row) -> {
+            PreviewData preview = previewData(rs.getString("document"));
+            return new CatalogItemResponse(
+                    rs.getObject("listing_id", UUID.class),
+                    rs.getObject("version_id", UUID.class),
+                    rs.getString("title"),
+                    rs.getString("description"),
+                    rs.getObject("seller_id", UUID.class),
+                    rs.getInt("version"),
+                    rs.getLong("price_tiyin"),
+                    rs.getString("currency"),
+                    rs.getTimestamp("updated_at").toInstant(),
+                    rs.getString("category"),
+                    rs.getString("seller_name"),
+                    preview.slideCount(),
+                    preview.slides());
+        };
     }
 
     private ApiException listingNotFound() {
@@ -816,6 +873,9 @@ public class MarketplaceService {
     }
 
     private record PresentationSnapshot(String title, JsonNode document) {
+    }
+
+    private record PreviewData(int slideCount, List<CatalogSlidePreview> slides) {
     }
 
     private record Listing(

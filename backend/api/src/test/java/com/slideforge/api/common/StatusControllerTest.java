@@ -39,4 +39,11 @@ class StatusControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5174"));
     }
+
+    @Test
+    void allowsViteLoopbackOrigin() throws Exception {
+        mockMvc.perform(get("/api/v1/status").header("Origin", "http://127.0.0.1:5173"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
+    }
 }

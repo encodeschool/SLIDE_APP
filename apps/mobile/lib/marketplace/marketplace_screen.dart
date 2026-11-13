@@ -94,6 +94,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ScrollController()..addListener(_loadMoreWhenNearEnd);
     _section = widget.initialSection;
     _checkoutStep = widget.initialCheckoutStep;
+    _showingPurchases =
+        widget.initialSection == 2 && widget.accessToken != null;
     _items = getMarketplaceDemoProducts(_ru, _uz).take(10).toList();
     _total = marketplaceDemoExamples.length;
     _loading = false;
@@ -112,6 +114,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       _dio.options.headers.remove('Authorization');
     }
     _initialize();
+    if (_showingPurchases) _loadPurchases();
   }
 
   @override
@@ -127,6 +130,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialSection != widget.initialSection) {
       _section = widget.initialSection;
+      _showingPurchases =
+          widget.initialSection == 2 && widget.accessToken != null;
+      if (_showingPurchases) _loadPurchases();
     }
     if (oldWidget.initialCheckoutStep != widget.initialCheckoutStep) {
       _checkoutStep = widget.initialCheckoutStep;
@@ -649,9 +655,92 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       value is List
           ? value
               .whereType<Map>()
+              .take(3)
               .map((slide) => Map<String, dynamic>.from(slide))
               .toList()
           : const [];
+
+  Widget _previewAccessNotice(Map<String, dynamic> item) {
+    final visibleCount = _slidePreviews(item['previewSlides']).length;
+    final slideCount =
+        item['slideCount'] is num
+            ? (item['slideCount'] as num).toInt()
+            : visibleCount;
+    final lockedCount = (slideCount - visibleCount).clamp(0, 100000);
+    if (lockedCount == 0) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCE7DD)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF9FBF8), Color(0xFFEDF3ED)],
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6F0E7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.lock_outline_rounded, size: 19),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _text(
+                    '$lockedCount more slides are locked',
+                    'Ещё $lockedCount слайдов закрыты',
+                    'Yana $lockedCount ta slayd qulflangan',
+                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _text(
+                    'Purchase to unlock all slides and download the presentation.',
+                    'Купите презентацию, чтобы открыть все слайды и скачать её.',
+                    'Barcha slaydlarni ochish va yuklab olish uchun xarid qiling.',
+                  ),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _addToCart(item);
+                    _setSection(1);
+                  },
+                  icon: const Icon(Icons.shopping_bag_outlined, size: 17),
+                  label: Text(
+                    _text('Purchase to unlock', 'Купить', 'Xarid qilish'),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   List<Map<String, dynamic>> _slidePreviewsFromDocument(
     Map<String, dynamic> document,
@@ -808,9 +897,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     const SizedBox(height: 8),
                     SlidePreviewCarousel(
                       title: detail['title'] as String,
-                      slides: _slidePreviews(detail['previewSlides']),
+                      slides:
+                          _slidePreviews(
+                            detail['previewSlides'],
+                          ).take(3).toList(),
                       height: 190,
                     ),
+                    const SizedBox(height: 8),
+                    _previewAccessNotice(detail),
                     const SizedBox(height: 24),
                     Text(
                       detail['title'] as String,
@@ -1589,7 +1683,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   decoration: BoxDecoration(
                     color:
                         selected
-                            ? const Color(0xFFEDE8FC).withValues(alpha: .88)
+                            ? const Color(0xFFE6F0E7).withValues(alpha: .92)
                             : Colors.white.withValues(alpha: .63),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
@@ -1627,10 +1721,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             height: 1.1,
                             fontWeight:
                                 selected ? FontWeight.w700 : FontWeight.w600,
-                            color:
-                                selected
-                                    ? const Color(0xFF382D63)
-                                    : const Color(0xFF55515F),
+                            color: selected ? accent : const Color(0xFF657168),
                           ),
                         ),
                       ),
@@ -1653,16 +1744,21 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }) {
     final category = item['category'] as String? ?? 'other';
     final cardColor = switch (category) {
-      'business' => const Color(0xFFE2EBE6),
-      'education' => const Color(0xFFE7E6F3),
-      'marketing' => const Color(0xFFF4E8DE),
-      'technology' => const Color(0xFFE0EDF1),
+      'business' => const Color(0xFFE6F0E7),
+      'education' => const Color(0xFFE8F1E9),
+      'marketing' => const Color(0xFFF5EEE5),
+      'technology' => const Color(0xFFE7F0F1),
       _ => colors.surfaceContainerHighest,
     };
     final alreadyInCart = _cart.any(
       (entry) => entry['listingId'] == item['listingId'],
     );
     final previews = _slidePreviews(item['previewSlides']);
+    final totalSlides =
+        item['slideCount'] is num
+            ? (item['slideCount'] as num).toInt()
+            : previews.length;
+    final lockedSlides = (totalSlides - previews.length).clamp(0, 100000);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1736,6 +1832,40 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           fontSize: 10,
                         ),
                       ),
+                      Text(
+                        _text(
+                          'Previewing ${previews.length} of $totalSlides slides',
+                          'Предпросмотр: ${previews.length} из $totalSlides слайдов',
+                          '$totalSlides slayddan ${previews.length} tasi koʻrsatilmoqda',
+                        ),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 9,
+                        ),
+                      ),
+                      if (lockedSlides > 0) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.lock_outline_rounded, size: 12),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                _text(
+                                  '$lockedSlides slides locked',
+                                  'Закрыто слайдов: $lockedSlides',
+                                  '$lockedSlides ta slayd qulflangan',
+                                ),
+                                style: TextStyle(
+                                  color: colors.primary,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 2),
                       Text(
                         _price(item),
@@ -2425,41 +2555,41 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
     final marketplaceColors = baseTheme.colorScheme.copyWith(
-      primary: const Color(0xFF7354D6),
+      primary: const Color(0xFF28765D),
       onPrimary: Colors.white,
-      primaryContainer: const Color(0xFFEDE8FC),
-      onPrimaryContainer: const Color(0xFF382D63),
-      secondary: const Color(0xFF927BE0),
-      secondaryContainer: const Color(0xFFF0ECFC),
+      primaryContainer: const Color(0xFFE6F0E7),
+      onPrimaryContainer: const Color(0xFF244C39),
+      secondary: const Color(0xFF55826A),
+      secondaryContainer: const Color(0xFFE8F1E9),
       surface: Colors.white,
-      surfaceContainerHighest: const Color(0xFFF1EFF7),
-      outline: const Color(0xFFE4E0ED),
+      surfaceContainerHighest: const Color(0xFFEFF3ED),
+      outline: const Color(0xFFDCE5DC),
     );
     final marketplaceTheme = baseTheme.copyWith(
       colorScheme: marketplaceColors,
-      scaffoldBackgroundColor: const Color(0xFFF8F7FC),
+      scaffoldBackgroundColor: const Color(0xFFF4F5F1),
       cardTheme: baseTheme.cardTheme.copyWith(
-        color: Colors.white,
+        color: const Color(0xE8FBFCF9),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFECE9F2)),
+          side: const BorderSide(color: Color(0xD9FFFFFF)),
         ),
       ),
       appBarTheme: baseTheme.appBarTheme.copyWith(
-        backgroundColor: const Color(0xFFF8F7FC),
+        backgroundColor: const Color(0xE6F4F5F1),
         surfaceTintColor: Colors.transparent,
       ),
       inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
         filled: true,
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE8E4F0)),
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFFE0E6DF)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF7354D6), width: 1.5),
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF28765D), width: 1.5),
         ),
       ),
       textTheme: baseTheme.textTheme.apply(
@@ -2540,12 +2670,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
             bottomNavigationBar: SlideforgeBottomNavigationBar(
               selectedIndex: _section,
-              cartCount: _cart.length,
-              shopLabel: _text('Shop', 'Магазин', 'Doʻkon'),
-              cartLabel: _text('Cart', 'Корзина', 'Savat'),
-              thirdLabel: _text('Account', 'Аккаунт', 'Hisob'),
-              thirdIcon: Icons.account_circle_outlined,
-              thirdSelectedIcon: Icons.account_circle_rounded,
+              items: [
+                SlideforgeNavigationItem(
+                  label: _text('Shop', 'Магазин', 'Doʻkon'),
+                  icon: Icons.storefront_outlined,
+                  selectedIcon: Icons.storefront_rounded,
+                ),
+                SlideforgeNavigationItem(
+                  label: _text('Cart', 'Корзина', 'Savat'),
+                  icon: Icons.shopping_bag_outlined,
+                  selectedIcon: Icons.shopping_bag_rounded,
+                  badgeCount: _cart.length,
+                ),
+                SlideforgeNavigationItem(
+                  label: _text('Account', 'Аккаунт', 'Hisob'),
+                  icon: Icons.account_circle_outlined,
+                  selectedIcon: Icons.account_circle_rounded,
+                ),
+              ],
               onSelected: (index) {
                 if (index == 1 && _cart.isEmpty) _setCheckoutStep(0);
                 _setSection(index);

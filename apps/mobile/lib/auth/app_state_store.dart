@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class MobileAppState {
-  static const storageVersion = 1;
+  static const storageVersion = 2;
 
   const MobileAppState({
     this.cartItems = const [],
     this.marketplaceSection = 0,
     this.checkoutStep = 0,
-    this.workspaceTab = 2,
+    this.workspaceTab = 0,
     this.locale = 'en',
     this.localeIsSaved = false,
   });
@@ -22,7 +22,10 @@ class MobileAppState {
   final bool localeIsSaved;
 
   factory MobileAppState.fromJson(Map<String, dynamic> json) {
-    if (json['version'] != storageVersion) return const MobileAppState();
+    final version = json['version'];
+    if (version != 1 && version != storageVersion) {
+      return const MobileAppState();
+    }
     final cart = json['cartItems'];
     final items =
         cart is List
@@ -36,11 +39,21 @@ class MobileAppState {
     final section = _boundedInt(json['marketplaceSection'], 0, 2);
     final step = items.isEmpty ? 0 : _boundedInt(json['checkoutStep'], 0, 2);
     final locale = json['locale'];
+    final savedWorkspaceTab = _boundedInt(
+      json['workspaceTab'],
+      0,
+      version == 1 ? 2 : 3,
+      fallback: version == 1 ? 2 : 0,
+    );
+    final workspaceTab =
+        version == 1
+            ? (savedWorkspaceTab == 0 || savedWorkspaceTab == 1 ? 1 : 0)
+            : savedWorkspaceTab;
     return MobileAppState(
       cartItems: items,
       marketplaceSection: section,
       checkoutStep: step,
-      workspaceTab: _boundedInt(json['workspaceTab'], 0, 2, fallback: 2),
+      workspaceTab: workspaceTab,
       locale:
           locale is String && const {'en', 'ru', 'uz'}.contains(locale)
               ? locale
@@ -80,6 +93,7 @@ class MobileAppState {
     final currency = item['currency'];
     final publishedAt = item['publishedAt'];
     final category = item['category'];
+    final slideCount = item['slideCount'];
     if (listingId is! String ||
         listingId.isEmpty ||
         listingId.length > 120 ||
@@ -128,11 +142,17 @@ class MobileAppState {
       'publishedAt': publishedAt,
       'category': category,
     };
+    if (slideCount is num &&
+        slideCount.isFinite &&
+        slideCount >= 0 &&
+        slideCount == slideCount.roundToDouble()) {
+      sanitized['slideCount'] = slideCount;
+    }
     final slides = item['previewSlides'];
     if (slides is List) {
       sanitized['previewSlides'] =
           slides
-              .take(40)
+              .take(3)
               .whereType<Map>()
               .map(_sanitizePreviewSlide)
               .whereType<Map<String, dynamic>>()

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, Filter, LoaderCircle, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, Download, Filter, LoaderCircle, LockKeyhole, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
 import { API_URL, authorizedFetch } from "../../shared/api/client";
-import type { AuthResponse, Locale, PresentationSummary } from "../../shared/types";
+import type { AuthResponse, ExportFormat, ExportJobResponse, Locale, PresentationSummary } from "../../shared/types";
 import { SlidePreviewCarousel } from "./SlidePreviewCarousel";
 import { demoCatalogPage, demoCategories, demoProductDetails } from "./demoCatalog";
 import type { Category, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
@@ -19,16 +19,22 @@ type MarketplaceStage = "shop" | "cart" | "checkout" | "payment" | "purchases";
 interface Props {
   locale: Locale;
   token: string | null;
+  accountId: string | null;
+  initialStage: "shop" | "purchases";
+  walletBalanceTiyin: number | null;
   presentations: PresentationSummary[];
   onSession: (session: AuthResponse) => void;
   onExpired: () => void;
   onRequireAuth: () => void;
+  onRequestTopUp: () => void;
+  onRefreshWallet: () => Promise<void>;
+  onRefreshPresentations: () => Promise<void>;
 }
 
 const categoryNames = {
-  en: { shop: "Presentation marketplace", intro: "Discover and sell editable presentations.", category: "Category", all: "All categories", search: "Search presentations", add: "Add to cart", added: "Added", remove: "Remove", cart: "Cart", checkout: "Checkout", payment: "Payment", continue: "Continue", pay: "Pay for order", sandbox: "Sandbox payment", sandboxInfo: "Development-only sandbox; confirmation is disabled unless an operator enables it.", total: "Order total", signInToPay: "Sign in to continue to payment", secureNote: "Your account session is protected; payment details are handled by the payment provider.", emptyCart: "Your cart is empty.", empty: "No published presentations yet.", seller: "Seller", license: "License terms", details: "View details", back: "Back to marketplace", more: "Load 10 more", signIn: "Sign in to checkout", sell: "Sell a presentation", choose: "Choose a presentation", price: "Price (UZS)", description: "Listing description", terms: "License terms", publish: "Publish listing", myListings: "My listings", published: "Listing published", saved: "Preference saved", pending: "Order created but payment is pending. Sandbox confirmation is disabled; no purchase was completed.", complete: "Sandbox checkout complete", error: "Could not complete the request. Please try again.", noDecks: "Create a presentation before publishing.", demo: "Demo catalog — sample items only. Purchases are not available in demo mode.", demoPaid: "Demo only: no order or payment was created." },
-  ru: { shop: "Маркетплейс презентаций", intro: "Покупайте и продавайте редактируемые презентации.", category: "Категория", all: "Все категории", search: "Поиск презентаций", add: "В корзину", added: "Добавлено", remove: "Удалить", cart: "Корзина", checkout: "Оформление", payment: "Оплата", continue: "Продолжить", pay: "Оплатить заказ", sandbox: "Тестовая оплата", sandboxInfo: "Тестовый режим для разработки; подтверждение отключено, если оператор его не включил.", total: "Итого", signInToPay: "Войдите, чтобы перейти к оплате", secureNote: "Сессия защищена; платёжные данные обрабатываются платёжным провайдером.", emptyCart: "Корзина пока пуста.", empty: "Пока нет опубликованных презентаций.", seller: "Продавец", license: "Условия лицензии", details: "Подробнее", back: "Назад в маркетплейс", more: "Загрузить ещё 10", signIn: "Войдите для оформления", sell: "Продать презентацию", choose: "Выберите презентацию", price: "Цена (UZS)", description: "Описание объявления", terms: "Условия лицензии", publish: "Опубликовать", myListings: "Мои объявления", published: "Объявление опубликовано", saved: "Настройка сохранена", pending: "Заказ создан, оплата ожидает подтверждения. Тестовая оплата отключена; покупка не завершена.", complete: "Оплата в песочнице завершена", error: "Не удалось выполнить запрос. Попробуйте ещё раз.", noDecks: "Сначала создайте презентацию.", demo: "Демо-каталог — примеры. Покупки недоступны в демо-режиме.", demoPaid: "Демо: заказ и платёж не создавались." },
-  uz: { shop: "Taqdimotlar marketpleysi", intro: "Tahrirlanadigan taqdimotlarni koʻring va soting.", category: "Turkum", all: "Barcha turkumlar", search: "Taqdimotlarni qidirish", add: "Savatga qoʻshish", added: "Qoʻshildi", remove: "Oʻchirish", cart: "Savat", checkout: "Buyurtmani rasmiylashtirish", payment: "Toʻlov", continue: "Davom etish", pay: "Buyurtma uchun toʻlash", sandbox: "Sinov toʻlovi", sandboxInfo: "Ishlab chiqish uchun sinov rejimi; operator yoqmaguncha tasdiqlash ishlamaydi.", total: "Jami", signInToPay: "Toʻlov uchun tizimga kiring", secureNote: "Hisob sessiyangiz himoyalangan; toʻlov maʼlumotlarini provayder qayta ishlaydi.", emptyCart: "Savatingiz boʻsh.", empty: "Hozircha chop etilgan taqdimotlar yoʻq.", seller: "Sotuvchi", license: "Litsenziya shartlari", details: "Batafsil", back: "Marketpleysga qaytish", more: "Yana 10 tasini yuklash", signIn: "Xarid uchun tizimga kiring", sell: "Taqdimot sotish", choose: "Taqdimotni tanlang", price: "Narxi (UZS)", description: "Eʼlon tavsifi", terms: "Litsenziya shartlari", publish: "Eʼlon qilish", myListings: "Eʼlonlarim", published: "Eʼlon chop etildi", saved: "Sozlama saqlandi", pending: "Buyurtma yaratildi, lekin toʻlov tasdiqlanmadi. Sinov toʻlovi oʻchiq; xarid yakunlanmadi.", complete: "Sinov toʻlovi yakunlandi", error: "Soʻrovni bajarib boʻlmadi. Qayta urinib koʻring.", noDecks: "Avval taqdimot yarating.", demo: "Namoyish katalogi — namunaviy mahsulotlar. Xaridlar mavjud emas.", demoPaid: "Namoyish: buyurtma va toʻlov yaratilmagan." },
+  en: { shop: "Presentation marketplace", intro: "Discover and sell editable presentations.", category: "Category", all: "All categories", search: "Search presentations", add: "Add to cart", added: "Added", remove: "Remove", cart: "Cart", checkout: "Checkout", payment: "Payment", continue: "Continue", pay: "Pay for order", sandbox: "Sandbox payment", sandboxInfo: "Development-only sandbox; confirmation is disabled unless an operator enables it.", total: "Order total", signInToPay: "Sign in to continue to payment", secureNote: "Your account session is protected; payment details are handled by the payment provider.", emptyCart: "Your cart is empty.", empty: "No published presentations yet.", seller: "Seller", license: "License terms", details: "View details", back: "Back to marketplace", more: "Load 10 more", signIn: "Sign in to checkout", sell: "Sell a presentation", choose: "Choose a presentation", price: "Price (UZS)", description: "Listing description", terms: "License terms", publish: "Publish listing", myListings: "My listings", published: "Listing published", saved: "Preference saved", pending: "Order created but payment is pending. Sandbox confirmation is disabled; no purchase was completed.", complete: "Purchase complete", error: "Could not complete the request. Please try again.", noDecks: "Create a presentation before publishing.", demo: "Demo catalog — sample items only. Purchases are not available in demo mode.", demoPaid: "Demo only: no order or payment was created." },
+  ru: { shop: "Маркетплейс презентаций", intro: "Покупайте и продавайте редактируемые презентации.", category: "Категория", all: "Все категории", search: "Поиск презентаций", add: "В корзину", added: "Добавлено", remove: "Удалить", cart: "Корзина", checkout: "Оформление", payment: "Оплата", continue: "Продолжить", pay: "Оплатить заказ", sandbox: "Тестовая оплата", sandboxInfo: "Тестовый режим для разработки; подтверждение отключено, если оператор его не включил.", total: "Итого", signInToPay: "Войдите, чтобы перейти к оплате", secureNote: "Сессия защищена; платёжные данные обрабатываются платёжным провайдером.", emptyCart: "Корзина пока пуста.", empty: "Пока нет опубликованных презентаций.", seller: "Продавец", license: "Условия лицензии", details: "Подробнее", back: "Назад в маркетплейс", more: "Загрузить ещё 10", signIn: "Войдите для оформления", sell: "Продать презентацию", choose: "Выберите презентацию", price: "Цена (UZS)", description: "Описание объявления", terms: "Условия лицензии", publish: "Опубликовать", myListings: "Мои объявления", published: "Объявление опубликовано", saved: "Настройка сохранена", pending: "Заказ создан, оплата ожидает подтверждения. Тестовая оплата отключена; покупка не завершена.", complete: "Покупка завершена", error: "Не удалось выполнить запрос. Попробуйте ещё раз.", noDecks: "Сначала создайте презентацию.", demo: "Демо-каталог — примеры. Покупки недоступны в демо-режиме.", demoPaid: "Демо: заказ и платёж не создавались." },
+  uz: { shop: "Taqdimotlar marketpleysi", intro: "Tahrirlanadigan taqdimotlarni koʻring va soting.", category: "Turkum", all: "Barcha turkumlar", search: "Taqdimotlarni qidirish", add: "Savatga qoʻshish", added: "Qoʻshildi", remove: "Oʻchirish", cart: "Savat", checkout: "Buyurtmani rasmiylashtirish", payment: "Toʻlov", continue: "Davom etish", pay: "Buyurtma uchun toʻlash", sandbox: "Sinov toʻlovi", sandboxInfo: "Ishlab chiqish uchun sinov rejimi; operator yoqmaguncha tasdiqlash ishlamaydi.", total: "Jami", signInToPay: "Toʻlov uchun tizimga kiring", secureNote: "Hisob sessiyangiz himoyalangan; toʻlov maʼlumotlarini provayder qayta ishlaydi.", emptyCart: "Savatingiz boʻsh.", empty: "Hozircha chop etilgan taqdimotlar yoʻq.", seller: "Sotuvchi", license: "Litsenziya shartlari", details: "Batafsil", back: "Marketpleysga qaytish", more: "Yana 10 tasini yuklash", signIn: "Xarid uchun tizimga kiring", sell: "Taqdimot sotish", choose: "Taqdimotni tanlang", price: "Narxi (UZS)", description: "Eʼlon tavsifi", terms: "Litsenziya shartlari", publish: "Eʼlon qilish", myListings: "Eʼlonlarim", published: "Eʼlon chop etildi", saved: "Sozlama saqlandi", pending: "Buyurtma yaratildi, lekin toʻlov tasdiqlanmadi. Sinov toʻlovi oʻchiq; xarid yakunlanmadi.", complete: "Xarid yakunlandi", error: "Soʻrovni bajarib boʻlmadi. Qayta urinib koʻring.", noDecks: "Avval taqdimot yarating.", demo: "Namoyish katalogi — namunaviy mahsulotlar. Xaridlar mavjud emas.", demoPaid: "Namoyish: buyurtma va toʻlov yaratilmagan." },
 };
 
 const browseLabels = {
@@ -53,6 +59,11 @@ const browseLabels = {
     loading: "Loading purchases…",
     liveUnavailable: "Live payment methods are not connected yet.",
     liveMethods: "Not available yet",
+    walletBalance: "Wallet balance",
+    payFromBalance: "Pay from balance",
+    topUpBalance: "Top up balance",
+    insufficientBalance: "Your balance is too low. Add funds to finish this purchase.",
+    sandboxWalletNotice: "Top-ups are simulated in sandbox mode. No real payment is made.",
   },
   ru: {
     bannerTitle: "Идеи для вашей следующей главы.",
@@ -75,6 +86,11 @@ const browseLabels = {
     loading: "Загрузка покупок…",
     liveUnavailable: "Онлайн-оплата пока не подключена.",
     liveMethods: "Пока недоступно",
+    walletBalance: "Баланс кошелька",
+    payFromBalance: "Оплатить с баланса",
+    topUpBalance: "Пополнить баланс",
+    insufficientBalance: "Недостаточно средств. Пополните баланс, чтобы завершить покупку.",
+    sandboxWalletNotice: "Пополнение симулируется в тестовом режиме. Реальная оплата не выполняется.",
   },
   uz: {
     bannerTitle: "Keyingi gʻoyangiz uchun ilhom.",
@@ -97,11 +113,59 @@ const browseLabels = {
     loading: "Xaridlar yuklanmoqda…",
     liveUnavailable: "Onlayn toʻlov usullari hali ulanmagan.",
     liveMethods: "Hozircha mavjud emas",
+    walletBalance: "Hamyon balansi",
+    payFromBalance: "Balansdan toʻlash",
+    topUpBalance: "Balansni toʻldirish",
+    insufficientBalance: "Balansda mablagʻ yetarli emas. Xaridni yakunlash uchun balansni toʻldiring.",
+    sandboxWalletNotice: "Balans sinov rejimida toʻldiriladi. Haqiqiy toʻlov olinmaydi.",
+  },
+};
+
+const purchaseActionLabels = {
+  en: {
+    slideUnit: "slides",
+    previewCount: "Previewing {visible} of {total} slides",
+    lockedSlides: "{count} more slides are locked",
+    lockedNote: "Purchase to unlock the complete presentation and downloads.",
+    purchaseToUnlock: "Purchase to unlock",
+    downloadPptx: "Download PPTX",
+    downloadPdf: "Download PDF",
+    exporting: "Preparing download…",
+    exportReady: "Download started. A copy is saved in My presentations.",
+    exportFailed: "Could not prepare the download. Please try again.",
+    exportTimedOut: "This export is taking longer than expected. Check Purchases again shortly.",
+  },
+  ru: {
+    slideUnit: "слайдов",
+    previewCount: "Предпросмотр: {visible} из {total} слайдов",
+    lockedSlides: "Ещё {count} слайдов закрыты",
+    lockedNote: "Купите презентацию, чтобы открыть все слайды и скачивание.",
+    purchaseToUnlock: "Купить и открыть",
+    downloadPptx: "Скачать PPTX",
+    downloadPdf: "Скачать PDF",
+    exporting: "Готовим файл…",
+    exportReady: "Скачивание началось. Копия сохранена в разделе презентаций.",
+    exportFailed: "Не удалось подготовить файл. Попробуйте ещё раз.",
+    exportTimedOut: "Экспорт занимает больше времени. Проверьте покупки чуть позже.",
+  },
+  uz: {
+    slideUnit: "slayd",
+    previewCount: "{total} slayddan {visible} tasi koʻrsatilmoqda",
+    lockedSlides: "Yana {count} ta slayd qulflangan",
+    lockedNote: "Barcha slaydlar va fayllarni ochish uchun taqdimotni xarid qiling.",
+    purchaseToUnlock: "Xarid qilib ochish",
+    downloadPptx: "PPTX yuklab olish",
+    downloadPdf: "PDF yuklab olish",
+    exporting: "Fayl tayyorlanmoqda…",
+    exportReady: "Yuklab olish boshlandi. Nusxa taqdimotlaringizga saqlandi.",
+    exportFailed: "Faylni tayyorlab boʻlmadi. Qayta urinib koʻring.",
+    exportTimedOut: "Eksport uzoqroq davom etmoqda. Xaridlar boʻlimini keyinroq tekshiring.",
   },
 };
 
 const demoMode = import.meta.env.VITE_MARKETPLACE_DEMO === "true";
 const MARKETPLACE_STORAGE_KEY = "slideforge.marketplace-state";
+const LEGACY_MARKETPLACE_STORAGE_KEY = MARKETPLACE_STORAGE_KEY;
 const MARKETPLACE_STORAGE_VERSION = 1;
 
 type SavedMarketplaceState = {
@@ -130,6 +194,7 @@ function restoreProduct(value: unknown): Product | null {
   const currency = value.currency;
   const publishedAt = value.publishedAt;
   const category = value.category;
+  const slideCount = value.slideCount;
   if (
     typeof listingId !== "string" || !listingId || listingId.length > 120 ||
     typeof listingVersionId !== "string" || !listingVersionId || listingVersionId.length > 120 ||
@@ -140,12 +205,14 @@ function restoreProduct(value: unknown): Product | null {
     typeof version !== "number" || !Number.isSafeInteger(version) || version < 1 ||
     typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency) ||
     typeof publishedAt !== "string" || publishedAt.length > 80 ||
-    typeof category !== "string" || category.length > 100
+    typeof category !== "string" || category.length > 100 ||
+    (slideCount !== undefined &&
+      (typeof slideCount !== "number" || !Number.isSafeInteger(slideCount) || slideCount < 1))
   ) return null;
 
   const description = typeof value.description === "string" ? value.description.slice(0, 4000) : "";
   const previewSlides = Array.isArray(value.previewSlides)
-    ? value.previewSlides.slice(0, 40).flatMap((slide): PreviewSlide[] => {
+    ? value.previewSlides.slice(0, 3).flatMap((slide): PreviewSlide[] => {
       if (!isRecord(slide)) return [];
       if (
         typeof slide.slideNumber !== "number" ||
@@ -177,11 +244,14 @@ function restoreProduct(value: unknown): Product | null {
     currency,
     publishedAt,
     category,
+    slideCount: typeof slideCount === "number"
+      ? Math.max(slideCount, previewSlides?.length ?? 0)
+      : previewSlides?.length ?? 0,
     ...(previewSlides ? { previewSlides } : {}),
   };
 }
 
-function readMarketplaceState(): SavedMarketplaceState {
+function readMarketplaceState(storageKey: string): SavedMarketplaceState {
   const fallback: SavedMarketplaceState = {
     cart: [],
     stage: "shop",
@@ -192,7 +262,8 @@ function readMarketplaceState(): SavedMarketplaceState {
     maxPriceTiyin: null,
   };
   try {
-    const raw = window.localStorage.getItem(MARKETPLACE_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_MARKETPLACE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return fallback;
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || parsed.version !== MARKETPLACE_STORAGE_VERSION) return fallback;
@@ -228,11 +299,25 @@ function formatPrice(priceTiyin: number, currency: string, locale: Locale) {
   return `${(priceTiyin / 100).toLocaleString(numberLocale)} ${currency}`;
 }
 
-export function Marketplace({ locale, token, presentations, onSession, onExpired, onRequireAuth }: Props) {
+export function Marketplace({
+  locale,
+  token,
+  accountId,
+  initialStage,
+  walletBalanceTiyin,
+  presentations,
+  onSession,
+  onExpired,
+  onRequireAuth,
+  onRequestTopUp,
+  onRefreshWallet,
+  onRefreshPresentations,
+}: Props) {
   const t = categoryNames[locale];
-  const b = browseLabels[locale];
+  const b = { ...browseLabels[locale], ...purchaseActionLabels[locale] };
+  const storageKey = `${MARKETPLACE_STORAGE_KEY}:${accountId ?? "anonymous"}`;
   const [categories, setCategories] = useState<Category[]>([]);
-  const [savedState] = useState(readMarketplaceState);
+  const [savedState] = useState(() => readMarketplaceState(storageKey));
   const [category, setCategory] = useState(savedState.category);
   const [items, setItems] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
@@ -242,7 +327,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
   const [error, setError] = useState("");
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [cart, setCart] = useState<Product[]>(savedState.cart);
-  const [stage, setStage] = useState<MarketplaceStage>(savedState.stage);
+  const [stage, setStage] = useState<MarketplaceStage>(initialStage === "purchases" ? "purchases" : savedState.stage);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sort, setSort] = useState(savedState.sort);
@@ -265,6 +350,9 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [purchaseContent, setPurchaseContent] = useState<PurchaseContent | null>(null);
+  const [purchaseExportFormat, setPurchaseExportFormat] = useState<ExportFormat | null>(null);
+  const [purchaseExportError, setPurchaseExportError] = useState("");
+  const [purchaseExportMessage, setPurchaseExportMessage] = useState("");
   const checkoutKeys = useRef(new Map<string, string>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLock = useRef(false);
@@ -279,7 +367,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
     try {
       // Persist only public catalog metadata and browsing/wizard state. Never
       // store auth/session data, seller form values, orders, or payment data.
-      window.localStorage.setItem(MARKETPLACE_STORAGE_KEY, JSON.stringify({
+      window.localStorage.setItem(storageKey, JSON.stringify({
         version: MARKETPLACE_STORAGE_VERSION,
         cart: cart.map((product) => restoreProduct(product)).filter((product): product is Product => product !== null),
         stage: cart.length === 0 && stage !== "shop" && stage !== "purchases" ? "shop" : stage === "purchases" ? "shop" : stage,
@@ -292,7 +380,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
     } catch {
       // Storage quota/security failures must not interrupt marketplace use.
     }
-  }, [cart, stage, category, search, sort, minPriceTiyin, maxPriceTiyin]);
+  }, [cart, stage, category, search, sort, minPriceTiyin, maxPriceTiyin, storageKey]);
 
   useEffect(() => {
     let active = true;
@@ -498,16 +586,42 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
     } catch { setError(t.error); } finally { setPurchasesLoading(false); }
   }
 
+  useEffect(() => {
+    if (stage === "purchases") void loadPurchases();
+  }, [stage, token]);
+
   async function openPurchase(purchase: Purchase) {
     if (!token) {
       onRequireAuth();
       return;
     }
+    setPurchaseExportError("");
+    setPurchaseExportMessage("");
     try {
       const response = await authorizedFetch(`/api/v1/purchases/${purchase.entitlementId}/content`, token, {}, onSession, onExpired);
       if (!response.ok) throw new Error(t.error);
       setPurchaseContent(await response.json() as PurchaseContent);
     } catch { setError(t.error); }
+  }
+
+  function returnToMarketplace() {
+    setPurchaseContent(null);
+    setPurchaseExportError("");
+    setPurchaseExportMessage("");
+    if (window.location.hash === "#purchases") {
+      window.location.hash = "#marketplace";
+    } else {
+      setStage("shop");
+    }
+  }
+
+  function showPurchases() {
+    setPurchaseContent(null);
+    if (window.location.hash !== "#purchases") {
+      window.location.hash = "#purchases";
+    } else {
+      setStage("purchases");
+    }
   }
 
   function previewSlidesFromDocument(content: PurchaseContent): PreviewSlide[] {
@@ -526,6 +640,70 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
     });
   }
 
+  async function downloadPurchased(format: ExportFormat) {
+    if (!token || !purchaseContent || purchaseExportFormat) return;
+    const purchased = purchaseContent;
+    setPurchaseExportFormat(format);
+    setPurchaseExportError("");
+    setPurchaseExportMessage(b.exporting);
+    try {
+      const enqueueResponse = await authorizedFetch(
+        `/api/v1/purchases/${purchased.entitlementId}/exports`,
+        token,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ format }),
+        },
+        onSession,
+        onExpired,
+      );
+      if (!enqueueResponse.ok) {
+        const problem = await enqueueResponse.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? b.exportFailed);
+      }
+
+      let job = await enqueueResponse.json() as ExportJobResponse;
+      void onRefreshPresentations().catch(() => setError(t.error));
+      for (let attempt = 0; job.status === "QUEUED" || job.status === "RUNNING"; attempt++) {
+        if (attempt >= 120) throw new Error(b.exportTimedOut);
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        const statusResponse = await authorizedFetch(
+          `/api/v1/exports/${job.id}`,
+          token,
+          {},
+          onSession,
+          onExpired,
+        );
+        if (!statusResponse.ok) {
+          const problem = await statusResponse.json().catch(() => null) as { detail?: string } | null;
+          throw new Error(problem?.detail ?? b.exportFailed);
+        }
+        job = await statusResponse.json() as ExportJobResponse;
+      }
+      if (job.status !== "SUCCEEDED" || !job.downloadUrl) throw new Error(b.exportFailed);
+
+      const fileResponse = await authorizedFetch(job.downloadUrl, token, {}, onSession, onExpired);
+      if (!fileResponse.ok) {
+        const problem = await fileResponse.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? b.exportFailed);
+      }
+      const fileUrl = URL.createObjectURL(await fileResponse.blob());
+      const link = document.createElement("a");
+      const safeTitle = purchased.title.replace(/[\u0000-\u001f<>:"/\\|?*]+/g, "-").trim() || "presentation";
+      link.href = fileUrl;
+      link.download = `${safeTitle}.${format}`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+      setPurchaseExportMessage(b.exportReady);
+    } catch (error) {
+      setPurchaseExportMessage("");
+      setPurchaseExportError(error instanceof Error ? error.message : b.exportFailed);
+    } finally {
+      setPurchaseExportFormat(null);
+    }
+  }
+
   async function checkout() {
     if (!token) { onRequireAuth(); return; }
     if (!cart.length) return;
@@ -533,8 +711,20 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
       setNotice(t.demoPaid);
       return;
     }
+    if (walletBalanceTiyin === null || cart.some((product) => product.currency !== "UZS")) {
+      setError(t.error);
+      return;
+    }
+    if (walletBalanceTiyin < cartTotal) {
+      setNotice(b.insufficientBalance);
+      onRequestTopUp();
+      return;
+    }
     setBusy(true);
     setNotice("");
+    setError("");
+    const paidListingIds = new Set<string>();
+    let insufficientBalance = false;
     try {
       for (const product of cart) {
         if (!checkoutKeys.current.has(product.listingId)) {
@@ -551,22 +741,41 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
         }, onSession, onExpired);
         if (!orderResponse.ok) throw new Error();
         const order = await orderResponse.json() as Order;
-        const paymentResponse = await authorizedFetch(`/api/v1/orders/${order.id}/sandbox-confirm`, token, { method: "POST" }, onSession, onExpired);
+        const paymentResponse = await authorizedFetch(`/api/v1/orders/${order.id}/wallet-pay`, token, { method: "POST" }, onSession, onExpired);
+        if (paymentResponse.status === 402) {
+          insufficientBalance = true;
+          break;
+        }
         if (!paymentResponse.ok) {
-          setNotice(t.pending);
-          return;
+          throw new Error();
         }
         checkoutKeys.current.delete(product.listingId);
+        paidListingIds.add(product.listingId);
         confirmed++;
       }
-      setNotice(confirmed ? t.complete : t.pending);
       if (confirmed) {
-        setCart((current) => current.filter((item) => checkoutKeys.current.has(item.listingId)));
+        setCart((current) => current.filter((item) => !paidListingIds.has(item.listingId)));
         setPurchaseContent(null);
-        setStage("purchases");
-        await loadPurchases();
+        await onRefreshWallet();
+        const allItemsPaid = paidListingIds.size === cart.length;
+        if (allItemsPaid && window.location.hash !== "#purchases") {
+          window.location.hash = "#purchases";
+        } else {
+          setStage(allItemsPaid ? "purchases" : "payment");
+        }
+      }
+      if (insufficientBalance) {
+        setNotice(b.insufficientBalance);
+        onRequestTopUp();
+        await onRefreshWallet();
+      } else {
+        setNotice(confirmed ? t.complete : t.pending);
       }
     } catch {
+      if (paidListingIds.size) {
+        setCart((current) => current.filter((item) => !paidListingIds.has(item.listingId)));
+        await onRefreshWallet();
+      }
       setError(t.error);
     } finally { setBusy(false); }
   }
@@ -624,23 +833,49 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
     setNotice(t.added);
   }
 
-  if (detail) return (
-    <section className="marketplace-page">
-      <button className="text-button" type="button" onClick={() => setDetail(null)}><ArrowLeft size={16} />{t.back}</button>
-      <div className="market-detail">
-        <SlidePreviewCarousel title={detail.title} slides={detail.previewSlides} locale={locale} />
-        <div>
-          <span className="market-category">{translatedCategory(detail.category)}</span>
-          <h1>{detail.title}</h1>
-          <p>{detail.description}</p>
-          <div className="market-seller-card"><Store size={17} /><div><small>{t.seller}</small><strong>{detail.sellerName}</strong></div></div>
-          <p><strong>{t.license}:</strong> {detail.licenseTerms}</p>
-          <strong className="market-price">{formatPrice(detail.priceTiyin, detail.currency, locale)}</strong>
-          <button className="primary-button" type="button" onClick={() => { addToCart(detail); setDetail(null); setStage("cart"); }}>{t.add}</button>
+  if (detail) {
+    const visibleSlideCount = Math.min(detail.previewSlides?.length ?? 0, 3);
+    const totalSlideCount = Number.isSafeInteger(detail.slideCount) && detail.slideCount > 0
+      ? detail.slideCount
+      : visibleSlideCount;
+    const lockedSlideCount = Math.max(0, totalSlideCount - visibleSlideCount);
+    return (
+      <section className="marketplace-page">
+        <button className="text-button" type="button" onClick={() => setDetail(null)}><ArrowLeft size={16} />{t.back}</button>
+        <div className="market-detail">
+          <div className="market-detail-preview">
+            <SlidePreviewCarousel title={detail.title} slides={detail.previewSlides?.slice(0, 3) ?? []} locale={locale} />
+            <p className="market-preview-count">
+              {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
+            </p>
+            {lockedSlideCount > 0 && (
+              <div className="market-locked-preview">
+                <div className="market-locked-thumbnails" aria-hidden="true">
+                  {[0, 1, 2].map((slide) => <span key={slide}><LockKeyhole size={15} /></span>)}
+                </div>
+                <div>
+                  <strong><LockKeyhole size={14} />{b.lockedSlides.replace("{count}", String(lockedSlideCount))}</strong>
+                  <p>{b.lockedNote}</p>
+                  <button className="secondary-button" type="button" onClick={() => { addToCart(detail); setDetail(null); setStage("cart"); }}>
+                    {b.purchaseToUnlock}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            <span className="market-category">{translatedCategory(detail.category)}</span>
+            <h1>{detail.title}</h1>
+            <p>{detail.description}</p>
+            <div className="market-seller-card"><Store size={17} /><div><small>{t.seller}</small><strong>{detail.sellerName}</strong></div></div>
+            <p><strong>{t.license}:</strong> {detail.licenseTerms}</p>
+            <strong className="market-price">{formatPrice(detail.priceTiyin, detail.currency, locale)}</strong>
+            <button className="primary-button" type="button" onClick={() => { addToCart(detail); setDetail(null); setStage("cart"); }}>{t.add}</button>
+          </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  }
 
   if (stage === "cart" || stage === "checkout" || stage === "payment") return (
     <section className="marketplace-page" aria-labelledby="marketplace-title">
@@ -683,21 +918,17 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
               <div className="market-checkout-panel">
                 {cart[0] && <SlidePreviewCarousel title={cart[0].title} slides={cart[0].previewSlides} locale={locale} compact />}
                 <h2>{t.payment}</h2>
-                <label className="market-payment-option">
-                  <input type="radio" name="payment-provider" checked readOnly />
-                  <span><strong>{t.sandbox}</strong><small>{t.sandboxInfo}</small></span>
-                </label>
-                <p>{b.liveUnavailable}</p>
-                <div className="market-provider-options" aria-label={b.liveMethods}>
-                  {["Click", "Payme", "Uzum", "Uzcard", "Humo", "Visa", "Mastercard"].map((method) => (
-                    <span key={method} aria-disabled="true"><small>{method}</small><small>{b.liveMethods}</small></span>
-                  ))}
-                </div>
+                <p className="market-wallet-balance">
+                  {b.walletBalance}: {walletBalanceTiyin === null ? "—" : formatPrice(walletBalanceTiyin, "UZS", locale)}
+                </p>
+                <p className="market-sandbox-notice">{b.sandboxWalletNotice}</p>
                 {notice && <p className="market-notice" role="status">{notice}</p>}
                 {error && <p className="form-error" role="alert">{error}</p>}
-                <button className="primary-button" disabled={busy} type="button" onClick={() => void checkout()}>
+                <button className="primary-button" disabled={busy || (!demoMode && walletBalanceTiyin === null)} type="button" onClick={() => void checkout()}>
                   {busy ? <LoaderCircle className="spin-icon" size={15} /> : null}
-                  {token ? t.pay : t.signInToPay}
+                  {token
+                    ? !demoMode && walletBalanceTiyin !== null && walletBalanceTiyin < cartTotal ? b.topUpBalance : b.payFromBalance
+                    : t.signInToPay}
                 </button>
               </div>
             )}
@@ -710,7 +941,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
 
   if (stage === "purchases") return (
     <section className="marketplace-page" aria-labelledby="marketplace-title">
-      <button className="text-button" type="button" onClick={() => { setPurchaseContent(null); setStage("shop"); }}><ArrowLeft size={16} />{t.back}</button>
+      <button className="text-button" type="button" onClick={returnToMarketplace}><ArrowLeft size={16} />{t.back}</button>
       <div className="market-checkout-page">
         <div className="market-checkout-heading">
           <span className="eyebrow"><ShoppingBag size={14} />{b.purchases}</span>
@@ -719,9 +950,25 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
         {notice && <p className="market-notice" role="status"><Check size={16} />{notice}</p>}
         {purchaseContent ? (
           <div className="market-purchased-deck">
-            <button className="text-button" type="button" onClick={() => setPurchaseContent(null)}><ArrowLeft size={16} />{b.purchases}</button>
+            <button className="text-button" type="button" onClick={() => {
+              setPurchaseContent(null);
+              setPurchaseExportError("");
+              setPurchaseExportMessage("");
+            }}><ArrowLeft size={16} />{b.purchases}</button>
             <SlidePreviewCarousel title={purchaseContent.title} slides={previewSlidesFromDocument(purchaseContent)} locale={locale} />
             <p className="market-notice"><Check size={16} />{b.ready}</p>
+            <div className="market-export-actions" aria-busy={purchaseExportFormat !== null}>
+              <button className="primary-button" type="button" disabled={purchaseExportFormat !== null} onClick={() => void downloadPurchased("pptx")}>
+                {purchaseExportFormat === "pptx" ? <LoaderCircle className="spin-icon" size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+                {purchaseExportFormat === "pptx" ? b.exporting : b.downloadPptx}
+              </button>
+              <button className="secondary-button" type="button" disabled={purchaseExportFormat !== null} onClick={() => void downloadPurchased("pdf")}>
+                {purchaseExportFormat === "pdf" ? <LoaderCircle className="spin-icon" size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+                {purchaseExportFormat === "pdf" ? b.exporting : b.downloadPdf}
+              </button>
+            </div>
+            {purchaseExportMessage && <p className="market-export-message" role="status">{purchaseExportMessage}</p>}
+            {purchaseExportError && <p className="form-error" role="alert">{purchaseExportError}</p>}
           </div>
         ) : purchasesLoading ? (
           <p role="status">{b.loading}</p>
@@ -733,7 +980,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
               <article className="market-purchase-card" key={purchase.entitlementId}>
                 <SlidePreviewCarousel title={purchase.title} slides={purchase.previewSlides} locale={locale} compact />
                 <h2>{purchase.title}</h2>
-                <p>{t.seller}: {purchase.sellerName}</p>
+                <p>{t.seller}: {purchase.sellerName} · {purchase.slideCount} {b.slideUnit}</p>
                 <strong>{formatPrice(purchase.priceTiyin, purchase.currency, locale)}</strong>
                 <button className="primary-button" type="button" onClick={() => void openPurchase(purchase)}>{b.openPurchase}</button>
               </article>
@@ -767,7 +1014,7 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
           <button className="cart-button" type="button" onClick={() => setSearchOpen(true)}><Search size={16} />{b.searchAction}</button>
         )}
         <button className="cart-button" type="button" onClick={showFilters}><SlidersHorizontal size={16} />{b.filters}{(category || sort !== "latest" || minPriceTiyin !== null || maxPriceTiyin !== null) && <span className="market-filter-count">!</span>}</button>
-        {token && <button className="cart-button" type="button" onClick={() => { setPurchaseContent(null); setStage("purchases"); void loadPurchases(); }}><BookOpen size={16} />{b.purchases}</button>}
+        {token && <button className="cart-button" type="button" onClick={showPurchases}><BookOpen size={16} />{b.purchases}</button>}
         <button className="cart-button market-cart-action" type="button" onClick={() => setStage("cart")} aria-label={cart.length ? `${t.cart}, ${cart.length}` : t.cart}><ShoppingBag size={17} /><span>{t.cart}</span>{cart.length > 0 && <span className="market-cart-badge" aria-hidden="true">{cart.length}</span>}</button>
       </div>
       {(category || sort !== "latest" || minPriceTiyin !== null || maxPriceTiyin !== null) && (
@@ -781,12 +1028,33 @@ export function Marketplace({ locale, token, presentations, onSession, onExpired
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="market-grid">
         {loading && Array.from({ length: 10 }, (_, i) => <div key={i} className="market-skeleton" aria-hidden="true"><div /><span /><span /></div>)}
-        {!loading && visibleItems.map((item) => <article className="market-card" key={item.listingId}>
-          <SlidePreviewCarousel title={item.title} slides={item.previewSlides} locale={locale} compact />
-          <div className="market-card-copy"><span className="market-category">{translatedCategory(item.category)}</span><h2>{item.title}</h2><p>{item.description}</p><small>{t.seller}: {item.sellerName}</small><strong className="market-price">{formatPrice(item.priceTiyin, item.currency, locale)}</strong>
-            <div className="market-card-actions"><button type="button" className="text-button" onClick={() => void showDetail(item)}>{t.details}<ArrowRight size={14} /></button><button type="button" className="primary-button" aria-label={`${t.add}: ${item.title}`} onClick={() => addToCart(item)}>{cart.some((product) => product.listingId === item.listingId) ? <><Check size={15} />{t.added}</> : t.add}</button></div>
-          </div>
-        </article>)}
+        {!loading && visibleItems.map((item) => {
+          const visibleSlideCount = Math.min(item.previewSlides?.length ?? 0, 3);
+          const totalSlideCount = Number.isSafeInteger(item.slideCount) && item.slideCount > 0
+            ? item.slideCount
+            : visibleSlideCount;
+          const lockedSlideCount = Math.max(0, totalSlideCount - visibleSlideCount);
+          return <article className="market-card" key={item.listingId}>
+            <SlidePreviewCarousel title={item.title} slides={item.previewSlides?.slice(0, 3) ?? []} locale={locale} compact />
+            <div className="market-card-copy">
+              <span className="market-category">{translatedCategory(item.category)}</span>
+              <h2>{item.title}</h2>
+              <p>{item.description}</p>
+              <small>{t.seller}: {item.sellerName}</small>
+              <small className="market-preview-count">
+                {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
+              </small>
+              {lockedSlideCount > 0 && <small className="market-locked-count"><LockKeyhole size={12} />{b.lockedSlides.replace("{count}", String(lockedSlideCount))}</small>}
+              <strong className="market-price">{formatPrice(item.priceTiyin, item.currency, locale)}</strong>
+              <div className="market-card-actions">
+                <button type="button" className="text-button" onClick={() => void showDetail(item)}>{t.details}<ArrowRight size={14} /></button>
+                <button type="button" className="primary-button" aria-label={`${t.add}: ${item.title}`} onClick={() => addToCart(item)}>
+                  {cart.some((product) => product.listingId === item.listingId) ? <><Check size={15} />{t.added}</> : t.add}
+                </button>
+              </div>
+            </div>
+          </article>;
+        })}
       </div>
       {!loading && visibleItems.length === 0 && <p className="empty-state">{t.empty}</p>}
       <div className="market-load-sentinel" ref={loadMoreRef} aria-hidden="true" />

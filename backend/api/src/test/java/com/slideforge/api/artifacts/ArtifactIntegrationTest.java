@@ -26,7 +26,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(properties = "app.auth.rate-limit-max-requests=100")
+@SpringBootTest(properties = {
+        "spring.profiles.active=sandbox",
+        "app.payments.sandbox.enabled=true",
+        "app.generations.worker-enabled=false",
+        "app.auth.rate-limit-max-requests=100"
+})
 @AutoConfigureMockMvc
 class ArtifactIntegrationTest {
     @Autowired private MockMvc mockMvc;
@@ -120,10 +125,14 @@ class ArtifactIntegrationTest {
                                 """))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("GENERATED_ARTIFACT_INVALID"));
+        mockMvc.perform(get("/api/v1/wallet").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balanceTiyin").value(3_600_000))
+                .andExpect(jsonPath("$.workCredits").value(18));
     }
 
     private String loginToken() throws Exception {
-        return AuthTestSupport.registerVerifyAndLogin(
+        String token = AuthTestSupport.registerVerifyAndLogin(
                 mockMvc,
                 mapper,
                 mailDelivery,
@@ -132,5 +141,13 @@ class ArtifactIntegrationTest {
                         "strong-password-123",
                         "Artifact User",
                         "en"));
+        mockMvc.perform(post("/api/v1/wallet/topups")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"packageCode":"STARTER","idempotencyKey":"artifact-test-%s"}
+                                """.formatted(UUID.randomUUID())))
+                .andExpect(status().isOk());
+        return token;
     }
 }

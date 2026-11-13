@@ -2,11 +2,11 @@ import type { AuthResponse } from "../types";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-let sessionRestoreRequest: Promise<AuthResponse | null> | null = null;
+let sessionRefreshRequest: Promise<AuthResponse | null> | null = null;
 
-export function restoreSessionFromCookie(): Promise<AuthResponse | null> {
-  if (!sessionRestoreRequest) {
-    sessionRestoreRequest = fetch(`${API_URL}/api/v1/auth/refresh`, {
+function refreshSessionFromCookie(): Promise<AuthResponse | null> {
+  if (!sessionRefreshRequest) {
+    sessionRefreshRequest = fetch(`${API_URL}/api/v1/auth/refresh`, {
       method: "POST",
       credentials: "include",
     })
@@ -15,12 +15,15 @@ export function restoreSessionFromCookie(): Promise<AuthResponse | null> {
           ? response.json() as Promise<AuthResponse>
           : null,
       )
-      .catch(() => null)
       .finally(() => {
-        sessionRestoreRequest = null;
+        sessionRefreshRequest = null;
       });
   }
-  return sessionRestoreRequest;
+  return sessionRefreshRequest;
+}
+
+export function restoreSessionFromCookie(): Promise<AuthResponse | null> {
+  return refreshSessionFromCookie().catch(() => null);
 }
 
 export async function authorizedFetch(
@@ -39,19 +42,13 @@ export async function authorizedFetch(
   const response = await send(token);
   if (response.status !== 401) return response;
 
-  const refreshResponse = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (refreshResponse.status === 204) {
+  const session = await refreshSessionFromCookie();
+  if (!session) {
     onExpired();
     return response;
   }
-  if (!refreshResponse.ok) {
-    onExpired();
-    return response;
-  }
-  const session = await refreshResponse.json() as AuthResponse;
   onRefresh(session);
-  return send(session.accessToken);
+  const retriedResponse = await send(session.accessToken);
+  if (retriedResponse.status === 401) onExpired();
+  return retriedResponse;
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.slideforge.api.common.exception.ApiException;
 import com.slideforge.api.presentations.DeckDocumentValidator;
+import com.slideforge.api.wallet.WalletService;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -24,16 +25,19 @@ public class GenerationJobService {
     private final DeckDocumentValidator documentValidator;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final WalletService walletService;
 
     public GenerationJobService(
             GenerationJobRepository repository,
             DeckDocumentValidator documentValidator,
             ObjectMapper objectMapper,
-            Clock clock) {
+            Clock clock,
+            WalletService walletService) {
         this.repository = repository;
         this.documentValidator = documentValidator;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.walletService = walletService;
     }
 
     @Transactional
@@ -43,7 +47,9 @@ public class GenerationJobService {
                     "At most three generation jobs may be active at once");
         }
         repository.trimCompletedHistory(ownerId);
-        GenerationJob job = repository.save(new GenerationJob(UUID.randomUUID(), ownerId, request, clock.instant()));
+        GenerationJob job = new GenerationJob(UUID.randomUUID(), ownerId, request, clock.instant());
+        walletService.reserveWork(ownerId, job.getId());
+        job = repository.save(job);
         return GenerationJobResponse.from(job);
     }
 
@@ -54,7 +60,10 @@ public class GenerationJobService {
 
     @Transactional
     public Optional<GenerationJob> claimNext() {
-        repository.failInterrupted(clock.instant().minus(Duration.ofMinutes(2)));
+        for (GenerationJob interrupted : repository.lockInterrupted(clock.instant().minus(Duration.ofMinutes(2)))) {
+            interrupted.fail("GENERATION_INTERRUPTED", clock.instant());
+            walletService.refundWork(interrupted.getOwnerId(), interrupted.getId());
+        }
         return repository.lockNextQueued().map(job -> {
             job.start(clock.instant());
             return job;
@@ -77,14 +86,21 @@ public class GenerationJobService {
             }
         } catch (Exception exception) {
             job.fail("GENERATED_DECK_INVALID", clock.instant());
+            walletService.refundWork(job.getOwnerId(), job.getId());
             return;
         }
         job.succeed(normalized, clock.instant());
+        walletService.settleWork(job.getOwnerId(), job.getId());
     }
 
     @Transactional
     public void fail(UUID jobId, String code) {
-        repository.findById(jobId).ifPresent(job -> job.fail(code, clock.instant()));
+        repository.findById(jobId).ifPresent(job -> {
+            if (job.getStatus() == GenerationJobStatus.QUEUED || job.getStatus() == GenerationJobStatus.RUNNING) {
+                job.fail(code, clock.instant());
+                walletService.refundWork(job.getOwnerId(), job.getId());
+            }
+        });
     }
 
     private GenerationJob findOwned(UUID ownerId, UUID jobId) {

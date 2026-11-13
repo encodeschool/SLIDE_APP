@@ -8,7 +8,7 @@
 | 2b Editor core (deck types, ops, undo/redo) | **Done**, typecheck passes and all 6 tests pass |
 | 3 Web editor + export integration | **Implemented** (visual editor, versioned saves, authenticated PPTX/PDF jobs and downloads; production smoke test pending) |
 | 4 AI generation | **Implemented, provider-gated** (authenticated persisted jobs and validated web flow; no live provider compatibility test) |
-| 5 Marketplace + payments | Catalog, category filters/preferences, listing details, web/mobile storefronts, seller publishing, orders, and sandbox UX implemented; real payment processing blocked on merchant specifications and credentials |
+| 5 Marketplace + payments | Catalog, seller publishing, orders, UZS work-credit wallet, and sandbox top-ups implemented; real payment processing blocked on merchant specifications and credentials |
 | 6 Admin panel | **Implemented** (role-protected sign-in, user management, marketplace listing moderation, and SUPERADMIN category management) |
 | 7 Flutter MVP | Partial (auth, library, create/open, multi-slide text/title editing, versioned saves and conflict reload; export pending; signed AAB workflow awaits operator signing secrets) |
 | 7b Multi-format learning artifacts | Vertical slice implemented: typed non-deck schema, versioned owner-scoped API, AI drafts for 10 formats, web/mobile editing/library, interactive quiz/crossword, DOCX/PDF export. Artifact drafts/exports are synchronous; mobile files are app-private. |

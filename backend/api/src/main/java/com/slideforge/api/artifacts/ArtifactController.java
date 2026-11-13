@@ -40,7 +40,7 @@ public class ArtifactController {
 
     @PostMapping("/draft")
     public ResponseEntity<?> draft(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ArtifactRequests.Draft request) {
-        return ResponseEntity.ok(java.util.Map.of("document", service.draft(request)));
+        return ResponseEntity.ok(java.util.Map.of("document", service.draft(userId(jwt), request)));
     }
 
     @PostMapping

@@ -17,6 +17,7 @@ void main() {
     'currency': 'UZS',
     'publishedAt': '2026-01-01T00:00:00Z',
     'category': 'business',
+    'slideCount': 12,
     'previewSlides': [
       {
         'slideNumber': 1,
@@ -50,6 +51,11 @@ void main() {
     expect(state.marketplaceSection, 1);
     expect(state.checkoutStep, 2);
     expect(state.locale, 'ru');
+    expect(state.cartItems.single['slideCount'], 12);
+    expect(
+      (state.cartItems.single['previewSlides'] as List).length,
+      lessThanOrEqualTo(3),
+    );
     final serialized = state.toJson();
     expect(serialized['version'], MobileAppState.storageVersion);
     expect(serialized['cartItems'].toString(), isNot(contains('accessToken')));
@@ -71,8 +77,28 @@ void main() {
       expect(state.cartItems, isEmpty);
       expect(state.marketplaceSection, 0);
       expect(state.checkoutStep, 0);
-      expect(state.workspaceTab, 2);
+      expect(state.workspaceTab, 0);
       expect(state.locale, 'en');
+    },
+  );
+
+  test(
+    'legacy navigation state migrates to the four web-aligned destinations',
+    () {
+      final oldHome = MobileAppState.fromJson({
+        'version': 1,
+        'workspaceTab': 2,
+        'marketplaceSection': 0,
+      });
+      final oldCart = MobileAppState.fromJson({
+        'version': 1,
+        'workspaceTab': 1,
+        'marketplaceSection': 1,
+      });
+
+      expect(oldHome.workspaceTab, 0);
+      expect(oldCart.workspaceTab, 1);
+      expect(oldCart.marketplaceSection, 1);
     },
   );
 

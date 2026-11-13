@@ -2,82 +2,71 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+class SlideforgeNavigationItem {
+  const SlideforgeNavigationItem({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    this.badgeCount = 0,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final int badgeCount;
+}
+
 class SlideforgeBottomNavigationBar extends StatelessWidget {
   const SlideforgeBottomNavigationBar({
     super.key,
     required this.selectedIndex,
-    required this.cartCount,
-    required this.thirdLabel,
-    required this.thirdIcon,
-    required this.thirdSelectedIcon,
-    required this.shopLabel,
-    required this.cartLabel,
+    required this.items,
     required this.onSelected,
   });
 
   final int selectedIndex;
-  final int cartCount;
-  final String shopLabel;
-  final String cartLabel;
-  final String thirdLabel;
-  final IconData thirdIcon;
-  final IconData thirdSelectedIcon;
+  final List<SlideforgeNavigationItem> items;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    Widget cartIcon(bool selected) => Transform.translate(
-      offset: const Offset(0, 0 ),
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: selected ? colors.primary : colors.surfaceContainerHighest,
-          shape: BoxShape.circle,
-          // boxShadow: [
-          //   BoxShadow(
-          //     color: colors.shadow.withValues(alpha: selected ? .2 : .1),
-          //     blurRadius: selected ? 9 : 5,
-          //     offset: const Offset(0, 3),
-          //   ),
-          // ],
-        ),
-        child: Center(
-          child: Semantics(
-            label: cartCount > 0 ? '$cartCount items in cart' : cartLabel,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  selected
-                      ? Icons.shopping_bag_rounded
-                      : Icons.shopping_bag_outlined,
-                  color: selected ? colors.onPrimary : colors.onSurfaceVariant,
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 72),
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xDFF9FCF9),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xE8FFFFFF)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1F1B2B21),
+                  blurRadius: 28,
+                  offset: Offset(0, 10),
                 ),
-                if (cartCount > 0)
-                  Positioned(
-                    top: -9,
-                    right: -12,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 19),
-                      height: 19,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE34D59),
-                        border: Border.all(color: Colors.white, width: 2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        cartCount > 99 ? '99+' : '$cartCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          height: 1,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                BoxShadow(
+                  color: Color(0xBFFFFFFF),
+                  blurRadius: 1,
+                  offset: Offset(0, -1),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                for (var index = 0; index < items.length; index++)
+                  Expanded(
+                    child: _NavigationDestination(
+                      item: items[index],
+                      selected: index == selectedIndex,
+                      selectedColor: colors.primary,
+                      onTap: () => onSelected(index),
                     ),
                   ),
               ],
@@ -86,42 +75,111 @@ class SlideforgeBottomNavigationBar extends StatelessWidget {
         ),
       ),
     );
+  }
+}
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surface.withValues(alpha: .84),
-            border: Border(
-              top: BorderSide(
-                color: colors.outlineVariant.withValues(alpha: .6),
+class _NavigationDestination extends StatelessWidget {
+  const _NavigationDestination({
+    required this.item,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+  });
+
+  final SlideforgeNavigationItem item;
+  final bool selected;
+  final Color selectedColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected ? selectedColor : const Color(0xFF657168);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            constraints: const BoxConstraints(minHeight: 56),
+            decoration: BoxDecoration(
+              color:
+                  selected
+                      ? selectedColor.withValues(alpha: .10)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color:
+                    selected
+                        ? selectedColor.withValues(alpha: .12)
+                        : Colors.transparent,
               ),
             ),
-          ),
-          child: NavigationBar(
-            height: 76,
-            selectedIndex: selectedIndex,
-            animationDuration: const Duration(milliseconds: 320),
-            onDestinationSelected: onSelected,
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.storefront_outlined),
-                selectedIcon: const Icon(Icons.storefront_rounded),
-                label: shopLabel,
-              ),
-              NavigationDestination(
-                icon: cartIcon(false),
-                selectedIcon: cartIcon(true),
-                label: cartLabel,
-              ),
-              NavigationDestination(
-                icon: Icon(thirdIcon),
-                selectedIcon: Icon(thirdSelectedIcon),
-                label: thirdLabel,
-              ),
-            ],
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      selected ? item.selectedIcon : item.icon,
+                      size: 20,
+                      color: foreground,
+                    ),
+                    if (item.badgeCount > 0)
+                      Positioned(
+                        right: -9,
+                        top: -6,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: selectedColor,
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(
+                              color: const Color(0xFFF9FCF9),
+                              width: 1.5,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              height: 1,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 9,
+                    height: 1.1,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ package com.slideforge.api.generations;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,6 +28,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(properties = {
+        "spring.profiles.active=sandbox",
+        "app.payments.sandbox.enabled=true",
         "app.generations.poll-interval-ms=50",
         "app.auth.rate-limit-max-requests=100"
 })
@@ -46,6 +49,7 @@ class GenerationIntegrationTest {
 
     @Test
     void persistsValidatedResultAndScopesStatusToOwner() throws Exception {
+        reset(provider);
         String ownerToken = registerAndGetAccessToken();
         String otherToken = registerAndGetAccessToken();
         ObjectNode expectedDeck = deck("Investor update", "en", 3);
@@ -66,11 +70,16 @@ class GenerationIntegrationTest {
                 .andExpect(jsonPath("$.status").value("SUCCEEDED"))
                 .andExpect(jsonPath("$.document.id").value(jobId.toString()))
                 .andExpect(jsonPath("$.document.slides.length()").value(3));
+        mockMvc.perform(get("/api/v1/wallet").header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balanceTiyin").value(3_400_000))
+                .andExpect(jsonPath("$.workCredits").value(17));
         verify(provider).generate("Investor update for a small business", "en", 3);
     }
 
     @Test
     void persistsFailureWhenProviderIsNotConfigured() throws Exception {
+        reset(provider);
         String token = registerAndGetAccessToken();
         when(provider.isConfigured()).thenReturn(false);
         UUID jobId = UUID.fromString(objectMapper.readTree(
@@ -82,10 +91,15 @@ class GenerationIntegrationTest {
                 .andExpect(jsonPath("$.status").value("FAILED"))
                 .andExpect(jsonPath("$.failureCode").value("AI_PROVIDER_UNCONFIGURED"))
                 .andExpect(jsonPath("$.document").doesNotExist());
+        mockMvc.perform(get("/api/v1/wallet").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balanceTiyin").value(3_600_000))
+                .andExpect(jsonPath("$.workCredits").value(18));
     }
 
     @Test
     void rejectsInvalidProviderDeckAndEnforcesRequestBounds() throws Exception {
+        reset(provider);
         String token = registerAndGetAccessToken();
         when(provider.isConfigured()).thenReturn(true);
         when(provider.generate(eq("Brief"), eq("en"), eq(2))).thenReturn(deck("Wrong count", "en", 1));
@@ -128,13 +142,21 @@ class GenerationIntegrationTest {
     }
 
     private String registerAndGetAccessToken() throws Exception {
-        return AuthTestSupport.registerVerifyAndLogin(
+        String token = AuthTestSupport.registerVerifyAndLogin(
                 mockMvc,
                 objectMapper,
                 mailDelivery,
                 new RegisterRequest(
                         "generation-" + UUID.randomUUID() + "@example.test",
                         "long-enough-test-password", "Generation User", "en"));
+        mockMvc.perform(post("/api/v1/wallet/topups")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new com.slideforge.api.wallet.CreateWalletTopUpRequest(
+                                        "STARTER", "test-topup-" + UUID.randomUUID()))))
+                .andExpect(status().isOk());
+        return token;
     }
 
     private ObjectNode deck(String title, String language, int slideCount) {

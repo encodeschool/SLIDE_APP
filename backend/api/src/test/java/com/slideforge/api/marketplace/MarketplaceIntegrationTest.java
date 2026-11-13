@@ -107,8 +107,10 @@ class MarketplaceIntegrationTest {
     void ownersControlDraftsAndOnlyPublishedListingsAppearInThePublicCatalog() throws Exception {
         Account seller = register("seller");
         Account stranger = register("stranger");
-        UUID deckId = createPresentation(seller.token(), "Seller deck");
-        UUID listingId = createListing(seller, deckId, 1, 1500);
+        UUID deckId = createPresentation(seller.token(), "Seller deck", 5);
+        long listingPrice = 1_000_000_000_000L
+                + Math.floorMod(UUID.randomUUID().getMostSignificantBits(), 1_000_000_000L);
+        UUID listingId = createListing(seller, deckId, 1, listingPrice);
         mockMvc.perform(get("/api/v1/seller/listings")
                         .header("Authorization", bearer(seller.token())))
                 .andExpect(status().isOk())
@@ -118,7 +120,7 @@ class MarketplaceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        mockMvc.perform(get("/api/v1/catalog"))
+        mockMvc.perform(get("/api/v1/catalog?minPriceTiyin={price}&maxPriceTiyin={price}", listingPrice, listingPrice))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(0));
         mockMvc.perform(put("/api/v1/seller/listings/{id}", listingId)
@@ -144,34 +146,44 @@ class MarketplaceIntegrationTest {
         mockMvc.perform(put("/api/v1/seller/listings/{id}", listingId)
                         .header("Authorization", bearer(seller.token()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(new UpdateDraftListingRequest(1, 2500L, "updated description", "commercial license"))))
+                        .content(json(new UpdateDraftListingRequest(1, listingPrice + 100, "updated description", "commercial license"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentVersion").value(2))
-                .andExpect(jsonPath("$.priceTiyin").value(2500));
+                .andExpect(jsonPath("$.priceTiyin").value(listingPrice + 100));
 
-        assertVersionSnapshot(listingId, 1, 1500);
-        assertVersionSnapshot(listingId, 2, 2500);
+        assertVersionSnapshot(listingId, 1, listingPrice);
+        assertVersionSnapshot(listingId, 2, listingPrice + 100);
 
         mockMvc.perform(post("/api/v1/seller/listings/{id}/publish", listingId)
                         .header("Authorization", bearer(seller.token())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
-        mockMvc.perform(get("/api/v1/catalog?page=0&size=1"))
+        mockMvc.perform(get(
+                        "/api/v1/catalog?page=0&size=1&minPriceTiyin={price}&maxPriceTiyin={price}",
+                        listingPrice + 100,
+                        listingPrice + 100))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items[0].listingId").value(listingId.toString()))
                 .andExpect(jsonPath("$.items[0].version").value(2))
-                .andExpect(jsonPath("$.items[0].priceTiyin").value(2500))
+                .andExpect(jsonPath("$.items[0].priceTiyin").value(listingPrice + 100))
                 .andExpect(jsonPath("$.items[0].category").value("education"))
                 .andExpect(jsonPath("$.items[0].sellerName").value("seller"))
+                .andExpect(jsonPath("$.items[0].slideCount").value(5))
+                .andExpect(jsonPath("$.items[0].previewSlides.length()").value(3))
                 .andExpect(jsonPath("$.items[0].document").doesNotExist());
-        mockMvc.perform(get("/api/v1/catalog?category=business"))
+        mockMvc.perform(get(
+                        "/api/v1/catalog?category=business&minPriceTiyin={price}&maxPriceTiyin={price}",
+                        listingPrice + 100,
+                        listingPrice + 100))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(0));
         mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sellerName").value("seller"))
                 .andExpect(jsonPath("$.licenseTerms").value("commercial license"))
+                .andExpect(jsonPath("$.slideCount").value(5))
+                .andExpect(jsonPath("$.previewSlides.length()").value(3))
                 .andExpect(jsonPath("$.category").value("education"));
         mockMvc.perform(get("/api/v1/catalog?page=-1"))
                 .andExpect(status().isBadRequest())
@@ -233,9 +245,8 @@ class MarketplaceIntegrationTest {
                         .content(json(new AdminListingStatusRequest("SUSPENDED"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUSPENDED"));
-        mockMvc.perform(get("/api/v1/catalog"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(0));
+        mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
+                .andExpect(status().isNotFound());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
                                 "/api/v1/admin/marketplace/listings/{id}/status", listingId)
                         .header("Authorization", bearer(adminToken))
@@ -285,9 +296,8 @@ class MarketplaceIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(new CreateOrderRequest(listingId, "new-" + UUID.randomUUID()))))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/catalog"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(0));
+        mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -316,11 +326,15 @@ class MarketplaceIntegrationTest {
     }
 
     private UUID createPresentation(String token, String title) throws Exception {
+        return createPresentation(token, title, 1);
+    }
+
+    private UUID createPresentation(String token, String title, int slideCount) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/presentations")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(new com.slideforge.api.presentations.CreatePresentationRequest(
-                                title, "en", document(title)))))
+                                title, "en", document(title, slideCount)))))
                 .andExpect(status().isCreated())
                 .andReturn();
         return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).path("id").asText());
@@ -357,6 +371,10 @@ class MarketplaceIntegrationTest {
     }
 
     private ObjectNode document(String title) {
+        return document(title, 1);
+    }
+
+    private ObjectNode document(String title, int slideCount) {
         ObjectNode document = objectMapper.createObjectNode();
         document.put("schemaVersion", 1);
         document.put("id", UUID.randomUUID().toString());
@@ -366,17 +384,19 @@ class MarketplaceIntegrationTest {
         size.put("width", 1280);
         size.put("height", 720);
         ArrayNode slides = document.putArray("slides");
-        ObjectNode slide = slides.addObject();
-        slide.put("id", UUID.randomUUID().toString());
-        ArrayNode elements = slide.putArray("elements");
-        ObjectNode text = elements.addObject();
-        text.put("id", UUID.randomUUID().toString());
-        text.put("type", "text");
-        text.put("x", 40);
-        text.put("y", 40);
-        text.put("w", 400);
-        text.put("h", 100);
-        text.put("text", "Marketplace source");
+        for (int index = 0; index < slideCount; index++) {
+            ObjectNode slide = slides.addObject();
+            slide.put("id", UUID.randomUUID().toString());
+            ArrayNode elements = slide.putArray("elements");
+            ObjectNode text = elements.addObject();
+            text.put("id", UUID.randomUUID().toString());
+            text.put("type", "text");
+            text.put("x", 40);
+            text.put("y", 40);
+            text.put("w", 400);
+            text.put("h", 100);
+            text.put("text", "Marketplace source " + (index + 1));
+        }
         return document;
     }
 

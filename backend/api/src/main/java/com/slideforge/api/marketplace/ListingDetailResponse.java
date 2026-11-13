@@ -17,5 +17,6 @@ public record ListingDetailResponse(
         String currency,
         String category,
         Instant publishedAt,
+        int slideCount,
         List<CatalogSlidePreview> previewSlides) {
 }

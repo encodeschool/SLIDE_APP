@@ -195,6 +195,13 @@ public class AuthService {
 
     @Transactional
     public void verifyEmail(String rawToken) {
+        if (rawToken != null && !rawToken.isBlank()
+                && authActionTokenRepository.findByTokenHashAndPurpose(
+                        hashToken(rawToken), AuthActionToken.Purpose.EMAIL_VERIFICATION)
+                        .filter(token -> token.getUser().isEmailVerified())
+                        .isPresent()) {
+            return;
+        }
         AuthActionToken token = findUsableActionToken(rawToken, AuthActionToken.Purpose.EMAIL_VERIFICATION);
         Instant now = clock.instant();
         if (authActionTokenRepository.consume(token.getTokenHash(), now) != 1) {

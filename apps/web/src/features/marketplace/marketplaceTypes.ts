@@ -25,6 +25,7 @@ export type Product = {
   currency: string;
   publishedAt: string;
   category: string;
+  slideCount: number;
   previewSlides?: PreviewSlide[];
 };
 
@@ -40,6 +41,7 @@ export type Purchase = {
   priceTiyin: number;
   currency: string;
   purchasedAt: string;
+  slideCount: number;
   previewSlides: PreviewSlide[];
 };
 

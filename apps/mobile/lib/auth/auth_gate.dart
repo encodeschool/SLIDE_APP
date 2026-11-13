@@ -30,6 +30,7 @@ class _AuthGateState extends State<AuthGate> {
   bool _isRestoring = true;
   bool _isSubmitting = false;
   bool _authRequested = false;
+  bool _accountAuthRequested = false;
   int _workspaceTab = 0;
   int _marketplaceSection = 0;
   int _checkoutStep = 0;
@@ -104,7 +105,12 @@ class _AuthGateState extends State<AuthGate> {
                 savedState.marketplaceSection == 2
                     ? 2
                     : savedState.marketplaceSection;
-            _workspaceTab = _marketplaceSection == 1 ? 1 : 0;
+            _workspaceTab =
+                _marketplaceSection == 1
+                    ? 1
+                    : _marketplaceSection == 2
+                    ? 2
+                    : 1;
           }
           _isRestoring = false;
         });
@@ -134,15 +140,21 @@ class _AuthGateState extends State<AuthGate> {
     setState(() {
       _marketplaceSection = section.clamp(0, 2).toInt();
       _checkoutStep = _cartItems.isEmpty ? 0 : checkoutStep.clamp(0, 2).toInt();
-      if (_marketplaceSection < 2) _workspaceTab = _marketplaceSection;
+      _workspaceTab = _marketplaceSection == 2 ? 2 : 1;
     });
     _saveAppState();
   }
 
   void _updateWorkspaceTab(int tab) {
     setState(() {
-      _workspaceTab = tab.clamp(0, 2).toInt();
-      _marketplaceSection = tab == 1 ? 1 : 0;
+      _workspaceTab = tab.clamp(0, 3).toInt();
+      if (_workspaceTab == 1) {
+        _marketplaceSection = _marketplaceSection == 1 ? 1 : 0;
+      } else if (_workspaceTab == 2) {
+        _marketplaceSection = 2;
+      } else {
+        _marketplaceSection = 0;
+      }
       if (_cartItems.isEmpty) _checkoutStep = 0;
     });
     _saveAppState();
@@ -181,7 +193,15 @@ class _AuthGateState extends State<AuthGate> {
               ['en', 'ru', 'uz'].contains(session.user.locale)
                   ? session.user.locale
                   : 'en';
-          _workspaceTab = _marketplaceSection == 1 ? 1 : 0;
+          _workspaceTab =
+              _accountAuthRequested
+                  ? 3
+                  : _marketplaceSection == 1
+                  ? 1
+                  : _marketplaceSection == 2
+                  ? 2
+                  : 1;
+          _accountAuthRequested = false;
         });
       }
       _saveAppState();
@@ -264,6 +284,7 @@ class _AuthGateState extends State<AuthGate> {
         setState(() {
           _session = null;
           _authRequested = false;
+          _accountAuthRequested = false;
           _workspaceTab = 0;
         });
         _saveAppState();
@@ -329,7 +350,10 @@ class _AuthGateState extends State<AuthGate> {
         startupError: _error,
         onRequireAuth: (section, checkoutStep) {
           _updateMarketplaceState(section, checkoutStep);
-          setState(() => _authRequested = true);
+          setState(() {
+            _authRequested = true;
+            _accountAuthRequested = section == 2;
+          });
         },
         onToggleLanguage: _toggleLanguage,
       );

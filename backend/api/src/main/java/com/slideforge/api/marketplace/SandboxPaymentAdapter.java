@@ -1,9 +1,6 @@
 package com.slideforge.api.marketplace;
 
 import com.slideforge.api.common.exception.ApiException;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,19 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class SandboxPaymentAdapter {
     private final JdbcTemplate jdbcTemplate;
     private final MarketplaceService marketplaceService;
-    private final Clock clock;
     private final Environment environment;
     private final boolean explicitlyEnabled;
 
     public SandboxPaymentAdapter(
             JdbcTemplate jdbcTemplate,
             MarketplaceService marketplaceService,
-            Clock clock,
             Environment environment,
             @Value("${app.payments.sandbox.enabled:false}") boolean explicitlyEnabled) {
         this.jdbcTemplate = jdbcTemplate;
         this.marketplaceService = marketplaceService;
-        this.clock = clock;
         this.environment = environment;
         this.explicitlyEnabled = explicitlyEnabled;
     }
@@ -70,37 +64,8 @@ public class SandboxPaymentAdapter {
             throw new ApiException(HttpStatus.CONFLICT, "ORDER_NOT_PAYABLE", "Order is not awaiting sandbox confirmation");
         }
 
-        Instant now = clock.instant();
-        String eventId = "sandbox-confirm:" + orderId;
-        jdbcTemplate.update(
-                """
-                INSERT INTO payment_events (id, order_id, provider, provider_event_id, event_type, payload, processed_at, created_at)
-                VALUES (?, ?, 'SANDBOX', ?, 'CONFIRMED', '{}'::jsonb, ?, ?)
-                ON CONFLICT (provider, provider_event_id) DO NOTHING
-                """,
-                UUID.randomUUID(),
-                orderId,
-                eventId,
-                now.atOffset(ZoneOffset.UTC),
-                now.atOffset(ZoneOffset.UTC));
-        jdbcTemplate.update(
-                "UPDATE orders SET status = 'PAID', paid_at = ? WHERE id = ? AND status = 'PENDING'",
-                now.atOffset(ZoneOffset.UTC),
-                orderId);
-        jdbcTemplate.update(
-                """
-                INSERT INTO entitlements (id, user_id, listing_version_id, order_id, granted_at)
-                SELECT ?, ?, oi.listing_version_id, ?, ?
-                FROM order_items oi
-                WHERE oi.order_id = ?
-                ON CONFLICT (user_id, listing_version_id) DO NOTHING
-                """,
-                UUID.randomUUID(),
-                buyerId,
-                orderId,
-                now.atOffset(ZoneOffset.UTC),
-                orderId);
-        return marketplaceService.orderResponse(orderId);
+        return marketplaceService.markOrderPaid(
+                buyerId, orderId, "SANDBOX", "sandbox-confirm:" + orderId);
     }
 
     private record SandboxOrder(UUID id, UUID buyerId, String status, String provider) {

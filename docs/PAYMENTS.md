@@ -13,6 +13,13 @@ In practice they are accepted *through* an acquirer/aggregator. Plan:
 | `UzumProvider`  | Uzum Bank acquiring / checkout | Visa, Mastercard, Humo, Uzcard per contract |
 | `SandboxProvider` | Local development and automated tests only | n/a |
 
+## Current wallet activity
+
+- Authenticated `GET /api/v1/wallet/transactions` returns the latest 50 ledger entries for the signed-in user.
+- The wallet panel displays top-ups, AI work charges/refunds, and marketplace purchases with their amount, status, date, and transaction reference.
+- Current top-ups are sandbox simulations. A selected method such as Click or Uzcard is metadata only; it is not evidence that money was received.
+- The transaction reference is not a legal/tax invoice or proof of external settlement.
+
 ## Rules (apply to every adapter)
 - The backend computes the price from the database; the client never sends an amount or "paid" flag.
 - Amounts are integer tiyin (1 UZS = 100 tiyin). Check each provider's unit (Payme uses tiyin; others may use sum).

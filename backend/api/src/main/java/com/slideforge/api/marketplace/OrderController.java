@@ -17,10 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
     private final MarketplaceService marketplaceService;
     private final SandboxPaymentAdapter sandboxPaymentAdapter;
+    private final WalletPaymentAdapter walletPaymentAdapter;
 
-    public OrderController(MarketplaceService marketplaceService, SandboxPaymentAdapter sandboxPaymentAdapter) {
+    public OrderController(
+            MarketplaceService marketplaceService,
+            SandboxPaymentAdapter sandboxPaymentAdapter,
+            WalletPaymentAdapter walletPaymentAdapter) {
         this.marketplaceService = marketplaceService;
         this.sandboxPaymentAdapter = sandboxPaymentAdapter;
+        this.walletPaymentAdapter = walletPaymentAdapter;
     }
 
     @PostMapping
@@ -33,6 +38,11 @@ public class OrderController {
     @PostMapping("/{orderId}/sandbox-confirm")
     public OrderResponse confirmSandbox(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID orderId) {
         return sandboxPaymentAdapter.confirm(userId(jwt), orderId);
+    }
+
+    @PostMapping("/{orderId}/wallet-pay")
+    public OrderResponse payFromWallet(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID orderId) {
+        return walletPaymentAdapter.pay(userId(jwt), orderId);
     }
 
     private UUID userId(Jwt jwt) {

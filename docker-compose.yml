@@ -84,11 +84,12 @@ services:
       context: ./backend/api
     restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-sandbox}
       PORT: 8080
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-slideforge}
       DATABASE_USER: ${POSTGRES_USER:-slideforge}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175}
       JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:-}

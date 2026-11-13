@@ -654,6 +654,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('No presentations yet'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('No presentations yet'), findsOneWidget);
     await tester.tap(find.byTooltip('Refresh'));
     await tester.pumpAndSettle();

@@ -64,6 +64,29 @@ class AuthIntegrationTest {
                 .andExpect(status().isNoContent());
     }
 
+    @Test
+    void refreshCookiePersistsAndCanBeRotatedAfterPageReload() throws Exception {
+        String email = newEmail();
+        register(email);
+        verifyEmail(email);
+        MvcResult login = login(email, PASSWORD, 200);
+        Cookie refreshCookie = login.getResponse().getCookie(REFRESH_COOKIE_NAME);
+        org.junit.jupiter.api.Assertions.assertNotNull(refreshCookie);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                login.getResponse().getHeader("Set-Cookie").contains("Max-Age="));
+
+        MvcResult refresh = mockMvc.perform(
+                        post("/api/v1/auth/refresh").cookie(refreshCookie))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie rotatedCookie = refresh.getResponse().getCookie(REFRESH_COOKIE_NAME);
+        org.junit.jupiter.api.Assertions.assertNotNull(rotatedCookie);
+        org.junit.jupiter.api.Assertions.assertNotEquals(refreshCookie.getValue(), rotatedCookie.getValue());
+
+        mockMvc.perform(post("/api/v1/auth/refresh").cookie(rotatedCookie))
+                .andExpect(status().isOk());
+    }
+
     @MockBean
     private MailDelivery mailDelivery;
 
@@ -100,8 +123,7 @@ class AuthIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new TokenRequest(actionToken.asText()))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_TOKEN"));
+                .andExpect(status().isNoContent());
     }
 
     @Test

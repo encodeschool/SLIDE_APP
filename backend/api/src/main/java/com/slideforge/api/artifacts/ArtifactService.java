@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.slideforge.api.common.exception.ApiException;
+import com.slideforge.api.wallet.WalletService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -22,18 +23,21 @@ public class ArtifactService {
     private final ArtifactDocumentValidator validator;
     private final ArtifactGenerationProvider generationProvider;
     private final Clock clock;
+    private final WalletService walletService;
 
     public ArtifactService(
             JdbcTemplate jdbc,
             ObjectMapper mapper,
             ArtifactDocumentValidator validator,
             ArtifactGenerationProvider generationProvider,
-            Clock clock) {
+            Clock clock,
+            WalletService walletService) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.validator = validator;
         this.generationProvider = generationProvider;
         this.clock = clock;
+        this.walletService = walletService;
     }
 
     @Transactional(readOnly = true)
@@ -108,7 +112,9 @@ public class ArtifactService {
         if (affected == 0) throw notFound();
     }
 
-    public JsonNode draft(ArtifactRequests.Draft request) {
+    public JsonNode draft(UUID ownerId, ArtifactRequests.Draft request) {
+        UUID workId = UUID.randomUUID();
+        walletService.reserveWork(ownerId, workId);
         try {
             boolean validateItemCount = request.itemCount() != null;
             int itemCount = validateItemCount ? request.itemCount() : 5;
@@ -118,15 +124,22 @@ public class ArtifactService {
             if (validateItemCount && generatedItemCount(document, request.type()) != itemCount) {
                 throw new IllegalArgumentException("Generated artifact does not match the requested size");
             }
+            walletService.settleWork(ownerId, workId);
             return document;
         } catch (IllegalStateException exception) {
+            walletService.refundWork(ownerId, workId);
             String code = exception.getMessage() == null ? "AI_PROVIDER_FAILED" : exception.getMessage();
             HttpStatus status = "AI_PROVIDER_UNCONFIGURED".equals(code) ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.BAD_GATEWAY;
             throw new ApiException(status, code, "Could not generate an artifact draft");
         } catch (ApiException exception) {
+            walletService.refundWork(ownerId, workId);
             throw new ApiException(HttpStatus.BAD_GATEWAY, "GENERATED_ARTIFACT_INVALID", "AI provider returned an invalid artifact");
         } catch (IllegalArgumentException exception) {
+            walletService.refundWork(ownerId, workId);
             throw new ApiException(HttpStatus.BAD_GATEWAY, "GENERATED_ARTIFACT_INVALID", "AI provider returned an invalid artifact");
+        } catch (RuntimeException exception) {
+            walletService.refundWork(ownerId, workId);
+            throw exception;
         }
     }
 

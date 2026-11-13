@@ -16,5 +16,6 @@ public record CatalogItemResponse(
         Instant publishedAt,
         String category,
         String sellerName,
+        int slideCount,
         List<CatalogSlidePreview> previewSlides) {
 }

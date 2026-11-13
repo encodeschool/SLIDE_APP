@@ -27,26 +27,26 @@ class SlideforgeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF235B49),
-          surface: const Color(0xFFF4F6F2),
+          seedColor: const Color(0xFF28765D),
+          surface: const Color(0xFFF4F5F1),
           surfaceContainerLowest: const Color(0xFFFFFFFF),
           surfaceContainerLow: const Color(0xFFFBFCF9),
-          surfaceContainer: const Color(0xFFEEF2ED),
+          surfaceContainer: const Color(0xFFEFF3ED),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF4F6F2),
+        scaffoldBackgroundColor: const Color(0xFFF4F5F1),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xE6F4F6F2),
-          foregroundColor: Color(0xFF1D2924),
+          backgroundColor: Color(0xE6F4F5F1),
+          foregroundColor: Color(0xFF242A28),
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           elevation: 0,
         ),
         cardTheme: const CardThemeData(
           elevation: 0,
-          color: Color(0xEFFFFFFF),
+          color: Color(0xE8FBFCF9),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+            borderRadius: BorderRadius.all(Radius.circular(22)),
             side: BorderSide(color: Color(0xD9FFFFFF)),
           ),
         ),
@@ -54,7 +54,7 @@ class SlideforgeApp extends StatelessWidget {
           backgroundColor: Colors.transparent,
           indicatorColor: Color(0xFFDCEBE1),
           elevation: 0,
-          height: 76,
+          height: 72,
           labelTextStyle: WidgetStatePropertyAll(
             TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
@@ -122,7 +122,7 @@ class SlideforgeApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(15)),
-            borderSide: BorderSide(color: Color(0xFF235B49), width: 1.5),
+            borderSide: BorderSide(color: Color(0xFF28765D), width: 1.5),
           ),
         ),
         useMaterial3: true,

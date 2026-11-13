@@ -11,6 +11,43 @@ export interface UserProfile {
   roles: string[];
 }
 
+export interface WalletPackage {
+  code: string;
+  amountTiyin: number;
+  workUnits: number;
+  costPerWorkTiyin: number;
+}
+
+export type WalletPaymentMethod =
+  | "CLICK"
+  | "PAYME"
+  | "UZUM"
+  | "VISA"
+  | "MASTERCARD"
+  | "HUMO"
+  | "UZCARD";
+
+export interface WalletResponse {
+  balanceTiyin: number;
+  workCredits: number;
+  currency: string;
+  sandboxEnabled: boolean;
+  packages: WalletPackage[];
+}
+
+export interface WalletTransactionResponse {
+  id: string;
+  type: "TOP_UP" | "WORK" | "WORK_REFUND" | "MARKETPLACE_PURCHASE";
+  status: "RESERVED" | "SETTLED" | "REFUNDED";
+  amountTiyin: number;
+  workUnits: number;
+  packageCode: string | null;
+  paymentMethod: WalletPaymentMethod | "SANDBOX" | null;
+  referenceId: string | null;
+  createdAt: string;
+  sandbox: boolean;
+}
+
 export interface AuthResponse {
   user: UserProfile;
   accessToken: string;

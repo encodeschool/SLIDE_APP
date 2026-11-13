@@ -21,7 +21,6 @@ public interface GenerationJobRepository extends JpaRepository<GenerationJob, UU
     @Query(value = "select * from generation_jobs where status = 'QUEUED' order by created_at asc limit 1 for update skip locked", nativeQuery = true)
     Optional<GenerationJob> lockNextQueued();
 
-    @Modifying
-    @Query(value = "update generation_jobs set status = 'FAILED', failure_code = 'GENERATION_INTERRUPTED', updated_at = now() where status = 'RUNNING' and updated_at < :cutoff", nativeQuery = true)
-    int failInterrupted(Instant cutoff);
+    @Query(value = "select * from generation_jobs where status = 'RUNNING' and updated_at < :cutoff for update skip locked", nativeQuery = true)
+    java.util.List<GenerationJob> lockInterrupted(Instant cutoff);
 }

@@ -11,6 +11,7 @@ import type {
   PresentationDetail,
   PresentationSummary,
   UserProfile,
+  WalletResponse,
 } from "../shared/types";
 import { AuthPanel } from "../features/auth/AuthPanel";
 import { ProfilePanel } from "../features/auth/ProfilePanel";
@@ -21,26 +22,32 @@ import type { ArtifactDocument } from "../../../../packages/shared-types/src/art
 import { PresentationLibrary } from "../features/presentations/PresentationLibrary";
 import { PresentationEditor } from "../features/presentations/PresentationEditor";
 import { Marketplace } from "../features/marketplace/Marketplace";
+import { WalletPanel } from "../features/wallet/WalletPanel";
 import {
   ArrowUpRight,
   BookOpen,
   Boxes,
-  CircleHelp,
   Globe2,
+  Home,
   Layers3,
-  Library,
-  LockKeyhole,
   LogOut,
   Settings2,
-  Sparkles,
+  UserRound,
 } from "lucide-react";
 
 const en = {
     workspace: "Workspace",
+    home: "Home",
     library: "My presentations",
     create: "Create with AI",
     marketplace: "Marketplace",
     purchases: "Purchases",
+    account: "Account",
+    accountDescription: "Manage your profile, balance, and billing activity.",
+    accountBilling: "Billing and balance",
+    sellerPayout: "Seller payouts",
+    sellerPayoutUnavailable: "Seller payouts will be available after a verified payment provider is connected. Slideforge does not collect card numbers or security codes.",
+    sellerPayoutPending: "Secure payouts are not configured yet.",
     coming: "Available in a later phase",
     foundation: "Your ideas, in their best light.",
     intro: "A considered space for building presentations. Your workspace is being connected to the Slideforge API.",
@@ -86,12 +93,42 @@ const en = {
     authLoading: "Checking your session",
     authFailed: "Unable to sign in. Check your details and try again.",
     signOut: "Sign out",
+    close: "Close",
+    walletBalance: "Current balance",
+    walletTopUp: "Top up balance",
+    walletWorks: "work credits",
+    walletLoadFailed: "Could not load balance. Please refresh.",
+    walletHistory: "Billing activity",
+    walletHistoryLoading: "Loading transactions…",
+    walletHistoryEmpty: "No transactions yet.",
+    walletHistoryFailed: "Could not load billing activity. Please refresh.",
+    walletTransactionTopUp: "Wallet top-up",
+    walletTransactionWork: "AI work",
+    walletTransactionRefund: "Work refund",
+    walletTransactionPurchase: "Marketplace purchase",
+    walletTransactionSandbox: "sandbox · no real payment",
+    walletTransactionPending: "Processing",
+    walletTransactionSettled: "Completed",
+    walletTransactionRefunded: "Refunded",
+    walletTransactionReference: "Receipt reference",
+    walletTopUpTitle: "Add balance",
+    walletTopUpCopy: "Choose a package to add work credits to your account.",
+    walletPaymentMethod: "Sandbox payment method",
+    walletStarterPackage: "Starter",
+    walletValuePackage: "Best value",
+    walletEachWork: "Per work",
+    walletSandboxNotice: "Sandbox top-up — no real payment is collected.",
+    walletSandboxDisabled: "Sandbox top-ups are disabled here. No payment was made.",
+    walletTopUpAction: "Add package",
+    walletTopUpPending: "Adding balance…",
+    walletTopUpFailed: "Could not top up balance. Please try again.",
     createDraft: "New presentation",
     generationTitle: "Create with AI",
     generationCopy: "Choose a format, describe your topic and preview the scope before generating.",
     generationFormat: "Format",
     generationPresentationType: "Presentation",
     generationPrompt: "Topic and requirements",
+    generationPromptPlaceholder: "Describe your topic, audience, and any requirements...",
     generationLanguage: "Output language",
     generationSlides: "Number of slides",
     generationItemCount: "Output size",
@@ -100,7 +137,8 @@ const en = {
     generationQuestionsUnit: "questions",
     generationCluesUnit: "clues",
     generationTermsUnit: "terms",
-    generationPreview: "Your draft",
+    generationPreview: "Preview",
+    generationPreviewTopic: "Topic",
     generationTopicPlaceholder: "Your topic will appear here",
     generationSubmit: "Generate presentation",
     generationDraftSubmit: "Generate editable draft",
@@ -181,10 +219,17 @@ const translations = {
   en,
   ru: {
     workspace: "Рабочее пространство",
+    home: "Главная",
     library: "Мои презентации",
     create: "Создать с ИИ",
     marketplace: "Маркетплейс",
     purchases: "Покупки",
+    account: "Аккаунт",
+    accountDescription: "Управляйте профилем, балансом и историей операций.",
+    accountBilling: "Баланс и платежи",
+    sellerPayout: "Выплаты продавцу",
+    sellerPayoutUnavailable: "Выплаты станут доступны после подключения проверенного платёжного провайдера. Slideforge не собирает номера карт и коды безопасности.",
+    sellerPayoutPending: "Безопасная выплата пока не настроена.",
     coming: "Будет доступно в следующих этапах",
     foundation: "Ваши идеи в лучшем свете.",
     intro: "Продуманное пространство для презентаций. Подключение к API Slideforge уже заложено в основу.",
@@ -230,12 +275,42 @@ const translations = {
     authLoading: "Проверяем сессию",
     authFailed: "Не удалось войти. Проверьте данные и попробуйте снова.",
     signOut: "Выйти",
+    close: "Закрыть",
+    walletBalance: "Текущий баланс",
+    walletTopUp: "Пополнить баланс",
+    walletWorks: "работ",
+    walletLoadFailed: "Не удалось загрузить баланс. Обновите страницу.",
+    walletHistory: "История операций",
+    walletHistoryLoading: "Загружаем операции…",
+    walletHistoryEmpty: "Операций пока нет.",
+    walletHistoryFailed: "Не удалось загрузить историю операций. Обновите страницу.",
+    walletTransactionTopUp: "Пополнение кошелька",
+    walletTransactionWork: "Работа с ИИ",
+    walletTransactionRefund: "Возврат за работу",
+    walletTransactionPurchase: "Покупка на маркетплейсе",
+    walletTransactionSandbox: "тест · реальная оплата не списывалась",
+    walletTransactionPending: "Обрабатывается",
+    walletTransactionSettled: "Завершено",
+    walletTransactionRefunded: "Возвращено",
+    walletTransactionReference: "Номер квитанции",
+    walletTopUpTitle: "Пополнить баланс",
+    walletTopUpCopy: "Выберите пакет, чтобы добавить работы на баланс.",
+    walletPaymentMethod: "Способ тестовой оплаты",
+    walletStarterPackage: "Стартовый",
+    walletValuePackage: "Выгодный",
+    walletEachWork: "За работу",
+    walletSandboxNotice: "Тестовое пополнение — реальная оплата не списывается.",
+    walletSandboxDisabled: "Тестовое пополнение отключено. Оплата не производилась.",
+    walletTopUpAction: "Добавить пакет",
+    walletTopUpPending: "Пополняем баланс…",
+    walletTopUpFailed: "Не удалось пополнить баланс. Попробуйте ещё раз.",
     createDraft: "Новая презентация",
     generationTitle: "Создать с помощью ИИ",
     generationCopy: "Выберите формат, опишите тему и проверьте объём перед созданием.",
     generationFormat: "Формат",
     generationPresentationType: "Презентация",
     generationPrompt: "Тема и требования",
+    generationPromptPlaceholder: "Опишите тему, аудиторию и требования...",
     generationLanguage: "Язык результата",
     generationSlides: "Количество слайдов",
     generationItemCount: "Объём результата",
@@ -244,7 +319,8 @@ const translations = {
     generationQuestionsUnit: "вопросов",
     generationCluesUnit: "слов",
     generationTermsUnit: "терминов",
-    generationPreview: "Параметры результата",
+    generationPreview: "Предпросмотр",
+    generationPreviewTopic: "Тема",
     generationTopicPlaceholder: "Здесь появится ваша тема",
     generationSubmit: "Создать презентацию",
     generationDraftSubmit: "Создать редактируемый черновик",
@@ -324,10 +400,17 @@ const translations = {
     ...en,
     ...{
       workspace: "Ish maydoni",
+      home: "Bosh sahifa",
       library: "Taqdimotlarim",
       create: "AI bilan yaratish",
       marketplace: "Marketpleys",
       purchases: "Xaridlar",
+      account: "Hisob",
+      accountDescription: "Profil, balans va toʻlovlar tarixini boshqaring.",
+      accountBilling: "Balans va toʻlovlar",
+      sellerPayout: "Sotuvchi toʻlovlari",
+      sellerPayoutUnavailable: "Sotuvchi toʻlovlari tasdiqlangan toʻlov provayderi ulangandan soʻng ishlaydi. Slideforge karta raqami yoki xavfsizlik kodlarini yigʻmaydi.",
+      sellerPayoutPending: "Xavfsiz toʻlov tizimi hali sozlanmagan.",
       coming: "Keyingi bosqichda mavjud boʻladi",
       foundation: "Gʻoyalaringizni yorqin namoyish eting.",
       intro: "Taqdimotlar yaratish uchun qulay ish maydoni. Slideforge API bilan ulanish tayyorlanmoqda.",
@@ -373,12 +456,42 @@ const translations = {
       authLoading: "Sessiya tekshirilmoqda",
       authFailed: "Kirish amalga oshmadi. Maʼlumotlaringizni tekshiring.",
       signOut: "Chiqish",
+      close: "Yopish",
+      walletBalance: "Joriy balans",
+      walletTopUp: "Balansni toʻldirish",
+      walletWorks: "ta ish",
+      walletLoadFailed: "Balansni yuklab boʻlmadi. Sahifani yangilang.",
+      walletHistory: "Toʻlovlar tarixi",
+      walletHistoryLoading: "Amaliyotlar yuklanmoqda…",
+      walletHistoryEmpty: "Hozircha amaliyotlar yoʻq.",
+      walletHistoryFailed: "Toʻlovlar tarixini yuklab boʻlmadi. Sahifani yangilang.",
+      walletTransactionTopUp: "Hamyonni toʻldirish",
+      walletTransactionWork: "AI ishi",
+      walletTransactionRefund: "Ish uchun qaytarim",
+      walletTransactionPurchase: "Marketplace xaridi",
+      walletTransactionSandbox: "sinov · haqiqiy toʻlov olinmagan",
+      walletTransactionPending: "Jarayonda",
+      walletTransactionSettled: "Yakunlandi",
+      walletTransactionRefunded: "Qaytarildi",
+      walletTransactionReference: "Kvitansiya raqami",
+      walletTopUpTitle: "Balansni toʻldirish",
+      walletTopUpCopy: "Balansingizga ish birliklarini qoʻshish uchun paket tanlang.",
+      walletPaymentMethod: "Sinov toʻlov usuli",
+      walletStarterPackage: "Boshlangʻich",
+      walletValuePackage: "Tejamkor",
+      walletEachWork: "Bir ish narxi",
+      walletSandboxNotice: "Sinov toʻlovi — haqiqiy pul yechilmaydi.",
+      walletSandboxDisabled: "Bu yerda sinov rejimi oʻchiq. Toʻlov amalga oshmadi.",
+      walletTopUpAction: "Paketni qoʻshish",
+      walletTopUpPending: "Balans toʻldirilmoqda…",
+      walletTopUpFailed: "Balansni toʻldirib boʻlmadi. Qayta urinib koʻring.",
       createDraft: "Yangi taqdimot",
       generationTitle: "AI yordamida yarating",
       generationCopy: "Formatni tanlang, mavzuni yozing va yaratishdan oldin hajmni koʻring.",
       generationFormat: "Format",
       generationPresentationType: "Taqdimot",
       generationPrompt: "Mavzu va talablar",
+      generationPromptPlaceholder: "Mavzu, auditoriya va talablaringizni yozing...",
       generationLanguage: "Natija tili",
       generationSlides: "Slaydlar soni",
       generationItemCount: "Natija hajmi",
@@ -387,7 +500,8 @@ const translations = {
       generationQuestionsUnit: "savol",
       generationCluesUnit: "topishmoq",
       generationTermsUnit: "atama",
-      generationPreview: "Natija parametrlari",
+      generationPreview: "Koʻrinish",
+      generationPreviewTopic: "Mavzu",
       generationTopicPlaceholder: "Mavzuingiz shu yerda koʻrinadi",
       generationSubmit: "Taqdimot yaratish",
       generationDraftSubmit: "Tahrirlanadigan qoralama yaratish",
@@ -466,15 +580,12 @@ const translations = {
   },
 } satisfies Record<Locale, Record<string, string>>;
 
-const disabledSections = [
-  { icon: Library, labelKey: "library" },
-  { icon: Sparkles, labelKey: "create" },
-  { icon: Boxes, labelKey: "marketplace" },
-  { icon: BookOpen, labelKey: "purchases" },
-] as const;
-
 function App() {
-  const [marketplaceActive, setMarketplaceActive] = useState(() => window.location.hash === "#marketplace");
+  const [marketplaceActive, setMarketplaceActive] = useState(() =>
+    window.location.hash === "#marketplace" || window.location.hash === "#purchases");
+  const [accountActive, setAccountActive] = useState(() => window.location.hash === "#account");
+  const [marketplaceInitialStage, setMarketplaceInitialStage] = useState<"shop" | "purchases">(() =>
+    window.location.hash === "#purchases" ? "purchases" : "shop");
   const [marketplaceAuthOpen, setMarketplaceAuthOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("en");
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
@@ -482,6 +593,12 @@ function App() {
     window.location.pathname.endsWith("/reset-password") ? "reset" : "login");
   const [authUser, setAuthUser] = useState<UserProfile | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState("");
+  const [walletTopUpOpen, setWalletTopUpOpen] = useState(false);
+  const walletRequestSequence = useRef(0);
+  const presentationRequestSequence = useRef(0);
   const [authRestoring, setAuthRestoring] = useState(true);
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -532,7 +649,14 @@ function App() {
   const copy = translations[locale];
 
   useEffect(() => {
-    const updateSection = () => setMarketplaceActive(window.location.hash === "#marketplace");
+    const updateSection = () => {
+      const purchases = window.location.hash === "#purchases";
+      const marketplace = window.location.hash === "#marketplace" || purchases;
+      const account = window.location.hash === "#account";
+      setMarketplaceActive(marketplace);
+      setAccountActive(account);
+      setMarketplaceInitialStage(purchases ? "purchases" : "shop");
+    };
     window.addEventListener("hashchange", updateSection);
     return () => window.removeEventListener("hashchange", updateSection);
   }, []);
@@ -543,6 +667,15 @@ function App() {
   }
 
   function applySession(session: AuthResponse) {
+    if (authUser?.id !== session.user.id) {
+      walletRequestSequence.current += 1;
+      presentationRequestSequence.current += 1;
+      setWallet(null);
+      setWalletLoading(true);
+      setWalletError("");
+      setWalletTopUpOpen(false);
+      setPresentations([]);
+    }
     setMarketplaceAuthOpen(false);
     setAccessToken(session.accessToken);
     setAuthUser(session.user);
@@ -552,9 +685,73 @@ function App() {
     setProfileLocale(session.user.locale);
   }
 
+  async function refreshWallet() {
+    if (!accessToken) return;
+    const requestSequence = ++walletRequestSequence.current;
+    const refreshSessionIfCurrent = (session: AuthResponse) => {
+      if (requestSequence === walletRequestSequence.current) applySession(session);
+    };
+    const expireSessionIfCurrent = () => {
+      if (requestSequence === walletRequestSequence.current) clearSession();
+    };
+    try {
+      const response = await authorizedFetch(
+        "/api/v1/wallet",
+        accessToken,
+        {},
+        refreshSessionIfCurrent,
+        expireSessionIfCurrent,
+      );
+      if (!response.ok) throw new Error(copy.walletLoadFailed);
+      const result = await response.json() as WalletResponse;
+      if (requestSequence !== walletRequestSequence.current) return;
+      setWallet(result);
+      setWalletError("");
+    } catch (error) {
+      if (requestSequence !== walletRequestSequence.current) return;
+      setWalletError(error instanceof Error ? error.message : copy.walletLoadFailed);
+    }
+  }
+
+  async function refreshPresentations() {
+    if (!accessToken) return;
+    const requestSequence = ++presentationRequestSequence.current;
+    setProjectsLoading(true);
+    setProjectsError("");
+    try {
+      const response = await authorizedFetch(
+        "/api/v1/presentations?page=0&size=50",
+        accessToken,
+        {},
+        (session) => {
+          if (requestSequence === presentationRequestSequence.current) applySession(session);
+        },
+        () => {
+          if (requestSequence === presentationRequestSequence.current) clearSession();
+        },
+      );
+      if (!response.ok) throw new Error(copy.authFailed);
+      const result = await response.json() as { items: PresentationSummary[] };
+      if (requestSequence !== presentationRequestSequence.current) return;
+      setPresentations(result.items);
+    } catch (error) {
+      if (requestSequence === presentationRequestSequence.current) {
+        setProjectsError(error instanceof Error ? error.message : copy.authFailed);
+      }
+    } finally {
+      if (requestSequence === presentationRequestSequence.current) setProjectsLoading(false);
+    }
+  }
+
   function clearSession() {
+    walletRequestSequence.current += 1;
+    presentationRequestSequence.current += 1;
     setAccessToken(null);
     setAuthUser(null);
+    setWallet(null);
+    setWalletTopUpOpen(false);
+    setWalletLoading(false);
+    setWalletError("");
     setPresentations([]);
     setEditorPresentation(null);
     setEditorDocument(null);
@@ -669,8 +866,7 @@ function App() {
 
   useEffect(() => {
     let isCurrent = true;
-    if (window.location.pathname.endsWith("/reset-password")
-      || window.location.pathname.endsWith("/verify-email")) {
+    if (window.location.pathname.endsWith("/reset-password")) {
       setAuthRestoring(false);
       return () => {
         isCurrent = false;
@@ -754,6 +950,40 @@ function App() {
   }, [accessToken, copy.authFailed]);
 
   useEffect(() => {
+    let isCurrent = true;
+    const requestSequence = ++walletRequestSequence.current;
+    if (!accessToken) {
+      setWallet(null);
+      setWalletError("");
+      setWalletLoading(false);
+      return;
+    }
+    setWalletLoading(true);
+    authorizedFetch("/api/v1/wallet", accessToken, {}, (session) => {
+      if (isCurrent && requestSequence === walletRequestSequence.current) applySession(session);
+    }, () => {
+      if (isCurrent && requestSequence === walletRequestSequence.current) clearSession();
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(copy.walletLoadFailed);
+        return await response.json() as WalletResponse;
+      })
+      .then((result) => {
+        if (!isCurrent || requestSequence !== walletRequestSequence.current) return;
+        setWallet(result);
+        setWalletError("");
+      })
+      .catch((error: unknown) => {
+        if (!isCurrent || requestSequence !== walletRequestSequence.current) return;
+        setWalletError(error instanceof Error ? error.message : copy.walletLoadFailed);
+      })
+      .finally(() => {
+        if (isCurrent && requestSequence === walletRequestSequence.current) setWalletLoading(false);
+      });
+    return () => { isCurrent = false; };
+  }, [accessToken, copy.walletLoadFailed]);
+
+  useEffect(() => {
     if (!accessToken || !exportJob || (exportJob.status !== "QUEUED" && exportJob.status !== "RUNNING")) return;
     let isCurrent = true;
     let timeout: number;
@@ -806,6 +1036,11 @@ function App() {
       window.clearTimeout(timeout);
     };
   }, [accessToken, copy.generationFailed, generationJob?.id, generationJob?.status]);
+
+  useEffect(() => {
+    if (!accessToken || !generationJob || generationJob.status === "QUEUED" || generationJob.status === "RUNNING") return;
+    void refreshWallet();
+  }, [accessToken, generationJob?.status]);
 
   async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -983,6 +1218,7 @@ function App() {
         throw new Error(problem?.detail ?? copy.generationRequestFailed);
       }
       setGenerationJob(await response.json() as GenerationJobResponse);
+      void refreshWallet();
     } catch (error) {
       setGenerationError(error instanceof Error ? error.message : copy.generationRequestFailed);
     } finally {
@@ -1018,6 +1254,7 @@ function App() {
       setGenerationError(error instanceof Error ? error.message : copy.generationRequestFailed);
     } finally {
       setArtifactGenerationStarting(false);
+      void refreshWallet();
     }
   }
 
@@ -1392,55 +1629,93 @@ function App() {
         </a>
         <div className="workspace-label">{copy.workspace}</div>
         <nav className="side-nav" aria-label={copy.workspace}>
-          {disabledSections.map(({ icon: Icon, labelKey }) => labelKey === "marketplace" ? (
-            <a className="nav-item" href="#marketplace" key={labelKey}>
-              <Icon size={17} aria-hidden="true" />
-              <span>{copy[labelKey]}</span>
-            </a>
-          ) : authUser && (labelKey === "library" || labelKey === "create") ? (
-            <a className="nav-item" href={labelKey === "library" ? "#presentations" : "#generate"} key={labelKey}>
-              <Icon size={17} aria-hidden="true" />
-              <span>{copy[labelKey]}</span>
-            </a>
-          ) : (
-            <button className="nav-item" disabled title={copy.coming} key={labelKey}>
-              <Icon size={17} aria-hidden="true" />
-              <span>{copy[labelKey]}</span>
-              <LockKeyhole className="nav-lock" size={13} aria-hidden="true" />
-            </button>
-          ))}
+          <a
+            className={!marketplaceActive && !accountActive ? "nav-item nav-item-active" : "nav-item"}
+            href="#workspace"
+            aria-current={!marketplaceActive && !accountActive ? "page" : undefined}
+          >
+            <Home size={17} aria-hidden="true" />
+            <span>{copy.home}</span>
+          </a>
+          <a
+            className={marketplaceActive && marketplaceInitialStage === "shop" ? "nav-item nav-item-active" : "nav-item"}
+            href="#marketplace"
+            aria-current={marketplaceActive && marketplaceInitialStage === "shop" ? "page" : undefined}
+          >
+            <Boxes size={17} aria-hidden="true" />
+            <span>{copy.marketplace}</span>
+          </a>
+          <a
+            className={marketplaceActive && marketplaceInitialStage === "purchases" ? "nav-item nav-item-active" : "nav-item"}
+            href="#purchases"
+            aria-current={marketplaceActive && marketplaceInitialStage === "purchases" ? "page" : undefined}
+          >
+            <BookOpen size={17} aria-hidden="true" />
+            <span>{copy.purchases}</span>
+          </a>
+          <a
+            className={accountActive ? "nav-item nav-item-active" : "nav-item"}
+            href="#account"
+            aria-current={accountActive ? "page" : undefined}
+          >
+            <UserRound size={17} aria-hidden="true" />
+            <span>{copy.account}</span>
+          </a>
         </nav>
         <div className="sidebar-footer">
-          <div className="version-mark"><span />{authUser ? authUser.displayName : "Phase 2 · Core data"}</div>
-          <a className="help-link" href="/ROADMAP.md">
+          {authUser && accessToken && !accountActive && (
+            <WalletPanel
+              accessToken={accessToken}
+              locale={locale}
+              copy={copy}
+              wallet={wallet}
+              loading={walletLoading}
+              loadError={walletError}
+              dialogOpen={walletTopUpOpen}
+              onDialogOpenChange={setWalletTopUpOpen}
+              onWalletChange={setWallet}
+              applySession={applySession}
+              clearSession={clearSession}
+            />
+          )}
+          {/* <a className="help-link" href="/ROADMAP.md">
             <CircleHelp size={16} aria-hidden="true" />
             <span>{copy.roadmap}</span>
             <ArrowUpRight size={14} aria-hidden="true" />
-          </a>
+          </a> */}
         </div>
       </aside>
 
       <main id="workspace" className="main-panel">
         <header className="topbar">
-          <span className="breadcrumb">{copy.workspace}<span>/</span><strong>{copy.status}</strong></span>
-          <button
-            className="language-button"
-            type="button"
-            title={copy.language}
-            aria-label={copy.language}
-            onClick={() => setLocale(locale === "en" ? "ru" : locale === "ru" ? "uz" : "en")}
-          >
-            <Globe2 size={17} aria-hidden="true" />
-            {locale.toUpperCase()}
-          </button>
-          {authUser && (
-            <button className="language-button signout-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
-              <LogOut size={16} aria-hidden="true" />
+          <span className="breadcrumb">
+            {copy.workspace}
+            <span>/</span>
+            <strong>{marketplaceActive
+              ? marketplaceInitialStage === "purchases" ? copy.purchases : copy.marketplace
+              : accountActive ? copy.account : copy.home}</strong>
+            <div className="version-mark"><span />{authUser ? authUser.displayName : "Phase 2 · Core data"}</div>
+          </span>
+          <div className="mr-5">
+            <button
+              className="language-button"
+              type="button"
+              title={copy.language}
+              aria-label={copy.language}
+              onClick={() => setLocale(locale === "en" ? "ru" : locale === "ru" ? "uz" : "en")}
+            >
+              <Globe2 size={17} aria-hidden="true" />
+              {locale.toUpperCase()}
             </button>
-          )}
+            {authUser && (
+              <button className="language-button signout-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
+                <LogOut size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </header>
 
-        {!marketplaceActive && <section className="welcome-section" aria-labelledby="welcome-title">
+        {!marketplaceActive && !accountActive && <section className="welcome-section" aria-labelledby="welcome-title">
           <div className="eyebrow"><span className="eyebrow-dot" />{copy.status}</div>
           <h1 id="welcome-title">{copy.foundation}</h1>
           <p className="welcome-copy">{copy.intro}</p>
@@ -1484,33 +1759,74 @@ function App() {
           </div>
         )}
 
-        {authUser && !marketplaceActive && (
-          <ProfilePanel
-            user={authUser}
-            copy={copy}
-            profileName={profileName}
-            profileLocale={profileLocale}
-            profileSaving={profileSaving}
-            profileError={profileError}
-            profileSaved={profileSaved}
-            setProfileName={setProfileName}
-            setProfileLocale={setProfileLocale}
-            onSubmit={submitProfile}
-          />
+        {authUser && accountActive && (
+          <section className="account-page" id="account" aria-labelledby="account-title">
+            <div className="account-heading">
+              <span className="eyebrow">{copy.account}</span>
+              <h1 id="account-title">{copy.account}</h1>
+              <p>{copy.accountDescription}</p>
+            </div>
+            <div className="account-grid">
+              <ProfilePanel
+                user={authUser}
+                copy={copy}
+                profileName={profileName}
+                profileLocale={profileLocale}
+                profileSaving={profileSaving}
+                profileError={profileError}
+                profileSaved={profileSaved}
+                setProfileName={setProfileName}
+                setProfileLocale={setProfileLocale}
+                onSubmit={submitProfile}
+              />
+              <div className="account-billing">
+                <h2>{copy.accountBilling}</h2>
+                {accessToken && (
+                  <WalletPanel
+                    accessToken={accessToken}
+                    locale={locale}
+                    copy={copy}
+                    wallet={wallet}
+                    loading={walletLoading}
+                    loadError={walletError}
+                    dialogOpen={walletTopUpOpen}
+                    onDialogOpenChange={setWalletTopUpOpen}
+                    onWalletChange={setWallet}
+                    applySession={applySession}
+                    clearSession={clearSession}
+                  />
+                )}
+                <section className="seller-payout-panel" aria-labelledby="seller-payout-title">
+                  <div className="seller-payout-heading">
+                    <h3 id="seller-payout-title">{copy.sellerPayout}</h3>
+                    <span>{copy.sellerPayoutPending}</span>
+                  </div>
+                  <p>{copy.sellerPayoutUnavailable}</p>
+                </section>
+              </div>
+            </div>
+          </section>
         )}
 
         {marketplaceActive && (
           <Marketplace
+            key={`${authUser?.id ?? "anonymous"}:${marketplaceInitialStage}`}
             locale={locale}
             token={accessToken}
+            accountId={authUser?.id ?? null}
+            initialStage={marketplaceInitialStage}
+            walletBalanceTiyin={wallet?.balanceTiyin ?? null}
             presentations={presentations}
             onSession={applySession}
             onExpired={clearSession}
             onRequireAuth={requireMarketplaceAuth}
+            onRequestTopUp={() => setWalletTopUpOpen(true)}
+            onRefreshWallet={refreshWallet}
+            onRefreshPresentations={refreshPresentations}
           />
         )}
 
-        {authUser && !marketplaceActive && !editorPresentation && (
+        {authUser && !marketplaceActive && !accountActive && !editorPresentation && (
           <GenerationPanel
             copy={copy}
             locale={locale}
@@ -1532,7 +1848,7 @@ function App() {
           />
         )}
 
-        {authUser && !marketplaceActive && !editorPresentation && accessToken && (
+        {authUser && !marketplaceActive && !accountActive && !editorPresentation && accessToken && (
           <ArtifactWorkspace
             token={accessToken}
             initialDraft={artifactDraft}
@@ -1541,7 +1857,7 @@ function App() {
           />
         )}
 
-        {authUser && !marketplaceActive && !editorPresentation && (
+        {authUser && !marketplaceActive && !accountActive && !editorPresentation && (
           <PresentationLibrary
             user={authUser}
             copy={copy}
@@ -1558,7 +1874,7 @@ function App() {
           />
         )}
 
-        {authUser && !marketplaceActive && editorPresentation && (
+        {authUser && !marketplaceActive && !accountActive && editorPresentation && (
           <PresentationEditor
             copy={copy}
             presentation={editorPresentation}
