@@ -14,6 +14,7 @@ import type {
   WalletResponse,
 } from "../shared/types";
 import { AuthPanel } from "../features/auth/AuthPanel";
+import { AuthPage } from "../features/auth/AuthPage";
 import { ProfilePanel } from "../features/auth/ProfilePanel";
 import { GenerationPanel } from "../features/generation/GenerationPanel";
 import type { CreationType } from "../features/generation/GenerationPanel";
@@ -22,563 +23,24 @@ import type { ArtifactDocument } from "../../../../packages/shared-types/src/art
 import { PresentationLibrary } from "../features/presentations/PresentationLibrary";
 import { PresentationEditor } from "../features/presentations/PresentationEditor";
 import { Marketplace } from "../features/marketplace/Marketplace";
+import { StorefrontPage } from "../features/marketplace/StorefrontPage";
 import { WalletPanel } from "../features/wallet/WalletPanel";
+import { LandingPage } from "../features/landing/LandingPage";
+import brandMark from "../assets/slideforge-mark.svg";
+import { translations } from "../i18n/messages";
+import { nextLocale, readLocalePreference, saveLocalePreference } from "../i18n";
 import {
   ArrowUpRight,
   BookOpen,
   Boxes,
   Globe2,
   Home,
-  Layers3,
   LogOut,
   Settings2,
   UserRound,
 } from "lucide-react";
 
-const en = {
-    workspace: "Workspace",
-    home: "Home",
-    library: "My presentations",
-    create: "Create with AI",
-    marketplace: "Marketplace",
-    purchases: "Purchases",
-    account: "Account",
-    accountDescription: "Manage your profile, balance, and billing activity.",
-    accountBilling: "Billing and balance",
-    sellerPayout: "Seller payouts",
-    sellerPayoutUnavailable: "Seller payouts will be available after a verified payment provider is connected. Slideforge does not collect card numbers or security codes.",
-    sellerPayoutPending: "Secure payouts are not configured yet.",
-    coming: "Available in a later phase",
-    foundation: "Your ideas, in their best light.",
-    intro: "A considered space for building presentations. Your workspace is being connected to the Slideforge API.",
-    status: "Platform status",
-    api: "API foundation",
-    checking: "Checking API",
-    ready: "Endpoint available",
-    unavailable: "API unavailable",
-    docs: "API documentation",
-    docsCopy: "Explore the running API contract",
-    model: "Shared deck model",
-    modelCopy: "Canonical JSON with tested editing operations",
-    export: "Presentation export",
-    exportCopy: "Editable PowerPoint with a PDF conversion path",
-    roadmap: "See implementation progress",
-    language: "Switch language",
-    signIn: "Sign in",
-    register: "Create account",
-    loginTitle: "Sign in to your workspace",
-    registerTitle: "Create your workspace account",
-    forgotTitle: "Reset your password",
-    resetTitle: "Choose a new password",
-    email: "Email address",
-    password: "Password",
-    newPassword: "New password",
-    forgotPassword: "Forgot password?",
-    resendVerification: "Resend verification email",
-    sendInstructions: "Send instructions",
-    resetPassword: "Reset password",
-    registrationSent: "If eligible, verification instructions will be sent to your email.",
-    recoverySent: "If the account exists, password reset instructions will be sent.",
-    verificationComplete: "Email verified. You can now sign in.",
-    verificationFailed: "This verification link is invalid or expired. Request a new one.",
-    passwordResetComplete: "Password reset. You can now sign in.",
-    resetLinkInvalid: "This password reset link is invalid or expired. Request a new one.",
-    displayName: "Your name",
-    profile: "Profile",
-    profileLocale: "Language preference",
-    saveProfile: "Save profile",
-    savingProfile: "Saving profile",
-    profileSaved: "Profile updated",
-    profileSaveFailed: "Could not update your profile. Please try again.",
-    authLoading: "Checking your session",
-    authFailed: "Unable to sign in. Check your details and try again.",
-    signOut: "Sign out",
-    close: "Close",
-    walletBalance: "Current balance",
-    walletTopUp: "Top up balance",
-    walletWorks: "work credits",
-    walletLoadFailed: "Could not load balance. Please refresh.",
-    walletHistory: "Billing activity",
-    walletHistoryLoading: "Loading transactions…",
-    walletHistoryEmpty: "No transactions yet.",
-    walletHistoryFailed: "Could not load billing activity. Please refresh.",
-    walletTransactionTopUp: "Wallet top-up",
-    walletTransactionWork: "AI work",
-    walletTransactionRefund: "Work refund",
-    walletTransactionPurchase: "Marketplace purchase",
-    walletTransactionSandbox: "sandbox · no real payment",
-    walletTransactionPending: "Processing",
-    walletTransactionSettled: "Completed",
-    walletTransactionRefunded: "Refunded",
-    walletTransactionReference: "Receipt reference",
-    walletTopUpTitle: "Add balance",
-    walletTopUpCopy: "Choose a package to add work credits to your account.",
-    walletPaymentMethod: "Sandbox payment method",
-    walletStarterPackage: "Starter",
-    walletValuePackage: "Best value",
-    walletEachWork: "Per work",
-    walletSandboxNotice: "Sandbox top-up — no real payment is collected.",
-    walletSandboxDisabled: "Sandbox top-ups are disabled here. No payment was made.",
-    walletTopUpAction: "Add package",
-    walletTopUpPending: "Adding balance…",
-    walletTopUpFailed: "Could not top up balance. Please try again.",
-    createDraft: "New presentation",
-    generationTitle: "Create with AI",
-    generationCopy: "Choose a format, describe your topic and preview the scope before generating.",
-    generationFormat: "Format",
-    generationPresentationType: "Presentation",
-    generationPrompt: "Topic and requirements",
-    generationPromptPlaceholder: "Describe your topic, audience, and any requirements...",
-    generationLanguage: "Output language",
-    generationSlides: "Number of slides",
-    generationItemCount: "Output size",
-    generationSlidesUnit: "slides",
-    generationSectionsUnit: "sections",
-    generationQuestionsUnit: "questions",
-    generationCluesUnit: "clues",
-    generationTermsUnit: "terms",
-    generationPreview: "Preview",
-    generationPreviewTopic: "Topic",
-    generationTopicPlaceholder: "Your topic will appear here",
-    generationSubmit: "Generate presentation",
-    generationDraftSubmit: "Generate editable draft",
-    generationDraftReady: "Draft ready. You can edit it below before saving.",
-    generationSubmitting: "Starting generation",
-    generationQueued: "Generation queued",
-    generationRunning: "Creating your presentation",
-    generationSucceeded: "Your presentation is ready",
-    generationFailed: "Generation failed",
-    generationRequestFailed: "Could not start generation. Please try again.",
-    generationSaveOpen: "Save and open",
-    generationSaving: "Saving presentation",
-    generationSaveFailed: "Could not save the generated presentation.",
-    generationRequired: "Describe the presentation you want to create.",
-    loadingProjects: "Loading your presentations",
-    emptyProjects: "No presentations yet",
-    emptyProjectsCopy: "Start with a blank deck and build from there.",
-    lastUpdated: "Updated",
-    deletePresentation: "Delete presentation",
-    deleteConfirm: "Move this presentation to the archive?",
-    createFailed: "Could not create the presentation. Please try again.",
-    presentations: "My presentations",
-    openPresentation: "Open presentation",
-    openingPresentation: "Opening presentation",
-    backToLibrary: "Back to presentations",
-    presentationTitle: "Presentation title",
-    discardChanges: "Discard unsaved changes?",
-    alternativeText: "Alternative text",
-    saveChanges: "Save changes",
-    savingChanges: "Saving changes",
-    saveFailed: "Could not save the presentation. Please try again.",
-    openFailed: "Could not open the presentation. Please try again.",
-    presentationSaved: "Presentation saved",
-    slideCount: "slides",
-    elementCount: "elements",
-    slide: "Slide",
-    textElements: "Text elements",
-    elements: "Elements",
-    textContent: "Text content",
-    addText: "Add text",
-    newText: "Text",
-    addRectangle: "Add rectangle",
-    addEllipse: "Add ellipse",
-    deleteElement: "Delete selected element",
-    rectangle: "Rectangle",
-    ellipse: "Ellipse",
-    addSlide: "Add slide",
-    removeSlide: "Remove slide",
-    moveSlideUp: "Move slide up",
-    moveSlideDown: "Move slide down",
-    position: "Position and size",
-    textStyle: "Text style",
-    fontSize: "Font size",
-    textColor: "Text color",
-    fillColor: "Fill color",
-    backgroundColor: "Slide background",
-    alignment: "Alignment",
-    leftAlign: "Left",
-    centerAlign: "Center",
-    rightAlign: "Right",
-    slideNotes: "Speaker notes",
-    addImage: "Add image",
-    invalidImage: "Choose an image under 2 MB.",
-    exportPptx: "Export PPTX",
-    exportPdf: "Export PDF",
-    exportQueued: "Export queued",
-    exportRunning: "Preparing export",
-    exportFailed: "Export failed. Please try again.",
-    exportReady: "Export ready",
-    exportDownload: "Download",
-    saveBeforeExport: "Save your changes before exporting.",
-    exportRequestFailed: "Could not start the export. Please try again.",
-    undo: "Undo",
-    redo: "Redo",
-};
 
-const translations = {
-  en,
-  ru: {
-    workspace: "Рабочее пространство",
-    home: "Главная",
-    library: "Мои презентации",
-    create: "Создать с ИИ",
-    marketplace: "Маркетплейс",
-    purchases: "Покупки",
-    account: "Аккаунт",
-    accountDescription: "Управляйте профилем, балансом и историей операций.",
-    accountBilling: "Баланс и платежи",
-    sellerPayout: "Выплаты продавцу",
-    sellerPayoutUnavailable: "Выплаты станут доступны после подключения проверенного платёжного провайдера. Slideforge не собирает номера карт и коды безопасности.",
-    sellerPayoutPending: "Безопасная выплата пока не настроена.",
-    coming: "Будет доступно в следующих этапах",
-    foundation: "Ваши идеи в лучшем свете.",
-    intro: "Продуманное пространство для презентаций. Подключение к API Slideforge уже заложено в основу.",
-    status: "Состояние платформы",
-    api: "Основа API",
-    checking: "Проверяем API",
-    ready: "Эндпоинт доступен",
-    unavailable: "Нет соединения с API",
-    docs: "Документация API",
-    docsCopy: "Открыть контракт API",
-    model: "Общая модель презентации",
-    modelCopy: "Канонический JSON и проверенные операции редактирования",
-    export: "Экспорт презентаций",
-    exportCopy: "Редактируемый PowerPoint и преобразование в PDF",
-    roadmap: "Ход разработки",
-    language: "Сменить язык",
-    signIn: "Войти",
-    register: "Создать аккаунт",
-    loginTitle: "Войдите в рабочее пространство",
-    registerTitle: "Создайте аккаунт Slideforge",
-    forgotTitle: "Сброс пароля",
-    resetTitle: "Придумайте новый пароль",
-    email: "Электронная почта",
-    password: "Пароль",
-    newPassword: "Новый пароль",
-    forgotPassword: "Забыли пароль?",
-    resendVerification: "Отправить письмо для подтверждения ещё раз",
-    sendInstructions: "Отправить инструкции",
-    resetPassword: "Сбросить пароль",
-    registrationSent: "Если действие доступно, инструкции для подтверждения отправлены на вашу почту.",
-    recoverySent: "Если аккаунт существует, инструкции для сброса пароля будут отправлены.",
-    verificationComplete: "Почта подтверждена. Теперь можно войти.",
-    verificationFailed: "Ссылка для подтверждения недействительна или устарела. Запросите новую.",
-    passwordResetComplete: "Пароль изменён. Теперь можно войти.",
-    resetLinkInvalid: "Ссылка для сброса пароля недействительна или устарела. Запросите новую.",
-    displayName: "Ваше имя",
-    profile: "Профиль",
-    profileLocale: "Язык интерфейса",
-    saveProfile: "Сохранить профиль",
-    savingProfile: "Сохраняем профиль",
-    profileSaved: "Профиль обновлён",
-    profileSaveFailed: "Не удалось обновить профиль. Попробуйте ещё раз.",
-    authLoading: "Проверяем сессию",
-    authFailed: "Не удалось войти. Проверьте данные и попробуйте снова.",
-    signOut: "Выйти",
-    close: "Закрыть",
-    walletBalance: "Текущий баланс",
-    walletTopUp: "Пополнить баланс",
-    walletWorks: "работ",
-    walletLoadFailed: "Не удалось загрузить баланс. Обновите страницу.",
-    walletHistory: "История операций",
-    walletHistoryLoading: "Загружаем операции…",
-    walletHistoryEmpty: "Операций пока нет.",
-    walletHistoryFailed: "Не удалось загрузить историю операций. Обновите страницу.",
-    walletTransactionTopUp: "Пополнение кошелька",
-    walletTransactionWork: "Работа с ИИ",
-    walletTransactionRefund: "Возврат за работу",
-    walletTransactionPurchase: "Покупка на маркетплейсе",
-    walletTransactionSandbox: "тест · реальная оплата не списывалась",
-    walletTransactionPending: "Обрабатывается",
-    walletTransactionSettled: "Завершено",
-    walletTransactionRefunded: "Возвращено",
-    walletTransactionReference: "Номер квитанции",
-    walletTopUpTitle: "Пополнить баланс",
-    walletTopUpCopy: "Выберите пакет, чтобы добавить работы на баланс.",
-    walletPaymentMethod: "Способ тестовой оплаты",
-    walletStarterPackage: "Стартовый",
-    walletValuePackage: "Выгодный",
-    walletEachWork: "За работу",
-    walletSandboxNotice: "Тестовое пополнение — реальная оплата не списывается.",
-    walletSandboxDisabled: "Тестовое пополнение отключено. Оплата не производилась.",
-    walletTopUpAction: "Добавить пакет",
-    walletTopUpPending: "Пополняем баланс…",
-    walletTopUpFailed: "Не удалось пополнить баланс. Попробуйте ещё раз.",
-    createDraft: "Новая презентация",
-    generationTitle: "Создать с помощью ИИ",
-    generationCopy: "Выберите формат, опишите тему и проверьте объём перед созданием.",
-    generationFormat: "Формат",
-    generationPresentationType: "Презентация",
-    generationPrompt: "Тема и требования",
-    generationPromptPlaceholder: "Опишите тему, аудиторию и требования...",
-    generationLanguage: "Язык результата",
-    generationSlides: "Количество слайдов",
-    generationItemCount: "Объём результата",
-    generationSlidesUnit: "слайдов",
-    generationSectionsUnit: "разделов",
-    generationQuestionsUnit: "вопросов",
-    generationCluesUnit: "слов",
-    generationTermsUnit: "терминов",
-    generationPreview: "Предпросмотр",
-    generationPreviewTopic: "Тема",
-    generationTopicPlaceholder: "Здесь появится ваша тема",
-    generationSubmit: "Создать презентацию",
-    generationDraftSubmit: "Создать редактируемый черновик",
-    generationDraftReady: "Черновик готов. Отредактируйте его ниже и сохраните.",
-    generationSubmitting: "Запускаем создание",
-    generationQueued: "Запрос добавлен в очередь",
-    generationRunning: "Создаём презентацию",
-    generationSucceeded: "Презентация готова",
-    generationFailed: "Не удалось создать презентацию",
-    generationRequestFailed: "Не удалось запустить создание. Попробуйте ещё раз.",
-    generationSaveOpen: "Сохранить и открыть",
-    generationSaving: "Сохраняем презентацию",
-    generationSaveFailed: "Не удалось сохранить созданную презентацию.",
-    generationRequired: "Опишите презентацию, которую хотите создать.",
-    loadingProjects: "Загружаем презентации",
-    emptyProjects: "Презентаций пока нет",
-    emptyProjectsCopy: "Начните с пустой презентации.",
-    lastUpdated: "Обновлено",
-    deletePresentation: "Удалить презентацию",
-    deleteConfirm: "Переместить презентацию в архив?",
-    createFailed: "Не удалось создать презентацию. Попробуйте ещё раз.",
-    presentations: "Мои презентации",
-    openPresentation: "Открыть презентацию",
-    openingPresentation: "Открываем презентацию",
-    backToLibrary: "Назад к презентациям",
-    presentationTitle: "Название презентации",
-    discardChanges: "Отменить несохранённые изменения?",
-    alternativeText: "Альтернативный текст",
-    saveChanges: "Сохранить изменения",
-    savingChanges: "Сохраняем изменения",
-    saveFailed: "Не удалось сохранить презентацию. Попробуйте ещё раз.",
-    openFailed: "Не удалось открыть презентацию. Попробуйте ещё раз.",
-    presentationSaved: "Презентация сохранена",
-    slideCount: "слайдов",
-    elementCount: "элементов",
-    slide: "Слайд",
-    textElements: "Текстовые элементы",
-    elements: "Элементы",
-    textContent: "Содержание текста",
-    addText: "Добавить текст",
-    newText: "Текст",
-    addRectangle: "Добавить прямоугольник",
-    addEllipse: "Добавить эллипс",
-    deleteElement: "Удалить выбранный элемент",
-    rectangle: "Прямоугольник",
-    ellipse: "Эллипс",
-    addSlide: "Добавить слайд",
-    removeSlide: "Удалить слайд",
-    moveSlideUp: "Переместить слайд вверх",
-    moveSlideDown: "Переместить слайд вниз",
-    position: "Положение и размер",
-    textStyle: "Стиль текста",
-    fontSize: "Размер шрифта",
-    textColor: "Цвет текста",
-    fillColor: "Цвет заливки",
-    backgroundColor: "Фон слайда",
-    alignment: "Выравнивание",
-    leftAlign: "Слева",
-    centerAlign: "По центру",
-    rightAlign: "Справа",
-    slideNotes: "Заметки докладчика",
-    addImage: "Добавить изображение",
-    invalidImage: "Выберите изображение размером до 2 МБ.",
-    exportPptx: "Экспорт PPTX",
-    exportPdf: "Экспорт PDF",
-    exportQueued: "Экспорт в очереди",
-    exportRunning: "Подготавливаем экспорт",
-    exportFailed: "Не удалось выполнить экспорт. Попробуйте ещё раз.",
-    exportReady: "Экспорт готов",
-    exportDownload: "Скачать",
-    saveBeforeExport: "Сохраните изменения перед экспортом.",
-    exportRequestFailed: "Не удалось запустить экспорт. Попробуйте ещё раз.",
-    undo: "Отменить",
-    redo: "Повторить",
-  },
-  uz: {
-    ...en,
-    ...{
-      workspace: "Ish maydoni",
-      home: "Bosh sahifa",
-      library: "Taqdimotlarim",
-      create: "AI bilan yaratish",
-      marketplace: "Marketpleys",
-      purchases: "Xaridlar",
-      account: "Hisob",
-      accountDescription: "Profil, balans va toʻlovlar tarixini boshqaring.",
-      accountBilling: "Balans va toʻlovlar",
-      sellerPayout: "Sotuvchi toʻlovlari",
-      sellerPayoutUnavailable: "Sotuvchi toʻlovlari tasdiqlangan toʻlov provayderi ulangandan soʻng ishlaydi. Slideforge karta raqami yoki xavfsizlik kodlarini yigʻmaydi.",
-      sellerPayoutPending: "Xavfsiz toʻlov tizimi hali sozlanmagan.",
-      coming: "Keyingi bosqichda mavjud boʻladi",
-      foundation: "Gʻoyalaringizni yorqin namoyish eting.",
-      intro: "Taqdimotlar yaratish uchun qulay ish maydoni. Slideforge API bilan ulanish tayyorlanmoqda.",
-      status: "Platforma holati",
-      api: "API holati",
-      checking: "API tekshirilmoqda",
-      ready: "API ishlayapti",
-      unavailable: "API bilan aloqa yoʻq",
-      docs: "API hujjatlari",
-      docsCopy: "Ishlayotgan API tavsifini koʻrish",
-      model: "Umumiy taqdimot modeli",
-      modelCopy: "Tekshirilgan tahrirlash amallariga ega JSON modeli",
-      export: "Taqdimotni eksport qilish",
-      exportCopy: "PDF formatiga aylantirish imkoniyatiga ega PowerPoint",
-      roadmap: "Ishlab chiqish jarayoni",
-      language: "Tilni almashtirish",
-      signIn: "Kirish",
-      register: "Hisob yaratish",
-      loginTitle: "Ish maydoningizga kiring",
-      registerTitle: "Slideforge hisobini yarating",
-      forgotTitle: "Parolni tiklash",
-      resetTitle: "Yangi parol oʻrnating",
-      email: "Elektron pochta",
-      password: "Parol",
-      newPassword: "Yangi parol",
-      forgotPassword: "Parol esdan chiqdimi?",
-      resendVerification: "Tasdiqlash xatini qayta yuborish",
-      sendInstructions: "Koʻrsatmalarni yuborish",
-      resetPassword: "Parolni tiklash",
-      registrationSent: "Agar hisob mos kelsa, tasdiqlash koʻrsatmalari yuboriladi.",
-      recoverySent: "Agar hisob mavjud boʻlsa, tiklash koʻrsatmalari yuboriladi.",
-      verificationComplete: "Elektron pochta tasdiqlandi. Endi kirishingiz mumkin.",
-      verificationFailed: "Tasdiqlash havolasi notoʻgʻri yoki muddati tugagan.",
-      passwordResetComplete: "Parol yangilandi. Endi kirishingiz mumkin.",
-      resetLinkInvalid: "Parolni tiklash havolasi notoʻgʻri yoki muddati tugagan.",
-      displayName: "Ismingiz",
-      profile: "Profil",
-      profileLocale: "Til sozlamasi",
-      saveProfile: "Profilni saqlash",
-      savingProfile: "Profil saqlanmoqda",
-      profileSaved: "Profil yangilandi",
-      profileSaveFailed: "Profilni yangilab boʻlmadi. Qayta urinib koʻring.",
-      authLoading: "Sessiya tekshirilmoqda",
-      authFailed: "Kirish amalga oshmadi. Maʼlumotlaringizni tekshiring.",
-      signOut: "Chiqish",
-      close: "Yopish",
-      walletBalance: "Joriy balans",
-      walletTopUp: "Balansni toʻldirish",
-      walletWorks: "ta ish",
-      walletLoadFailed: "Balansni yuklab boʻlmadi. Sahifani yangilang.",
-      walletHistory: "Toʻlovlar tarixi",
-      walletHistoryLoading: "Amaliyotlar yuklanmoqda…",
-      walletHistoryEmpty: "Hozircha amaliyotlar yoʻq.",
-      walletHistoryFailed: "Toʻlovlar tarixini yuklab boʻlmadi. Sahifani yangilang.",
-      walletTransactionTopUp: "Hamyonni toʻldirish",
-      walletTransactionWork: "AI ishi",
-      walletTransactionRefund: "Ish uchun qaytarim",
-      walletTransactionPurchase: "Marketplace xaridi",
-      walletTransactionSandbox: "sinov · haqiqiy toʻlov olinmagan",
-      walletTransactionPending: "Jarayonda",
-      walletTransactionSettled: "Yakunlandi",
-      walletTransactionRefunded: "Qaytarildi",
-      walletTransactionReference: "Kvitansiya raqami",
-      walletTopUpTitle: "Balansni toʻldirish",
-      walletTopUpCopy: "Balansingizga ish birliklarini qoʻshish uchun paket tanlang.",
-      walletPaymentMethod: "Sinov toʻlov usuli",
-      walletStarterPackage: "Boshlangʻich",
-      walletValuePackage: "Tejamkor",
-      walletEachWork: "Bir ish narxi",
-      walletSandboxNotice: "Sinov toʻlovi — haqiqiy pul yechilmaydi.",
-      walletSandboxDisabled: "Bu yerda sinov rejimi oʻchiq. Toʻlov amalga oshmadi.",
-      walletTopUpAction: "Paketni qoʻshish",
-      walletTopUpPending: "Balans toʻldirilmoqda…",
-      walletTopUpFailed: "Balansni toʻldirib boʻlmadi. Qayta urinib koʻring.",
-      createDraft: "Yangi taqdimot",
-      generationTitle: "AI yordamida yarating",
-      generationCopy: "Formatni tanlang, mavzuni yozing va yaratishdan oldin hajmni koʻring.",
-      generationFormat: "Format",
-      generationPresentationType: "Taqdimot",
-      generationPrompt: "Mavzu va talablar",
-      generationPromptPlaceholder: "Mavzu, auditoriya va talablaringizni yozing...",
-      generationLanguage: "Natija tili",
-      generationSlides: "Slaydlar soni",
-      generationItemCount: "Natija hajmi",
-      generationSlidesUnit: "slayd",
-      generationSectionsUnit: "boʻlim",
-      generationQuestionsUnit: "savol",
-      generationCluesUnit: "topishmoq",
-      generationTermsUnit: "atama",
-      generationPreview: "Koʻrinish",
-      generationPreviewTopic: "Mavzu",
-      generationTopicPlaceholder: "Mavzuingiz shu yerda koʻrinadi",
-      generationSubmit: "Taqdimot yaratish",
-      generationDraftSubmit: "Tahrirlanadigan qoralama yaratish",
-      generationDraftReady: "Qoralama tayyor. Saqlashdan oldin uni quyida tahrirlashingiz mumkin.",
-      generationSubmitting: "Yaratish boshlanmoqda",
-      generationQueued: "Soʻrov navbatga qoʻshildi",
-      generationRunning: "Taqdimot yaratilmoqda",
-      generationSucceeded: "Taqdimot tayyor",
-      generationFailed: "Taqdimotni yaratib boʻlmadi",
-      generationRequestFailed: "Yaratishni boshlash amalga oshmadi.",
-      generationSaveOpen: "Saqlash va ochish",
-      generationSaving: "Taqdimot saqlanmoqda",
-      generationSaveFailed: "Yaratilgan taqdimotni saqlab boʻlmadi.",
-      generationRequired: "Yaratmoqchi boʻlgan taqdimotingizni tasvirlab bering.",
-      loadingProjects: "Taqdimotlaringiz yuklanmoqda",
-      emptyProjects: "Hozircha taqdimot yoʻq",
-      emptyProjectsCopy: "Yangi boʻsh taqdimotdan boshlang.",
-      lastUpdated: "Yangilangan",
-      deletePresentation: "Taqdimotni oʻchirish",
-      deleteConfirm: "Bu taqdimotni arxivga oʻtkazilsinmi?",
-      createFailed: "Taqdimotni yaratib boʻlmadi. Qayta urinib koʻring.",
-      presentations: "Taqdimotlarim",
-      openPresentation: "Taqdimotni ochish",
-      openingPresentation: "Taqdimot ochilmoqda",
-      backToLibrary: "Taqdimotlarga qaytish",
-      presentationTitle: "Taqdimot sarlavhasi",
-      discardChanges: "Saqlanmagan oʻzgarishlar bekor qilinsinmi?",
-      alternativeText: "Muqobil matn",
-      saveChanges: "Oʻzgarishlarni saqlash",
-      savingChanges: "Oʻzgarishlar saqlanmoqda",
-      saveFailed: "Taqdimotni saqlab boʻlmadi. Qayta urinib koʻring.",
-      openFailed: "Taqdimotni ochib boʻlmadi. Qayta urinib koʻring.",
-      presentationSaved: "Taqdimot saqlandi",
-      slideCount: "slayd",
-      elementCount: "element",
-      slide: "Slayd",
-      textElements: "Matn elementlari",
-      elements: "Elementlar",
-      textContent: "Matn mazmuni",
-      addText: "Matn qoʻshish",
-      newText: "Matn",
-      addRectangle: "Toʻrtburchak qoʻshish",
-      addEllipse: "Ellips qoʻshish",
-      deleteElement: "Tanlangan elementni oʻchirish",
-      rectangle: "Toʻrtburchak",
-      ellipse: "Ellips",
-      addSlide: "Slayd qoʻshish",
-      removeSlide: "Slaydni oʻchirish",
-      moveSlideUp: "Slaydni yuqoriga surish",
-      moveSlideDown: "Slaydni pastga surish",
-      position: "Joylashuv va oʻlcham",
-      textStyle: "Matn uslubi",
-      fontSize: "Shrift oʻlchami",
-      textColor: "Matn rangi",
-      fillColor: "Toʻldirish rangi",
-      backgroundColor: "Slayd foni",
-      alignment: "Tekislash",
-      leftAlign: "Chapga",
-      centerAlign: "Markazga",
-      rightAlign: "Oʻngga",
-      slideNotes: "Taqdimotchi qaydlari",
-      addImage: "Rasm qoʻshish",
-      invalidImage: "2 MB dan kichik rasm tanlang.",
-      exportPptx: "PPTX eksporti",
-      exportPdf: "PDF eksporti",
-      exportQueued: "Eksport navbatga qoʻshildi",
-      exportRunning: "Eksport tayyorlanmoqda",
-      exportFailed: "Eksport amalga oshmadi. Qayta urinib koʻring.",
-      exportReady: "Eksport tayyor",
-      exportDownload: "Yuklab olish",
-      saveBeforeExport: "Eksportdan oldin oʻzgarishlarni saqlang.",
-      exportRequestFailed: "Eksportni boshlash amalga oshmadi.",
-      undo: "Bekor qilish",
-      redo: "Qaytarish",
-    },
-  },
-} satisfies Record<Locale, Record<string, string>>;
 
 function App() {
   const [marketplaceActive, setMarketplaceActive] = useState(() =>
@@ -586,11 +48,12 @@ function App() {
   const [accountActive, setAccountActive] = useState(() => window.location.hash === "#account");
   const [marketplaceInitialStage, setMarketplaceInitialStage] = useState<"shop" | "purchases">(() =>
     window.location.hash === "#purchases" ? "purchases" : "shop");
-  const [marketplaceAuthOpen, setMarketplaceAuthOpen] = useState(false);
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>(readLocalePreference);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>(() =>
     window.location.pathname.endsWith("/reset-password") ? "reset" : "login");
+  const [landingAuthOpen, setLandingAuthOpen] = useState(() =>
+    window.location.pathname.endsWith("/reset-password"));
   const [authUser, setAuthUser] = useState<UserProfile | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
@@ -608,7 +71,7 @@ function App() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [profileName, setProfileName] = useState("");
-  const [profileLocale, setProfileLocale] = useState<Locale>("en");
+  const [profileLocale, setProfileLocale] = useState<Locale>(readLocalePreference);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
@@ -617,7 +80,7 @@ function App() {
   const [projectsError, setProjectsError] = useState("");
   const [creatingPresentation, setCreatingPresentation] = useState(false);
   const [generationPrompt, setGenerationPrompt] = useState("");
-  const [generationLanguage, setGenerationLanguage] = useState<Locale>("en");
+  const [generationLanguage, setGenerationLanguage] = useState<Locale>(readLocalePreference);
   const [generationSlideCount, setGenerationSlideCount] = useState(6);
   const [creationType, setCreationType] = useState<CreationType>("slides");
   const [generationJob, setGenerationJob] = useState<GenerationJobResponse | null>(null);
@@ -648,6 +111,15 @@ function App() {
   const authVerificationStarted = useRef(false);
   const copy = translations[locale];
 
+  function changeLocale(next: Locale) {
+    setLocale(next);
+    saveLocalePreference(next);
+  }
+
+  function toggleLocale() {
+    changeLocale(nextLocale(locale));
+  }
+
   useEffect(() => {
     const updateSection = () => {
       const purchases = window.location.hash === "#purchases";
@@ -663,7 +135,7 @@ function App() {
 
   function requireMarketplaceAuth() {
     setAuthMode("login");
-    setMarketplaceAuthOpen(true);
+    setLandingAuthOpen(true);
   }
 
   function applySession(session: AuthResponse) {
@@ -676,10 +148,10 @@ function App() {
       setWalletTopUpOpen(false);
       setPresentations([]);
     }
-    setMarketplaceAuthOpen(false);
+    setLandingAuthOpen(false);
     setAccessToken(session.accessToken);
     setAuthUser(session.user);
-    setLocale(session.user.locale);
+    changeLocale(session.user.locale);
     setGenerationLanguage(session.user.locale);
     setProfileName(session.user.displayName);
     setProfileLocale(session.user.locale);
@@ -1155,7 +627,7 @@ function App() {
       setAuthUser(updatedUser);
       setProfileName(updatedUser.displayName);
       setProfileLocale(updatedUser.locale);
-      setLocale(updatedUser.locale);
+      changeLocale(updatedUser.locale);
       setProfileSaved(true);
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : copy.profileSaveFailed);
@@ -1168,7 +640,7 @@ function App() {
     if (!accessToken) return;
     setCreatingPresentation(true);
     setProjectsError("");
-    const title = locale === "ru" ? "Новая презентация" : "Untitled presentation";
+    const title = copy.newPresentation;
     const deckId = crypto.randomUUID();
     const document = {
       schemaVersion: 1,
@@ -1450,7 +922,7 @@ function App() {
     return (
       <main className="app-loading-screen" role="status" aria-live="polite">
         <div className="app-loading-card">
-          <span className="app-loading-mark"><Layers3 size={24} strokeWidth={2.2} aria-hidden="true" /></span>
+          <span className="app-loading-mark"><img src={brandMark} alt="" /></span>
           <span className="app-loading-brand">slideforge</span>
           <span className="app-loading-spinner" aria-hidden="true" />
           <strong>{copy.authLoading}</strong>
@@ -1578,18 +1050,20 @@ function App() {
     applyEditorOperation({ kind: "moveSlide", slideId: activeSlide.id, toIndex });
   }
 
-  function updateSelectedGeometry(property: "x" | "y" | "w" | "h", value: number) {
-    if (!selectedElement || !editorDocument || !activeSlideId || !Number.isFinite(value)) return;
-    const maximum = property === "x" ? editorDocument.size.width - selectedElement.w
-      : property === "y" ? editorDocument.size.height - selectedElement.h
-        : property === "w" ? editorDocument.size.width - selectedElement.x
-          : editorDocument.size.height - selectedElement.y;
+  function updateSelectedGeometry(property: "x" | "y" | "w" | "h", value: number, elementId = selectedElement?.id) {
+    if (!elementId || !editorDocument || !activeSlideId || !Number.isFinite(value)) return;
+    const element = activeSlide?.elements.find((item) => item.id === elementId);
+    if (!element) return;
+    const maximum = property === "x" ? editorDocument.size.width - element.w
+      : property === "y" ? editorDocument.size.height - element.h
+        : property === "w" ? editorDocument.size.width - element.x
+          : editorDocument.size.height - element.y;
     const minimum = property === "x" || property === "y" ? 0 : 1;
     const nextValue = Math.round(Math.max(minimum, Math.min(value, maximum)));
     applyEditorOperation({
       kind: "updateElement",
       slideId: activeSlideId,
-      elementId: selectedElement.id,
+      elementId,
       patch: { [property]: nextValue },
     });
   }
@@ -1620,11 +1094,103 @@ function App() {
     applyEditorOperation({ kind: "setBackground", slideId: activeSlideId, color });
   }
 
+  const authPanel = (
+    <AuthPanel
+      authMode={authMode}
+      copy={copy}
+      authSubmitting={authSubmitting}
+      authError={authError}
+      authNotice={authNotice}
+      email={email}
+      password={password}
+      displayName={displayName}
+      setAuthMode={setAuthMode}
+      setAuthError={setAuthError}
+      setAuthNotice={setAuthNotice}
+      setEmail={setEmail}
+      setPassword={setPassword}
+      setDisplayName={setDisplayName}
+      onSubmitAuth={submitAuth}
+      onSubmitAuthAction={submitAuthAction}
+      onSubmitPasswordReset={submitPasswordReset}
+    />
+  );
+
+  const showPublicLanding = !authUser
+    && !landingAuthOpen
+    && !accountActive
+    && window.location.pathname === "/"
+    && !authRestoring;
+  const showStorefront = window.location.pathname.replace(/\/+$/, "") === "/marketplace"
+    && !landingAuthOpen
+    && !authRestoring;
+
+  if (showPublicLanding) {
+    return (
+      <LandingPage
+        locale={locale}
+        onAuth={(mode) => {
+          setAuthError("");
+          setAuthNotice("");
+          setAuthMode(mode);
+          setLandingAuthOpen(true);
+        }}
+        onToggleLocale={toggleLocale}
+      />
+    );
+  }
+
+  if (showStorefront) {
+    return (
+      <StorefrontPage
+        locale={locale}
+        authenticated={authUser !== null}
+        workspaceLabel={copy.workspace}
+        onAuth={(mode) => {
+          setAuthError("");
+          setAuthNotice("");
+          setAuthMode(mode);
+          setLandingAuthOpen(true);
+        }}
+        onToggleLocale={toggleLocale}
+      >
+        <Marketplace
+          key={`${authUser?.id ?? "anonymous"}:shop`}
+          locale={locale}
+          token={accessToken}
+          accountId={authUser?.id ?? null}
+          initialStage="shop"
+          walletBalanceTiyin={wallet?.balanceTiyin ?? null}
+          presentations={presentations}
+          onSession={applySession}
+          onExpired={clearSession}
+          onRequireAuth={requireMarketplaceAuth}
+          onRequestTopUp={() => setWalletTopUpOpen(true)}
+          onRefreshWallet={refreshWallet}
+          onRefreshPresentations={refreshPresentations}
+        />
+      </StorefrontPage>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <AuthPage>
+        {authRestoring ? (
+          <div className="standalone-auth-loading" role="status" aria-live="polite">
+            <span className="public-loader-progress" aria-hidden="true"><span /></span>
+            <strong>{copy.authLoading}</strong>
+          </div>
+        ) : authPanel}
+      </AuthPage>
+    );
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#workspace" aria-label="Slideforge workspace">
-          <span className="brand-mark"><Layers3 size={21} strokeWidth={2.2} /></span>
+        <a className="brand" href="#workspace" aria-label={copy.workspaceAria}>
+          <span className="brand-mark"><img src={brandMark} alt="" /></span>
           <span>slideforge</span>
         </a>
         <div className="workspace-label">{copy.workspace}</div>
@@ -1678,11 +1244,6 @@ function App() {
               clearSession={clearSession}
             />
           )}
-          {/* <a className="help-link" href="/ROADMAP.md">
-            <CircleHelp size={16} aria-hidden="true" />
-            <span>{copy.roadmap}</span>
-            <ArrowUpRight size={14} aria-hidden="true" />
-          </a> */}
         </div>
       </aside>
 
@@ -1694,7 +1255,6 @@ function App() {
             <strong>{marketplaceActive
               ? marketplaceInitialStage === "purchases" ? copy.purchases : copy.marketplace
               : accountActive ? copy.account : copy.home}</strong>
-            <div className="version-mark"><span />{authUser ? authUser.displayName : "Phase 2 · Core data"}</div>
           </span>
           <div className="mr-5">
             {authUser && (
@@ -1707,7 +1267,7 @@ function App() {
               type="button"
               title={copy.language}
               aria-label={copy.language}
-              onClick={() => setLocale(locale === "en" ? "ru" : locale === "ru" ? "uz" : "en")}
+              onClick={toggleLocale}
             >
               <Globe2 size={17} aria-hidden="true" />
               {locale.toUpperCase()}
@@ -1725,39 +1285,6 @@ function App() {
             <span className={`status-indicator ${apiAvailable === null ? "status-checking" : apiAvailable ? "" : "status-unavailable"}`} aria-label={apiStatusText} />
           </div>
         </section>}
-
-        {!authUser && !authRestoring && (!marketplaceActive || marketplaceAuthOpen) && (
-          <div className={marketplaceActive ? "market-auth-overlay" : undefined}>
-            {marketplaceActive && (
-              <button
-                className="market-auth-close"
-                type="button"
-                onClick={() => setMarketplaceAuthOpen(false)}
-              >
-                {locale === "uz" ? "Doʻkonga qaytish" : locale === "ru" ? "Вернуться в магазин" : "Back to shop"}
-              </button>
-            )}
-            <AuthPanel
-            authMode={authMode}
-            copy={copy}
-            authSubmitting={authSubmitting}
-            authError={authError}
-            authNotice={authNotice}
-            email={email}
-            password={password}
-            displayName={displayName}
-            setAuthMode={setAuthMode}
-            setAuthError={setAuthError}
-            setAuthNotice={setAuthNotice}
-            setEmail={setEmail}
-            setPassword={setPassword}
-            setDisplayName={setDisplayName}
-            onSubmitAuth={submitAuth}
-            onSubmitAuthAction={submitAuthAction}
-            onSubmitPasswordReset={submitPasswordReset}
-            />
-          </div>
-        )}
 
         {authUser && accountActive && (
           <section className="account-page" id="account" aria-labelledby="account-title">
@@ -1790,6 +1317,7 @@ function App() {
                     loading={walletLoading}
                     loadError={walletError}
                     dialogOpen={walletTopUpOpen}
+                    historyExpanded
                     onDialogOpenChange={setWalletTopUpOpen}
                     onWalletChange={setWallet}
                     applySession={applySession}
@@ -1850,6 +1378,7 @@ function App() {
 
         {authUser && !marketplaceActive && !accountActive && !editorPresentation && accessToken && (
           <ArtifactWorkspace
+            locale={locale}
             token={accessToken}
             initialDraft={artifactDraft}
             onSession={applySession}
@@ -1936,26 +1465,10 @@ function App() {
           />
         )}
 
-        {!authUser && <section className="foundation-section" aria-label={copy.status}>
-          <a className="foundation-item" href={`${API_URL}/swagger-ui.html`} target="_blank" rel="noreferrer">
-            <span className="item-icon icon-amber"><BookOpen size={19} aria-hidden="true" /></span>
-            <span className="item-copy"><strong>{copy.docs}</strong><small>{copy.docsCopy}</small></span>
-            <ArrowUpRight className="item-arrow" size={16} aria-hidden="true" />
-          </a>
-          <div className="foundation-item">
-            <span className="item-icon icon-green"><Layers3 size={19} aria-hidden="true" /></span>
-            <span className="item-copy"><strong>{copy.model}</strong><small>{copy.modelCopy}</small></span>
-            <span className="check-mark" aria-label="Implemented"><span /></span>
-          </div>
-          <div className="foundation-item">
-            <span className="item-icon icon-blue"><Boxes size={19} aria-hidden="true" /></span>
-            <span className="item-copy"><strong>{copy.export}</strong><small>{copy.exportCopy}</small></span>
-            <span className="check-mark" aria-label="Implemented"><span /></span>
-          </div>
-        </section>}
+
 
         <footer className="app-footer">
-          <span>Slideforge <span className="footer-separator">·</span> Presentation workspace</span>
+          <span>Slideforge <span className="footer-separator">·</span> {copy.workspaceFooter}</span>
           <a href={`${API_URL}/api/v1/status`} target="_blank" rel="noreferrer">API status <ArrowUpRight size={13} /></a>
         </footer>
       </main>

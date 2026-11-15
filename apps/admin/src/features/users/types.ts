@@ -1,4 +1,4 @@
-import type { Locale } from "../../app/translations";
+import type { Locale } from "../../i18n";
 
 export type UserStatus = "ACTIVE" | "BLOCKED" | "DELETED";
 

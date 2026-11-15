@@ -78,9 +78,36 @@ void main() {
       expect(state.marketplaceSection, 0);
       expect(state.checkoutStep, 0);
       expect(state.workspaceTab, 0);
-      expect(state.locale, 'en');
+      expect(state.locale, 'uz');
     },
   );
+
+  test('fresh state defaults to Uzbek and preserves saved locale choices', () {
+    expect(const MobileAppState().locale, 'uz');
+    expect(
+      MobileAppState.fromJson({
+        'version': MobileAppState.storageVersion,
+      }).locale,
+      'uz',
+    );
+
+    for (final locale in ['en', 'ru', 'uz']) {
+      final saved = MobileAppState.fromJson({
+        'version': MobileAppState.storageVersion,
+        'locale': locale,
+      });
+      expect(saved.locale, locale);
+      expect(saved.localeIsSaved, isTrue);
+    }
+
+    final implicitDefault = MobileAppState.fromJson({
+      'version': MobileAppState.storageVersion,
+      'locale': 'uz',
+      'localeIsSaved': false,
+    });
+    expect(implicitDefault.locale, 'uz');
+    expect(implicitDefault.localeIsSaved, isFalse);
+  });
 
   test(
     'legacy navigation state migrates to the four web-aligned destinations',
@@ -130,6 +157,6 @@ void main() {
 
     expect(state.cartItems, isEmpty);
     expect(state.checkoutStep, 0);
-    expect(state.locale, 'en');
+    expect(state.locale, 'uz');
   });
 }

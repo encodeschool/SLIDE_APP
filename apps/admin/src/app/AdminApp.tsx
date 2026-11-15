@@ -7,7 +7,7 @@ import { AdminInvitationRequest } from "../features/auth/AdminInvitationRequest"
 import { UserManagement } from "../features/users/UserManagement";
 import { MarketplaceMonitoring } from "../features/marketplace/MarketplaceMonitoring";
 import { MarketplaceCategories } from "../features/marketplace/MarketplaceCategories";
-import { translations, type Locale } from "./translations";
+import { nextLocale, readLocalePreference, saveLocalePreference, translations, type Locale } from "../i18n";
 import { Layers3 } from "lucide-react";
 
 type AdminPage = "users" | "marketplace" | "categories";
@@ -19,7 +19,7 @@ function pageFromHash(hash: string): AdminPage {
 }
 
 export default function AdminApp() {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>(readLocalePreference);
   const [activePage, setActivePage] = useState<AdminPage>(() => pageFromHash(window.location.hash));
   const [invitationToken, setInvitationToken] = useState(
     () => new URLSearchParams(window.location.search).get("admin-invite"),
@@ -28,6 +28,12 @@ export default function AdminApp() {
   const session = useAdminSession(translations[locale]);
   const t = translations[locale];
   const visiblePage = activePage === "categories" && !session.isSuperAdmin ? "users" : activePage;
+
+  function toggleLocale() {
+    const next = nextLocale(locale);
+    setLocale(next);
+    saveLocalePreference(next);
+  }
 
   useEffect(() => {
     const handleHashChange = () => setActivePage(pageFromHash(window.location.hash));
@@ -42,68 +48,71 @@ export default function AdminApp() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }, [invitationToken]);
 
+  if (!session.accessToken) {
+    return (
+      <main className="admin-auth-page">
+        {invitationToken ? (
+          <AdminInvitationCompletion
+            token={invitationToken}
+            translations={t}
+            onComplete={() => {
+              window.history.replaceState({}, "", window.location.pathname);
+              setInvitationToken(null);
+            }}
+          />
+        ) : registering ? (
+          <AdminInvitationRequest translations={t} onCancel={() => setRegistering(false)} />
+        ) : session.loading ? (
+          <section className="admin-content auth-loading-page" role="status" aria-live="polite">
+            <span className="admin-loading-mark"><Layers3 size={24} strokeWidth={2.2} aria-hidden="true" /></span>
+            <span className="admin-loading-brand">slideforge<span className="brand-divider">/</span>admin</span>
+            <span className="admin-loading-spinner" aria-hidden="true" />
+            <strong>{t.sessionChecking}</strong>
+          </section>
+        ) : (
+          <SignIn
+            translations={t}
+            loading={session.loading}
+            error={session.error}
+            onSubmit={session.signIn}
+            onRegister={() => setRegistering(true)}
+          />
+        )}
+      </main>
+    );
+  }
+
   return (
     <AdminShell
       locale={locale}
       translations={t}
-      authenticated={Boolean(session.accessToken)}
+      authenticated
       superadmin={session.isSuperAdmin}
       activePage={visiblePage}
       onSignOut={() => void session.signOut()}
-      onToggleLocale={() => setLocale((current) => current === "en" ? "ru" : current === "ru" ? "uz" : "en")}
+      onToggleLocale={toggleLocale}
     >
-      {invitationToken ? (
-        <AdminInvitationCompletion
-          token={invitationToken}
+      {visiblePage === "users" && (
+        <UserManagement
+          accessToken={session.accessToken}
           translations={t}
-          onComplete={() => {
-            window.history.replaceState({}, "", window.location.pathname);
-            setInvitationToken(null);
-          }}
+          locale={locale}
+          onSessionExpired={session.clearSession}
         />
-      ) : registering ? (
-        <AdminInvitationRequest translations={t} onCancel={() => setRegistering(false)} />
-      ) : session.loading ? (
-        <section className="admin-content auth-loading-page" role="status" aria-live="polite">
-          <span className="admin-loading-mark"><Layers3 size={24} strokeWidth={2.2} aria-hidden="true" /></span>
-          <span className="admin-loading-brand">slideforge<span className="brand-divider">/</span>admin</span>
-          <span className="admin-loading-spinner" aria-hidden="true" />
-          <strong>{t.sessionChecking}</strong>
-          <span className="admin-loading-caption">{t.console}</span>
-        </section>
-      ) : !session.accessToken ? (
-        <SignIn
-          translations={t}
-          loading={session.loading}
-          error={session.error}
-          onSubmit={session.signIn}
-          onRegister={() => setRegistering(true)}
+      )}
+      {visiblePage === "marketplace" && (
+        <MarketplaceMonitoring
+          accessToken={session.accessToken}
+          locale={locale}
+          onSessionExpired={session.clearSession}
         />
-      ) : (
-        <>
-          {visiblePage === "users" && (
-            <UserManagement
-              accessToken={session.accessToken}
-              translations={t}
-              locale={locale}
-              onSessionExpired={session.clearSession}
-            />
-          )}
-          {visiblePage === "marketplace" && (
-            <MarketplaceMonitoring
-              accessToken={session.accessToken}
-              locale={locale}
-              onSessionExpired={session.clearSession}
-            />
-          )}
-          {visiblePage === "categories" && (
-            <MarketplaceCategories
-              accessToken={session.accessToken}
-              locale={locale}
-              onSessionExpired={session.clearSession}
-            />
-          )}
-        </>
+      )}
+      {visiblePage === "categories" && (
+        <MarketplaceCategories
+          accessToken={session.accessToken}
+          locale={locale}
+          onSessionExpired={session.clearSession}
+        />
       )}
     </AdminShell>
   );

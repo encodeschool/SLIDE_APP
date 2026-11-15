@@ -1,6 +1,7 @@
 import type { Deck } from "../../../../packages/shared-types/src/index.ts";
+import type { Locale } from "../i18n/locale";
 
-export type Locale = "en" | "ru" | "uz";
+export type { Locale } from "../i18n/locale";
 export type AuthMode = "login" | "register" | "forgot" | "reset";
 
 export interface UserProfile {

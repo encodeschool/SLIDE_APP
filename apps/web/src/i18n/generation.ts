@@ -1,0 +1,40 @@
+import type { Locale } from "./locale";
+
+export const generationTypeNames: Record<Locale, Record<string, string>> = {
+  en: {
+    essay: "Essay",
+    "independent-work": "Independent work",
+    coursework: "Coursework",
+    dissertation: "Dissertation",
+    "research-article": "Research article",
+    quiz: "Quiz",
+    crossword: "Crossword",
+    "thesis-abstract": "Thesis abstract",
+    glossary: "Glossary",
+    "argumentative-essay": "Argumentative essay",
+  },
+  ru: {
+    essay: "Эссе",
+    "independent-work": "Самостоятельная работа",
+    coursework: "Курсовая работа",
+    dissertation: "Диссертация",
+    "research-article": "Научная статья",
+    quiz: "Тест",
+    crossword: "Кроссворд",
+    "thesis-abstract": "Тезисы",
+    glossary: "Глоссарий",
+    "argumentative-essay": "Аргументативное эссе",
+  },
+  uz: {
+    essay: "Esse",
+    "independent-work": "Mustaqil iş",
+    coursework: "Kurs işi",
+    dissertation: "Dissertatsiya",
+    "research-article": "Ilmiy maqola",
+    quiz: "Test",
+    crossword: "Krossvord",
+    "thesis-abstract": "Tezis",
+    glossary: "Glossariy",
+    "argumentative-essay": "Argumentativ esse",
+  },
+};

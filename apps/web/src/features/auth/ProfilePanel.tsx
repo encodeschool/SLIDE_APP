@@ -38,9 +38,9 @@ export function ProfilePanel({
         <label>
           <span>{copy.profileLocale}</span>
           <select value={profileLocale} onChange={(event) => setProfileLocale(event.target.value as Locale)}>
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-            <option value="uz">Oʻzbekcha</option>
+            <option value="en">{copy.languageEnglish}</option>
+            <option value="ru">{copy.languageRussian}</option>
+            <option value="uz">{copy.languageUzbek}</option>
           </select>
         </label>
         <div className="profile-actions">

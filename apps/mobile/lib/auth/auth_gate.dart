@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/auth/app_state_store.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
 import 'package:slideforge_mobile/auth/auth_screen.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_library_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
@@ -26,7 +27,8 @@ class _AuthGateState extends State<AuthGate> {
   late final AuthRepository _repository;
   late final MobileAppStateStore _appStateStore;
   AuthSession? _session;
-  String _locale = 'en';
+  String _locale = MobileLocalizations.defaultLocale;
+  bool _localeIsSaved = false;
   bool _isRestoring = true;
   bool _isSubmitting = false;
   bool _authRequested = false;
@@ -38,14 +40,11 @@ class _AuthGateState extends State<AuthGate> {
   String? _error;
   String? _notice;
 
-  bool get _isRussian => _locale == 'ru';
-  bool get _isUzbek => _locale == 'uz';
+  MobileLocalizations get _strings => MobileLocalizations(_locale);
+  bool get _isRussian => _strings.isRussian;
+  bool get _isUzbek => _strings.isUzbek;
   String _text(String english, String russian, String uzbek) =>
-      _isUzbek
-          ? uzbek
-          : _isRussian
-          ? russian
-          : english;
+      _strings.text(english, russian, uzbek);
 
   @override
   void initState() {
@@ -65,6 +64,14 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _restoreSession() async {
     final savedStateFuture = _appStateStore.read();
+    savedStateFuture.then((savedState) {
+      if (mounted && savedState.localeIsSaved) {
+        setState(() {
+          _locale = savedState.locale;
+          _localeIsSaved = true;
+        });
+      }
+    });
     try {
       final session = await _repository.restoreSession();
       if (mounted) {
@@ -92,13 +99,12 @@ class _AuthGateState extends State<AuthGate> {
           _marketplaceSection = savedState.marketplaceSection;
           _checkoutStep = savedState.checkoutStep;
           _workspaceTab = savedState.workspaceTab;
+          _localeIsSaved = savedState.localeIsSaved;
           if (savedState.localeIsSaved) {
             _locale = savedState.locale;
           } else if (_session != null) {
-            _locale =
-                ['en', 'ru', 'uz'].contains(_session!.user.locale)
-                    ? _session!.user.locale
-                    : 'en';
+            _locale = MobileLocalizations.normalize(_session!.user.locale);
+            _localeIsSaved = true;
           }
           if (_session == null) {
             _marketplaceSection =
@@ -124,6 +130,7 @@ class _AuthGateState extends State<AuthGate> {
     checkoutStep: _checkoutStep,
     workspaceTab: _workspaceTab,
     locale: _locale,
+    localeIsSaved: _localeIsSaved,
   );
 
   Future<void> _saveAppState() => _appStateStore.write(_currentAppState());
@@ -189,10 +196,10 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) {
         setState(() {
           _session = session;
-          _locale =
-              ['en', 'ru', 'uz'].contains(session.user.locale)
-                  ? session.user.locale
-                  : 'en';
+          if (!_localeIsSaved) {
+            _locale = MobileLocalizations.normalize(session.user.locale);
+            _localeIsSaved = true;
+          }
           _workspaceTab =
               _accountAuthRequested
                   ? 3
@@ -294,11 +301,8 @@ class _AuthGateState extends State<AuthGate> {
 
   void _toggleLanguage() {
     setState(() {
-      _locale = switch (_locale) {
-        'en' => 'ru',
-        'ru' => 'uz',
-        _ => 'en',
-      };
+      _locale = MobileLocalizations.nextLocale(_locale);
+      _localeIsSaved = true;
     });
     _saveAppState();
   }
@@ -382,11 +386,10 @@ class _StartupLoadingScreen extends StatelessWidget {
   final bool isUzbek;
 
   String _text(String english, String russian, String uzbek) =>
-      isUzbek
-          ? uzbek
-          : isRussian
-          ? russian
-          : english;
+      MobileLocalizations.fromFlags(
+        isRussian: isRussian,
+        isUzbek: isUzbek,
+      ).text(english, russian, uzbek);
 
   @override
   Widget build(BuildContext context) {

@@ -85,6 +85,7 @@ void main() {
         home: ArtifactEditorScreen(
           accessToken: 'test-token',
           language: 'en',
+          uiLocale: 'en',
           repository: repository,
           initialDocument: document,
         ),

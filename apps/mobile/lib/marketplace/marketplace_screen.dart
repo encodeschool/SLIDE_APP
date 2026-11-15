@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/marketplace/bottom_navigation.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_demo_data.dart';
 import 'package:slideforge_mobile/marketplace/slide_preview_carousel.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
 class MarketplaceScreen extends StatefulWidget {
@@ -73,6 +74,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   bool get _ru => widget.isRussian;
   bool get _uz => widget.isUzbek;
+  MobileLocalizations get _strings =>
+      MobileLocalizations.fromFlags(isRussian: _ru, isUzbek: _uz);
   List<Map<String, dynamic>> get _cart => widget.cartItems;
   String get _loadingText => _text(
     'Loading marketplace',
@@ -81,11 +84,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   );
 
   String _text(String english, String russian, String uzbek) =>
-      _uz
-          ? uzbek
-          : _ru
-          ? russian
-          : english;
+      _strings.text(english, russian, uzbek);
 
   @override
   void initState() {
@@ -1073,9 +1072,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           _notice =
               sandboxDisabled
                   ? _text(
-                    'Order created, but sandbox payment is disabled. It is only available in development.',
-                    'Заказ создан, но песочница отключена. Она доступна только в режиме разработки.',
-                    'Buyurtma yaratildi, ammo sinov toʻlovi oʻchiq. U faqat ishlab chiqish rejimida ishlaydi.',
+                    'Order created, but sandbox payment is disabled. Ask the operator to enable sandbox payments.',
+                    'Заказ создан, но тестовая оплата отключена. Попросите оператора включить тестовые платежи.',
+                    'Buyurtma yaratildi, ammo sinov toʻlovi oʻchiq. Operatordan sinov toʻlovlarini yoqishni soʻrang.',
                   )
                   : null;
           _error =
@@ -2065,9 +2064,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     subtitle: Text(
                       _text(
-                        'Available only when the operator enables development sandbox mode.',
-                        'Доступна только если оператор включил режим разработки.',
-                        'Faqat operator sinov rejimini yoqqanida ishlaydi.',
+                        'Available when the operator enables sandbox payments.',
+                        'Доступно, когда оператор включит тестовые платежи.',
+                        'Operator sinov toʻlovlarini yoqqanda mavjud.',
                       ),
                     ),
                   ),

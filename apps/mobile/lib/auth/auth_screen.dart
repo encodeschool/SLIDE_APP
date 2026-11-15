@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 
 enum AuthSubmitResult { signedIn, registered, failed }
 
@@ -46,96 +47,73 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _createAccount = false;
   String? _emailActionError;
 
-  String get _title =>
-      widget.isUzbek
-          ? 'Gʻoyalaringizni yorqin namoyish eting.'
-          : widget.isRussian
-          ? 'Ваши идеи в лучшем свете.'
-          : 'Your ideas, in their best light.';
+  MobileLocalizations get _strings => MobileLocalizations.fromFlags(
+    isRussian: widget.isRussian,
+    isUzbek: widget.isUzbek,
+  );
+  String _text(String english, String russian, String uzbek) =>
+      _strings.text(english, russian, uzbek);
+
+  String get _title => _text(
+    'Your ideas, in their best light.',
+    'Ваши идеи в лучшем свете.',
+    'Gʻoyalaringizni yorqin namoyish eting.',
+  );
   String get _subtitle =>
-      widget.isUzbek
-          ? 'Taqdimotlar ish maydoniga kiring.'
-          : widget.isRussian
-          ? 'Войдите в рабочее пространство презентаций.'
-          : 'Sign in to your presentation workspace.';
+      _createAccount
+          ? _text(
+            'Create an account to start building presentations.',
+            'Создайте аккаунт, чтобы начать создавать презентации.',
+            'Taqdimot yaratishni boshlash uchun hisob oching.',
+          )
+          : _text(
+            'Sign in to your presentation workspace.',
+            'Войдите в рабочее пространство презентаций.',
+            'Taqdimotlar ish maydoniga kiring.',
+          );
   String get _emailLabel =>
-      widget.isUzbek
-          ? 'Elektron pochta'
-          : widget.isRussian
-          ? 'Электронная почта'
-          : 'Email address';
-  String get _passwordLabel =>
-      widget.isUzbek
-          ? 'Parol'
-          : widget.isRussian
-          ? 'Пароль'
-          : 'Password';
-  String get _nameLabel =>
-      widget.isUzbek
-          ? 'Ismingiz'
-          : widget.isRussian
-          ? 'Ваше имя'
-          : 'Your name';
-  String get _signIn =>
-      widget.isUzbek
-          ? 'Kirish'
-          : widget.isRussian
-          ? 'Войти'
-          : 'Sign in';
+      _text('Email address', 'Электронная почта', 'Elektron pochta');
+  String get _passwordLabel => _text('Password', 'Пароль', 'Parol');
+  String get _nameLabel => _text('Your name', 'Ваше имя', 'Ismingiz');
+  String get _signIn => _text('Sign in', 'Войти', 'Kirish');
   String get _register =>
-      widget.isUzbek
-          ? 'Hisob yaratish'
-          : widget.isRussian
-          ? 'Создать аккаунт'
-          : 'Create account';
+      _text('Create account', 'Создать аккаунт', 'Hisob yaratish');
   String get _switchMode =>
-      widget.isUzbek
-          ? (_createAccount
-              ? 'Hisobingiz bormi? Kiring'
-              : 'Yangi foydalanuvchimisiz? Hisob yarating')
-          : widget.isRussian
-          ? (_createAccount
-              ? 'Уже есть аккаунт? Войти'
-              : 'Нет аккаунта? Создать')
-          : (_createAccount
-              ? 'Already registered? Sign in'
-              : 'New to Slideforge? Create an account');
-  String get _resendVerification =>
-      widget.isUzbek
-          ? 'Tasdiqlash xatini qayta yuborish'
-          : widget.isRussian
-          ? 'Отправить письмо повторно'
-          : 'Resend verification email';
+      _createAccount
+          ? _text(
+            'Already registered? Sign in',
+            'Уже есть аккаунт? Войти',
+            'Hisobingiz bormi? Kiring',
+          )
+          : _text(
+            'New to Slideforge? Create an account',
+            'Нет аккаунта? Создать',
+            'Yangi foydalanuvchimisiz? Hisob yarating',
+          );
+  String get _resendVerification => _text(
+    'Resend verification email',
+    'Отправить письмо повторно',
+    'Tasdiqlash xatini qayta yuborish',
+  );
   String get _forgotPassword =>
-      widget.isUzbek
-          ? 'Parol esdan chiqdimi?'
-          : widget.isRussian
-          ? 'Забыли пароль?'
-          : 'Forgot password?';
-  String get _invalidEmail =>
-      widget.isUzbek
-          ? 'Toʻgʻri elektron pochta manzilini kiriting'
-          : widget.isRussian
-          ? 'Введите корректный адрес электронной почты'
-          : 'Enter a valid email address';
-  String get _passwordLength =>
-      widget.isUzbek
-          ? 'Kamida 12 ta belgi kiriting'
-          : widget.isRussian
-          ? 'Не менее 12 символов'
-          : 'Use at least 12 characters';
-  String get _required =>
-      widget.isUzbek
-          ? 'Bu maydonni toʻldirish shart'
-          : widget.isRussian
-          ? 'Обязательное поле'
-          : 'This field is required';
+      _text('Forgot password?', 'Забыли пароль?', 'Parol esdan chiqdimi?');
+  String get _invalidEmail => _text(
+    'Enter a valid email address',
+    'Введите корректный адрес электронной почты',
+    'Toʻgʻri elektron pochta manzilini kiriting',
+  );
+  String get _passwordLength => _text(
+    'Use at least 12 characters',
+    'Не менее 12 символов',
+    'Kamida 12 ta belgi kiriting',
+  );
+  String get _required => _text(
+    'This field is required',
+    'Обязательное поле',
+    'Bu maydonni toʻldirish shart',
+  );
   String get _languageTooltip =>
-      widget.isUzbek
-          ? 'Tilni almashtirish'
-          : widget.isRussian
-          ? 'Сменить язык'
-          : 'Switch language';
+      _text('Switch language', 'Сменить язык', 'Tilni almashtirish');
 
   @override
   void dispose() {
@@ -186,12 +164,11 @@ class _AuthScreenState extends State<AuthScreen> {
             widget.onBack == null
                 ? null
                 : IconButton(
-                  tooltip:
-                      widget.isUzbek
-                          ? 'Doʻkonga qaytish'
-                          : widget.isRussian
-                          ? 'Назад в магазин'
-                          : 'Back to shop',
+                  tooltip: _text(
+                    'Back to shop',
+                    'Назад в магазин',
+                    'Doʻkonga qaytish',
+                  ),
                   onPressed: widget.onBack,
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),

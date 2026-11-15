@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
@@ -59,12 +60,10 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
 
   bool get _ru => widget.isRussian;
   bool get _uz => widget.isUzbek;
+  MobileLocalizations get _strings =>
+      MobileLocalizations.fromFlags(isRussian: _ru, isUzbek: _uz);
   String _text(String english, String russian, String uzbek) =>
-      _uz
-          ? uzbek
-          : _ru
-          ? russian
-          : english;
+      _strings.text(english, russian, uzbek);
   List<dynamic> get _slides => _document['slides'] as List<dynamic>;
   Map<String, dynamic> get _activeSlide =>
       Map<String, dynamic>.from(_slides[_selectedSlideIndex] as Map);
@@ -414,8 +413,8 @@ class _PresentationEditorScreenState extends State<PresentationEditorScreen> {
                 TextField(
                   key: const Key('custom-color-field'),
                   controller: controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Hex color',
+                  decoration: InputDecoration(
+                    labelText: _strings.hexColor,
                     hintText: '#336699',
                   ),
                   textCapitalization: TextCapitalization.characters,

@@ -18,6 +18,7 @@ interface WalletPanelProps {
   loading: boolean;
   loadError: string;
   dialogOpen: boolean;
+  historyExpanded?: boolean;
   onDialogOpenChange: (open: boolean) => void;
   onWalletChange: (wallet: WalletResponse) => void;
   applySession: (session: AuthResponse) => void;
@@ -32,6 +33,7 @@ export function WalletPanel({
   loading,
   loadError,
   dialogOpen,
+  historyExpanded = false,
   onDialogOpenChange,
   onWalletChange,
   applySession,
@@ -156,7 +158,7 @@ export function WalletPanel({
           <Plus size={15} aria-hidden="true" />
           {copy.walletTopUp}
         </button>
-        <details className="wallet-history">
+        <details className="wallet-history" open={historyExpanded}>
           <summary>{copy.walletHistory}</summary>
           {transactionsLoading && transactions.length === 0
             ? <p className="wallet-history-message">{copy.walletHistoryLoading}</p>

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:slideforge_mobile/artifacts/artifact_repository.dart';
 
@@ -10,17 +11,20 @@ class ArtifactLibraryScreen extends StatefulWidget {
     required this.accessToken,
     required this.language,
     required this.repository,
+    this.uiLocale = MobileLocalizations.defaultLocale,
   });
 
   final String accessToken;
   final String language;
   final ArtifactRepository repository;
+  final String uiLocale;
 
   @override
   State<ArtifactLibraryScreen> createState() => _ArtifactLibraryScreenState();
 }
 
 class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
+  MobileLocalizations get _strings => MobileLocalizations(widget.uiLocale);
   final _promptController = TextEditingController();
   List<ArtifactSummary> _items = [];
   String _type = 'essay';
@@ -30,14 +34,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
   bool _generating = false;
   String? _error;
 
-  String _label(String type) => switch (type) {
-    'independent-work' => 'Independent work',
-    'coursework' => 'Coursework',
-    'research-article' => 'Research article',
-    'thesis-abstract' => 'Thesis abstract',
-    'argumentative-essay' => 'Argumentative essay',
-    _ => '${type[0].toUpperCase()}${type.substring(1)}',
-  };
+  String _label(String type) => _strings.artifactType(type);
 
   @override
   void initState() {
@@ -89,6 +86,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
               (_) => ArtifactEditorScreen(
                 accessToken: widget.accessToken,
                 language: _language,
+                uiLocale: widget.uiLocale,
                 repository: widget.repository,
                 initialDocument: document,
               ),
@@ -112,6 +110,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
               (_) => ArtifactEditorScreen(
                 accessToken: widget.accessToken,
                 language: detail.language,
+                uiLocale: widget.uiLocale,
                 repository: widget.repository,
                 initialDocument: detail.document,
                 savedArtifact: detail,
@@ -126,13 +125,13 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Learning documents')),
+    appBar: AppBar(title: Text(_strings.learningDocuments)),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
         DropdownButtonFormField<String>(
           initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Format'),
+          decoration: InputDecoration(labelText: _strings.format),
           items:
               artifactTypes
                   .map(
@@ -150,11 +149,13 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _language,
-          decoration: const InputDecoration(labelText: 'Output language'),
-          items: const [
-            DropdownMenuItem(value: 'en', child: Text('English')),
-            DropdownMenuItem(value: 'ru', child: Text('Русский')),
-            DropdownMenuItem(value: 'uz', child: Text('Oʻzbekcha')),
+          decoration: InputDecoration(labelText: _strings.outputLanguage),
+          items: [
+            for (final locale in MobileLocalizations.supportedLocales)
+              DropdownMenuItem(
+                value: locale,
+                child: Text(_strings.languageNameFor(locale)),
+              ),
           ],
           onChanged:
               _generating
@@ -165,7 +166,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
         DropdownButtonFormField<int>(
           initialValue: _itemCount,
           decoration: InputDecoration(
-            labelText: 'Output size · ${_sizeUnit(_type)}',
+            labelText: '${_strings.outputSize} · ${_sizeUnit(_type)}',
           ),
           items:
               const [3, 5, 8, 10, 15, 20]
@@ -188,9 +189,9 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
           minLines: 2,
           maxLines: 5,
           maxLength: 4000,
-          decoration: const InputDecoration(
-            labelText: 'Describe the document you need',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: _strings.describeDocument,
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 8),
@@ -198,7 +199,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
           elevation: 0,
           child: ListTile(
             leading: const Icon(Icons.preview_outlined),
-            title: const Text('Draft preview'),
+            title: Text(_strings.draftPreview),
             subtitle: Text(
               '${_label(_type)} · ${_languageName(_language)} · $_itemCount ${_sizeUnit(_type)}',
             ),
@@ -216,7 +217,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
                   )
                   : const Icon(Icons.auto_awesome),
           label: Text(
-            _generating ? 'Creating draft…' : 'Generate editable draft',
+            _generating ? _strings.creatingDraft : _strings.generateDraft,
           ),
         ),
         if (_error != null) ...[
@@ -227,13 +228,16 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
           ),
         ],
         const SizedBox(height: 24),
-        Text('Saved documents', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          _strings.savedDocuments,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         if (_loading)
           const Center(child: CircularProgressIndicator())
         else if (_items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('No learning documents yet.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(_strings.noDocuments),
           )
         else
           ..._items.map(
@@ -242,7 +246,7 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
                 leading: const Icon(Icons.article_outlined),
                 title: Text(item.title),
                 subtitle: Text(
-                  '${_label(item.type)} · version ${item.currentVersion}',
+                  '${_label(item.type)} · ${_strings.version} ${item.currentVersion}',
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _open(item),
@@ -253,18 +257,9 @@ class _ArtifactLibraryScreenState extends State<ArtifactLibraryScreen> {
     ),
   );
 
-  String _sizeUnit(String type) => switch (type) {
-    'quiz' => 'questions',
-    'crossword' => 'clues',
-    'glossary' => 'terms',
-    _ => 'sections',
-  };
+  String _sizeUnit(String type) => _strings.artifactSizeUnit(type);
 
-  String _languageName(String language) => switch (language) {
-    'ru' => 'Русский',
-    'uz' => 'Oʻzbekcha',
-    _ => 'English',
-  };
+  String _languageName(String language) => _strings.languageNameFor(language);
 }
 
 class ArtifactEditorScreen extends StatefulWidget {
@@ -274,6 +269,7 @@ class ArtifactEditorScreen extends StatefulWidget {
     required this.language,
     required this.repository,
     required this.initialDocument,
+    this.uiLocale = MobileLocalizations.defaultLocale,
     this.savedArtifact,
   });
 
@@ -281,6 +277,7 @@ class ArtifactEditorScreen extends StatefulWidget {
   final String language;
   final ArtifactRepository repository;
   final Map<String, dynamic> initialDocument;
+  final String uiLocale;
   final ArtifactDetail? savedArtifact;
 
   @override
@@ -288,6 +285,7 @@ class ArtifactEditorScreen extends StatefulWidget {
 }
 
 class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
+  MobileLocalizations get _strings => MobileLocalizations(widget.uiLocale);
   late Map<String, dynamic> _document;
   late final TextEditingController _title;
   late final List<TextEditingController> _headings;
@@ -399,9 +397,9 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
       final file = File('${directory.path}/${saved.id}.$format');
       await file.writeAsBytes(bytes, flush: true);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Saved export to ${file.path}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_strings.savedExport(file.path))),
+        );
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -458,13 +456,13 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
     final questions = _questions;
     final entries = _entries;
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit learning document')),
+      appBar: AppBar(title: Text(_strings.editLearningDocument)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           TextField(
             controller: _title,
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: InputDecoration(labelText: _strings.title),
           ),
           const SizedBox(height: 12),
           for (var index = 0; index < _headings.length; index++)
@@ -475,16 +473,16 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
                   children: [
                     TextField(
                       controller: _headings[index],
-                      decoration: const InputDecoration(
-                        labelText: 'Section heading',
+                      decoration: InputDecoration(
+                        labelText: _strings.sectionHeading,
                       ),
                     ),
                     TextField(
                       controller: _bodies[index],
                       minLines: 3,
                       maxLines: 10,
-                      decoration: const InputDecoration(
-                        labelText: 'Section text',
+                      decoration: InputDecoration(
+                        labelText: _strings.sectionText,
                       ),
                     ),
                   ],
@@ -493,7 +491,7 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
             ),
           if (type == 'quiz') ...[
             Text(
-              'Interactive quiz',
+              _strings.interactiveQuiz,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             for (var index = 0; index < questions.length; index++)
@@ -501,7 +499,7 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
           ],
           if (type == 'crossword') ...[
             Text(
-              'Interactive crossword',
+              _strings.interactiveCrossword,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             _buildCrosswordGrid(context, entries),
@@ -523,18 +521,20 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                     : const Icon(Icons.save_outlined),
-            label: Text(_saved == null ? 'Save document' : 'Save new version'),
+            label: Text(
+              _saved == null ? _strings.saveDocument : _strings.saveNewVersion,
+            ),
           ),
           if (_saved != null) ...[
             OutlinedButton.icon(
               onPressed: () => _export('docx'),
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Save editable DOCX'),
+              label: Text(_strings.saveEditableDocx),
             ),
             OutlinedButton.icon(
               onPressed: () => _export('pdf'),
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: const Text('Save PDF'),
+              label: Text(_strings.savePdf),
             ),
           ],
         ],
@@ -558,7 +558,9 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
           children: [
             TextFormField(
               initialValue: question['question'] as String,
-              decoration: InputDecoration(labelText: 'Question ${index + 1}'),
+              decoration: InputDecoration(
+                labelText: _strings.question(index + 1),
+              ),
               onChanged: (value) => _editQuizQuestion(index, value),
             ),
             for (
@@ -581,7 +583,7 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
               ),
             if (_quizAnswers.containsKey(id))
               Text(
-                '${_quizAnswers[id] == answerIndex ? 'Correct!' : 'Try again'}'
+                '${_quizAnswers[id] == answerIndex ? _strings.correct : _strings.tryAgain}'
                 '${question['explanation'] is String && (question['explanation'] as String).isNotEmpty ? ' — ${question['explanation']}' : ''}',
               ),
             for (
@@ -592,14 +594,14 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
               TextFormField(
                 initialValue: options[optionIndex],
                 decoration: InputDecoration(
-                  labelText: 'Edit option ${optionIndex + 1}',
+                  labelText: _strings.editOption(optionIndex + 1),
                 ),
                 onChanged:
                     (value) => _editQuizOption(index, optionIndex, value),
               ),
             DropdownButtonFormField<int>(
               initialValue: answerIndex,
-              decoration: const InputDecoration(labelText: 'Correct answer'),
+              decoration: InputDecoration(labelText: _strings.correctAnswer),
               items: [
                 for (
                   var optionIndex = 0;
@@ -608,7 +610,7 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
                 )
                   DropdownMenuItem(
                     value: optionIndex,
-                    child: Text('Option ${optionIndex + 1}'),
+                    child: Text(_strings.option(optionIndex + 1)),
                   ),
               ],
               onChanged: (value) {
@@ -713,16 +715,16 @@ class _ArtifactEditorScreenState extends State<ArtifactEditorScreen> {
           children: [
             TextFormField(
               initialValue: entry['clue'] as String,
-              decoration: InputDecoration(labelText: 'Clue ${index + 1}'),
+              decoration: InputDecoration(labelText: _strings.clue(index + 1)),
               onChanged: (value) => _editEntry(index, 'clue', value),
             ),
             TextFormField(
               initialValue: entry['answer'] as String,
-              decoration: const InputDecoration(labelText: 'Answer key'),
+              decoration: InputDecoration(labelText: _strings.answerKey),
               onChanged:
                   (value) => _editEntry(index, 'answer', value.toUpperCase()),
             ),
-            if (correct) const Text('Correct'),
+            if (correct) Text(_strings.correct),
           ],
         ),
       ),

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, Download, Filter, LoaderCircle, LockKeyhole, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, Download, Filter, LoaderCircle, LockKeyhole, Plus, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
 import { API_URL, authorizedFetch } from "../../shared/api/client";
 import type { AuthResponse, ExportFormat, ExportJobResponse, Locale, PresentationSummary } from "../../shared/types";
 import { SlidePreviewCarousel } from "./SlidePreviewCarousel";
 import { demoCatalogPage, demoCategories, demoProductDetails } from "./demoCatalog";
 import type { Category, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
+import { browseLabels, categoryNames, marketplaceCategoryFallbacks, publishDialogCopy, purchaseActionLabels } from "../../i18n/marketplace";
 type Listing = {
   id: string;
   title: string;
@@ -15,6 +16,9 @@ type Listing = {
 };
 type Order = { id: string; status: string; totalTiyin: number; currency: string };
 type MarketplaceStage = "shop" | "cart" | "checkout" | "payment" | "purchases";
+type SellerWorkType = "presentation" | "document" | "coursework" | "worksheet" | "design" | "other";
+
+const maximumLocalFileSize = 25 * 1024 * 1024;
 
 interface Props {
   locale: Locale;
@@ -30,138 +34,6 @@ interface Props {
   onRefreshWallet: () => Promise<void>;
   onRefreshPresentations: () => Promise<void>;
 }
-
-const categoryNames = {
-  en: { shop: "Presentation marketplace", intro: "Discover and sell editable presentations.", category: "Category", all: "All categories", search: "Search presentations", add: "Add to cart", added: "Added", remove: "Remove", cart: "Cart", checkout: "Checkout", payment: "Payment", continue: "Continue", pay: "Pay for order", sandbox: "Sandbox payment", sandboxInfo: "Development-only sandbox; confirmation is disabled unless an operator enables it.", total: "Order total", signInToPay: "Sign in to continue to payment", secureNote: "Your account session is protected; payment details are handled by the payment provider.", emptyCart: "Your cart is empty.", empty: "No published presentations yet.", seller: "Seller", license: "License terms", details: "View details", back: "Back to marketplace", more: "Load 10 more", signIn: "Sign in to checkout", sell: "Sell a presentation", choose: "Choose a presentation", price: "Price (UZS)", description: "Listing description", terms: "License terms", publish: "Publish listing", myListings: "My listings", published: "Listing published", saved: "Preference saved", pending: "Order created but payment is pending. Sandbox confirmation is disabled; no purchase was completed.", complete: "Purchase complete", error: "Could not complete the request. Please try again.", noDecks: "Create a presentation before publishing.", demo: "Demo catalog — sample items only. Purchases are not available in demo mode.", demoPaid: "Demo only: no order or payment was created." },
-  ru: { shop: "Маркетплейс презентаций", intro: "Покупайте и продавайте редактируемые презентации.", category: "Категория", all: "Все категории", search: "Поиск презентаций", add: "В корзину", added: "Добавлено", remove: "Удалить", cart: "Корзина", checkout: "Оформление", payment: "Оплата", continue: "Продолжить", pay: "Оплатить заказ", sandbox: "Тестовая оплата", sandboxInfo: "Тестовый режим для разработки; подтверждение отключено, если оператор его не включил.", total: "Итого", signInToPay: "Войдите, чтобы перейти к оплате", secureNote: "Сессия защищена; платёжные данные обрабатываются платёжным провайдером.", emptyCart: "Корзина пока пуста.", empty: "Пока нет опубликованных презентаций.", seller: "Продавец", license: "Условия лицензии", details: "Подробнее", back: "Назад в маркетплейс", more: "Загрузить ещё 10", signIn: "Войдите для оформления", sell: "Продать презентацию", choose: "Выберите презентацию", price: "Цена (UZS)", description: "Описание объявления", terms: "Условия лицензии", publish: "Опубликовать", myListings: "Мои объявления", published: "Объявление опубликовано", saved: "Настройка сохранена", pending: "Заказ создан, оплата ожидает подтверждения. Тестовая оплата отключена; покупка не завершена.", complete: "Покупка завершена", error: "Не удалось выполнить запрос. Попробуйте ещё раз.", noDecks: "Сначала создайте презентацию.", demo: "Демо-каталог — примеры. Покупки недоступны в демо-режиме.", demoPaid: "Демо: заказ и платёж не создавались." },
-  uz: { shop: "Taqdimotlar marketpleysi", intro: "Tahrirlanadigan taqdimotlarni koʻring va soting.", category: "Turkum", all: "Barcha turkumlar", search: "Taqdimotlarni qidirish", add: "Savatga qoʻshish", added: "Qoʻshildi", remove: "Oʻchirish", cart: "Savat", checkout: "Buyurtmani rasmiylashtirish", payment: "Toʻlov", continue: "Davom etish", pay: "Buyurtma uchun toʻlash", sandbox: "Sinov toʻlovi", sandboxInfo: "Ishlab chiqish uchun sinov rejimi; operator yoqmaguncha tasdiqlash ishlamaydi.", total: "Jami", signInToPay: "Toʻlov uchun tizimga kiring", secureNote: "Hisob sessiyangiz himoyalangan; toʻlov maʼlumotlarini provayder qayta ishlaydi.", emptyCart: "Savatingiz boʻsh.", empty: "Hozircha chop etilgan taqdimotlar yoʻq.", seller: "Sotuvchi", license: "Litsenziya shartlari", details: "Batafsil", back: "Marketpleysga qaytish", more: "Yana 10 tasini yuklash", signIn: "Xarid uchun tizimga kiring", sell: "Taqdimot sotish", choose: "Taqdimotni tanlang", price: "Narxi (UZS)", description: "Eʼlon tavsifi", terms: "Litsenziya shartlari", publish: "Eʼlon qilish", myListings: "Eʼlonlarim", published: "Eʼlon chop etildi", saved: "Sozlama saqlandi", pending: "Buyurtma yaratildi, lekin toʻlov tasdiqlanmadi. Sinov toʻlovi oʻchiq; xarid yakunlanmadi.", complete: "Xarid yakunlandi", error: "Soʻrovni bajarib boʻlmadi. Qayta urinib koʻring.", noDecks: "Avval taqdimot yarating.", demo: "Namoyish katalogi — namunaviy mahsulotlar. Xaridlar mavjud emas.", demoPaid: "Namoyish: buyurtma va toʻlov yaratilmagan." },
-};
-
-const browseLabels = {
-  en: {
-    bannerTitle: "Ideas, ready for their next chapter.",
-    bannerSubtitle: "Find a polished starting point for your next presentation.",
-    searchAction: "Search",
-    filters: "Filters",
-    sort: "Sort by",
-    latest: "Recently added",
-    priceLow: "Price: low to high",
-    priceHigh: "Price: high to low",
-    minPrice: "Minimum · UZS",
-    maxPrice: "Maximum · UZS",
-    apply: "Apply filters",
-    reset: "Reset",
-    invalidRange: "Enter a valid price range.",
-    purchases: "My purchases",
-    noPurchases: "Your completed purchases will appear here.",
-    openPurchase: "Open presentation",
-    ready: "Purchased and ready to use",
-    loading: "Loading purchases…",
-    liveUnavailable: "Live payment methods are not connected yet.",
-    liveMethods: "Not available yet",
-    walletBalance: "Wallet balance",
-    payFromBalance: "Pay from balance",
-    topUpBalance: "Top up balance",
-    insufficientBalance: "Your balance is too low. Add funds to finish this purchase.",
-    sandboxWalletNotice: "Top-ups are simulated in sandbox mode. No real payment is made.",
-  },
-  ru: {
-    bannerTitle: "Идеи для вашей следующей главы.",
-    bannerSubtitle: "Найдите основу для сильной презентации.",
-    searchAction: "Поиск",
-    filters: "Фильтры",
-    sort: "Сортировка",
-    latest: "Сначала новые",
-    priceLow: "Сначала дешевле",
-    priceHigh: "Сначала дороже",
-    minPrice: "Минимум · UZS",
-    maxPrice: "Максимум · UZS",
-    apply: "Применить фильтры",
-    reset: "Сбросить",
-    invalidRange: "Укажите корректный диапазон цены.",
-    purchases: "Мои покупки",
-    noPurchases: "Здесь появятся завершённые покупки.",
-    openPurchase: "Открыть презентацию",
-    ready: "Покупка доступна",
-    loading: "Загрузка покупок…",
-    liveUnavailable: "Онлайн-оплата пока не подключена.",
-    liveMethods: "Пока недоступно",
-    walletBalance: "Баланс кошелька",
-    payFromBalance: "Оплатить с баланса",
-    topUpBalance: "Пополнить баланс",
-    insufficientBalance: "Недостаточно средств. Пополните баланс, чтобы завершить покупку.",
-    sandboxWalletNotice: "Пополнение симулируется в тестовом режиме. Реальная оплата не выполняется.",
-  },
-  uz: {
-    bannerTitle: "Keyingi gʻoyangiz uchun ilhom.",
-    bannerSubtitle: "Yangi taqdimotingiz uchun tayyor asosni toping.",
-    searchAction: "Qidirish",
-    filters: "Filtrlar",
-    sort: "Saralash",
-    latest: "Yangi qoʻshilganlar",
-    priceLow: "Arzonidan qimmatiga",
-    priceHigh: "Qimmatidan arzoniga",
-    minPrice: "Eng kam · UZS",
-    maxPrice: "Eng koʻp · UZS",
-    apply: "Filtrlarni qoʻllash",
-    reset: "Tozalash",
-    invalidRange: "Toʻgʻri narx oraligʻini kiriting.",
-    purchases: "Xaridlarim",
-    noPurchases: "Yakunlangan xaridlaringiz shu yerda koʻrinadi.",
-    openPurchase: "Taqdimotni ochish",
-    ready: "Xarid foydalanishga tayyor",
-    loading: "Xaridlar yuklanmoqda…",
-    liveUnavailable: "Onlayn toʻlov usullari hali ulanmagan.",
-    liveMethods: "Hozircha mavjud emas",
-    walletBalance: "Hamyon balansi",
-    payFromBalance: "Balansdan toʻlash",
-    topUpBalance: "Balansni toʻldirish",
-    insufficientBalance: "Balansda mablagʻ yetarli emas. Xaridni yakunlash uchun balansni toʻldiring.",
-    sandboxWalletNotice: "Balans sinov rejimida toʻldiriladi. Haqiqiy toʻlov olinmaydi.",
-  },
-};
-
-const purchaseActionLabels = {
-  en: {
-    slideUnit: "slides",
-    previewCount: "Previewing {visible} of {total} slides",
-    lockedSlides: "{count} more slides are locked",
-    lockedNote: "Purchase to unlock the complete presentation and downloads.",
-    purchaseToUnlock: "Purchase to unlock",
-    downloadPptx: "Download PPTX",
-    downloadPdf: "Download PDF",
-    exporting: "Preparing download…",
-    exportReady: "Download started. A copy is saved in My presentations.",
-    exportFailed: "Could not prepare the download. Please try again.",
-    exportTimedOut: "This export is taking longer than expected. Check Purchases again shortly.",
-  },
-  ru: {
-    slideUnit: "слайдов",
-    previewCount: "Предпросмотр: {visible} из {total} слайдов",
-    lockedSlides: "Ещё {count} слайдов закрыты",
-    lockedNote: "Купите презентацию, чтобы открыть все слайды и скачивание.",
-    purchaseToUnlock: "Купить и открыть",
-    downloadPptx: "Скачать PPTX",
-    downloadPdf: "Скачать PDF",
-    exporting: "Готовим файл…",
-    exportReady: "Скачивание началось. Копия сохранена в разделе презентаций.",
-    exportFailed: "Не удалось подготовить файл. Попробуйте ещё раз.",
-    exportTimedOut: "Экспорт занимает больше времени. Проверьте покупки чуть позже.",
-  },
-  uz: {
-    slideUnit: "slayd",
-    previewCount: "{total} slayddan {visible} tasi koʻrsatilmoqda",
-    lockedSlides: "Yana {count} ta slayd qulflangan",
-    lockedNote: "Barcha slaydlar va fayllarni ochish uchun taqdimotni xarid qiling.",
-    purchaseToUnlock: "Xarid qilib ochish",
-    downloadPptx: "PPTX yuklab olish",
-    downloadPdf: "PDF yuklab olish",
-    exporting: "Fayl tayyorlanmoqda…",
-    exportReady: "Yuklab olish boshlandi. Nusxa taqdimotlaringizga saqlandi.",
-    exportFailed: "Faylni tayyorlab boʻlmadi. Qayta urinib koʻring.",
-    exportTimedOut: "Eksport uzoqroq davom etmoqda. Xaridlar boʻlimini keyinroq tekshiring.",
-  },
-};
 
 const demoMode = import.meta.env.VITE_MARKETPLACE_DEMO === "true";
 const MARKETPLACE_STORAGE_KEY = "slideforge.marketplace-state";
@@ -315,9 +187,19 @@ export function Marketplace({
 }: Props) {
   const t = categoryNames[locale];
   const b = { ...browseLabels[locale], ...purchaseActionLabels[locale] };
+  const publishCopy = publishDialogCopy[locale];
   const storageKey = `${MARKETPLACE_STORAGE_KEY}:${accountId ?? "anonymous"}`;
   const [categories, setCategories] = useState<Category[]>([]);
-  const [savedState] = useState(() => readMarketplaceState(storageKey));
+  const [savedState] = useState(() => {
+    const saved = readMarketplaceState(storageKey);
+    if (!accountId) return saved;
+    const guestCart = readMarketplaceState(`${MARKETPLACE_STORAGE_KEY}:anonymous`).cart;
+    const savedListingIds = new Set(saved.cart.map((product) => product.listingId));
+    return {
+      ...saved,
+      cart: [...saved.cart, ...guestCart.filter((product) => !savedListingIds.has(product.listingId))].slice(0, 50),
+    };
+  });
   const [category, setCategory] = useState(savedState.category);
   const [items, setItems] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
@@ -346,6 +228,9 @@ export function Marketplace({
   const [licenseTerms, setLicenseTerms] = useState("");
   const [price, setPrice] = useState("10000");
   const [listingCategory, setListingCategory] = useState("");
+  const [sellerWorkType, setSellerWorkType] = useState<SellerWorkType>("presentation");
+  const [stagedWorkFile, setStagedWorkFile] = useState<File | null>(null);
+  const [workFileError, setWorkFileError] = useState("");
   const [search, setSearch] = useState(savedState.search);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
@@ -356,10 +241,12 @@ export function Marketplace({
   const checkoutKeys = useRef(new Map<string, string>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLock = useRef(false);
+  const sellerDialogRef = useRef<HTMLDialogElement | null>(null);
+  const [sellerDialogOpen, setSellerDialogOpen] = useState(false);
   const translatedCategory = (slug: string) => {
     const category = categories.find((item) => item.slug === slug);
-    if (locale === "ru") return category?.nameRu ?? ({ business: "Бизнес", education: "Образование", marketing: "Маркетинг", technology: "Технологии", other: "Другое" }[slug] ?? category?.name ?? slug);
-    if (locale === "uz") return category?.nameUz ?? ({ business: "Biznes", education: "Ta’lim", marketing: "Marketing", technology: "Texnologiya", other: "Boshqa" }[slug] ?? category?.name ?? slug);
+    if (locale === "ru") return category?.nameRu ?? marketplaceCategoryFallbacks.ru[slug] ?? category?.name ?? slug;
+    if (locale === "uz") return category?.nameUz ?? marketplaceCategoryFallbacks.uz[slug] ?? category?.name ?? slug;
     return category?.name ?? slug;
   };
 
@@ -381,6 +268,18 @@ export function Marketplace({
       // Storage quota/security failures must not interrupt marketplace use.
     }
   }, [cart, stage, category, search, sort, minPriceTiyin, maxPriceTiyin, storageKey]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const guestKey = `${MARKETPLACE_STORAGE_KEY}:anonymous`;
+    const guestState = readMarketplaceState(guestKey);
+    if (!guestState.cart.length) return;
+    try {
+      window.localStorage.setItem(guestKey, JSON.stringify({ ...guestState, cart: [] }));
+    } catch {
+      // Guest cart transfer is best-effort; the signed-in cart is still usable in memory.
+    }
+  }, [accountId]);
 
   useEffect(() => {
     let active = true;
@@ -471,6 +370,12 @@ export function Marketplace({
       .then(async (r) => { if (r.ok) setSellerListings(await r.json() as Listing[]); })
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    const dialog = sellerDialogRef.current;
+    if (sellerDialogOpen && dialog && !dialog.open) dialog.showModal();
+    if (!sellerDialogOpen && dialog?.open) dialog.close();
+  }, [sellerDialogOpen]);
 
   const visibleItems = useMemo(() => items.filter((item) =>
     `${item.title} ${item.description} ${item.sellerName}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [items, search]);
@@ -782,6 +687,7 @@ export function Marketplace({
 
   async function publishListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (sellerWorkType !== "presentation") return;
     if (!token) { onRequireAuth(); return; }
     if (!selectedPresentation) return;
     if (!categories.some((item) => item.slug === listingCategory)) {
@@ -810,7 +716,19 @@ export function Marketplace({
       setNotice(t.published);
       const listing = await publishResponse.json() as Listing;
       setSellerListings((current) => [listing, ...current]);
+      setSellerDialogOpen(false);
     } catch { setError(t.error); } finally { setBusy(false); }
+  }
+
+  function stageWorkFile(file: File | undefined) {
+    setWorkFileError("");
+    if (!file) return;
+    if (file.size > maximumLocalFileSize) {
+      setStagedWorkFile(null);
+      setWorkFileError(publishCopy.fileTooLarge);
+      return;
+    }
+    setStagedWorkFile(file);
   }
 
   async function changeCategory(value: string) {
@@ -1015,6 +933,10 @@ export function Marketplace({
         )}
         <button className="cart-button" type="button" onClick={showFilters}><SlidersHorizontal size={16} />{b.filters}{(category || sort !== "latest" || minPriceTiyin !== null || maxPriceTiyin !== null) && <span className="market-filter-count">!</span>}</button>
         {token && <button className="cart-button" type="button" onClick={showPurchases}><BookOpen size={16} />{b.purchases}</button>}
+        <button className="cart-button market-publish-action" type="button" onClick={() => {
+          if (!token) { onRequireAuth(); return; }
+          setSellerDialogOpen(true);
+        }}><Plus size={16} aria-hidden="true" /><span>{t.sell}</span></button>
         <button className="cart-button market-cart-action" type="button" onClick={() => setStage("cart")} aria-label={cart.length ? `${t.cart}, ${cart.length}` : t.cart}><ShoppingBag size={17} /><span>{t.cart}</span>{cart.length > 0 && <span className="market-cart-badge" aria-hidden="true">{cart.length}</span>}</button>
       </div>
       {(category || sort !== "latest" || minPriceTiyin !== null || maxPriceTiyin !== null) && (
@@ -1075,18 +997,71 @@ export function Marketplace({
           </section>
         </div>
       )}
-      <div className="seller-panel">
-        <h2><Store size={19} />{t.sell}</h2>
-        {token ? presentations.length ? <form className="seller-form" onSubmit={(event) => void publishListing(event)}>
-          <label>{t.choose}<select required value={selectedPresentation} onChange={(e) => setSelectedPresentation(e.target.value)}><option value="">—</option>{presentations.map((p) => <option key={p.id} value={p.id}>{p.title} · v{p.currentVersion}</option>)}</select></label>
+      <dialog ref={sellerDialogRef} className="seller-dialog" aria-labelledby="seller-dialog-title" onClose={() => {
+        setSellerDialogOpen(false);
+        setStagedWorkFile(null);
+        setWorkFileError("");
+      }}>
+        <div className="seller-dialog-heading">
+          <div>
+            <span className="eyebrow"><Store size={14} aria-hidden="true" />{t.shop}</span>
+            <h2 id="seller-dialog-title">{t.sell}</h2>
+            <p>{publishCopy.prompt}</p>
+          </div>
+          <button className="seller-dialog-close" type="button" aria-label={publishCopy.close} onClick={() => setSellerDialogOpen(false)}><X size={18} aria-hidden="true" /></button>
+        </div>
+        <form className="seller-form" onSubmit={(event) => void publishListing(event)}>
+          <label>{publishCopy.workType}
+            <select value={sellerWorkType} onChange={(event) => {
+              setSellerWorkType(event.target.value as SellerWorkType);
+              setStagedWorkFile(null);
+              setWorkFileError("");
+            }}>
+              <option value="presentation">{publishCopy.presentation}</option>
+              <option value="document">{publishCopy.document}</option>
+              <option value="coursework">{publishCopy.coursework}</option>
+              <option value="worksheet">{publishCopy.worksheet}</option>
+              <option value="design">{publishCopy.design}</option>
+              <option value="other">{publishCopy.other}</option>
+            </select>
+          </label>
+          {sellerWorkType === "presentation" ? (
+            presentations.length ? (
+              <label>{publishCopy.choose}<select required value={selectedPresentation} onChange={(e) => setSelectedPresentation(e.target.value)}><option value="">—</option>{presentations.map((p) => <option key={p.id} value={p.id}>{p.title} · v{p.currentVersion}</option>)}</select></label>
+            ) : <p className="seller-dialog-empty">{t.noDecks}</p>
+          ) : (
+            <div className="seller-file-work">
+              <label
+                className="seller-file-drop"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  stageWorkFile(event.dataTransfer.files[0]);
+                }}
+              >
+                <span>{publishCopy.filePrompt}</span>
+                <input
+                  type="file"
+                  onChange={(event) => {
+                    stageWorkFile(event.currentTarget.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              {stagedWorkFile && <p className="seller-file-selected" role="status">{publishCopy.fileSelected}: {stagedWorkFile.name} · {publishCopy.fileSize}: {(stagedWorkFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
+              {workFileError && <p className="form-error" role="alert">{workFileError}</p>}
+              <p className="seller-file-notice">{publishCopy.localOnly}</p>
+              <p className="seller-file-blocked">{publishCopy.blockedPublish}</p>
+            </div>
+          )}
           <label>{t.category}<select required value={listingCategory} onChange={(e) => setListingCategory(e.target.value)}><option value="">—</option>{categories.map((c) => <option key={c.slug} value={c.slug}>{translatedCategory(c.slug)}</option>)}</select></label>
           <label>{t.price}<input type="number" min="1" step="1" required value={price} onChange={(e) => setPrice(e.target.value)} /></label>
           <label>{t.description}<textarea required maxLength={20000} value={listingDescription} onChange={(e) => setListingDescription(e.target.value)} /></label>
           <label>{t.terms}<textarea required maxLength={20000} value={licenseTerms} onChange={(e) => setLicenseTerms(e.target.value)} /></label>
-          <button className="primary-button" type="submit" disabled={busy || !categories.some((item) => item.slug === listingCategory)}>{t.publish}</button>
-        </form> : <p>{t.noDecks}</p> : <button className="secondary-button" type="button" onClick={onRequireAuth}>{t.signIn}</button>}
+          <button className="primary-button" type="submit" disabled={busy || sellerWorkType !== "presentation" || !presentations.length || !categories.some((item) => item.slug === listingCategory)}>{t.publish}</button>
+        </form>
         {sellerListings.length > 0 && <div className="seller-listings"><h3>{t.myListings}</h3>{sellerListings.map((item) => <div key={item.id}><span>{item.title}</span><span>{item.status}</span></div>)}</div>}
-      </div>
+      </dialog>
     </section>
   );
 }

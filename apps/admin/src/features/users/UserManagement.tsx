@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, LoaderCircle, Search, ShieldCheck, UserRound } from "lucide-react";
-import type { Locale, Translations } from "../../app/translations";
+import type { Locale, Translations } from "../../i18n";
 import { inviteAdmin, listUsers, updateUserStatus } from "./usersApi";
 import type { AdminUser, UserStatus } from "./types";
 
@@ -133,11 +133,11 @@ export function UserManagement({ accessToken, translations: t, locale, onSession
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
-                    <td><strong>{user.displayName}</strong><small>{user.emailVerified ? t.emailVerified : t.emailUnverified}</small></td>
-                    <td><span className={`status-badge status-${user.status.toLowerCase()}`}>{t[user.status.toLowerCase() as "active" | "blocked" | "deleted"]}</span></td>
-                    <td>{user.roles.join(", ")}</td>
-                    <td>{new Date(user.createdAt).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US")}</td>
-                    <td>
+                    <td data-label={t.name}><strong>{user.displayName}</strong><small>{user.emailVerified ? t.emailVerified : t.emailUnverified}</small></td>
+                    <td data-label={t.account}><span className={`status-badge status-${user.status.toLowerCase()}`}>{t[user.status.toLowerCase() as "active" | "blocked" | "deleted"]}</span></td>
+                    <td data-label={t.roles}>{user.roles.join(", ")}</td>
+                    <td data-label={t.created}>{new Date(user.createdAt).toLocaleDateString(locale === "ru" ? "ru-RU" : locale === "uz" ? "uz-UZ" : "en-US")}</td>
+                    <td data-label={t.action}>
                       {user.status !== "DELETED" && (
                         <button className={user.status === "ACTIVE" ? "danger-button" : "secondary-button"}
                           type="button" disabled={pendingId === user.id}

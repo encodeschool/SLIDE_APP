@@ -65,7 +65,10 @@ class DelayedAuthRepository extends FakeAuthRepository {
 }
 
 class MemoryAppStateStore implements MobileAppStateStore {
-  MobileAppState state = const MobileAppState();
+  MobileAppState state = const MobileAppState(
+    locale: 'en',
+    localeIsSaved: true,
+  );
 
   @override
   Future<MobileAppState> read() async => state;
@@ -199,16 +202,23 @@ class FakePresentationRepository implements PresentationRepository {
 }
 
 void main() {
-  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+  setUp(
+    () => FlutterSecureStorage.setMockInitialValues({
+      'slideforge.mobile_app_state':
+          '{"version":2,"cartItems":[],"marketplaceSection":0,"checkoutStep":0,"workspaceTab":0,"locale":"en","localeIsSaved":true}',
+    }),
+  );
 
   testWidgets('shop is the first screen and auth switches language', (
     tester,
   ) async {
     final repository = DelayedAuthRepository();
     await tester.pumpWidget(SlideforgeApp(authRepository: repository));
-    expect(find.text('Preparing your workspace'), findsOneWidget);
+    expect(find.text('Iş maydoni tayyorlanmoqda'), findsOneWidget);
     expect(find.text('Presentation marketplace'), findsNothing);
     expect(find.byKey(const Key('auth-screen')), findsNothing);
+    await tester.pump();
+    expect(find.text('Preparing your workspace'), findsOneWidget);
     repository.restoreCompleter.complete(null);
     await tester.pumpAndSettle();
 
@@ -563,6 +573,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-mode-switch')));
       await tester.pumpAndSettle();
+      expect(
+        find.text('Create an account to start building presentations.'),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byKey(const Key('display-name-field')),
         'Mobile User',
@@ -584,6 +598,10 @@ void main() {
         find.text(
           'If eligible, verification instructions will be sent to your email.',
         ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Sign in to your presentation workspace.'),
         findsOneWidget,
       );
       expect(find.text('My presentations'), findsNothing);
@@ -1093,6 +1111,12 @@ void main() {
                 accessToken: 'access-token',
               ),
         presentationRepository: repository,
+        appStateStore:
+            MemoryAppStateStore()
+              ..state = const MobileAppState(
+                locale: 'en',
+                localeIsSaved: false,
+              ),
       ),
     );
     await tester.pumpAndSettle();

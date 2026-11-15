@@ -1,5 +1,5 @@
 import { Globe2, Layers3, LogOut, ShieldCheck, Store, UsersRound } from "lucide-react";
-import type { Locale, Translations } from "./translations";
+import type { Locale, Translations } from "../i18n";
 
 interface AdminShellProps {
   locale: Locale;
@@ -55,8 +55,8 @@ export function AdminShell({
           <div className="topbar-actions">
             {authenticated && <button className="text-button" type="button" onClick={onSignOut}><LogOut size={15} />{t.signOut}</button>}
             <button className="admin-language" type="button"
-              title={locale === "uz" ? "Tilni almashtirish" : locale === "en" ? "Switch language" : "Сменить язык"}
-              aria-label={locale === "uz" ? "Tilni almashtirish" : locale === "en" ? "Switch language" : "Сменить язык"}
+              title={t.language}
+              aria-label={t.language}
               onClick={onToggleLocale}>
               <Globe2 size={16} aria-hidden="true" />{locale.toUpperCase()}
             </button>

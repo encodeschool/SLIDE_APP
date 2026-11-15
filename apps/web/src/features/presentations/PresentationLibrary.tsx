@@ -51,7 +51,7 @@ export function PresentationLibrary({
           {presentations.map((presentation) => (
             <li className="project-row" key={presentation.id}>
               <span className="project-glyph"><Layers3 size={17} aria-hidden="true" /></span>
-              <span className="project-title"><strong>{presentation.title}</strong><small>{copy.lastUpdated} {new Date(presentation.updatedAt).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US")}</small></span>
+              <span className="project-title"><strong>{presentation.title}</strong><small>{copy.lastUpdated} {new Date(presentation.updatedAt).toLocaleDateString(locale === "ru" ? "ru-RU" : locale === "uz" ? "uz-UZ" : "en-US")}</small></span>
               <span className="project-version">v{presentation.currentVersion}</span>
               <button className="icon-button open-presentation-button" type="button" title={copy.openPresentation} aria-label={`${copy.openPresentation}: ${presentation.title}`} onClick={() => onOpen(presentation)}>
                 <Pencil size={16} aria-hidden="true" />

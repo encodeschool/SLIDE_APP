@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/artifacts/artifact_library_screen.dart';
 import 'package:slideforge_mobile/artifacts/artifact_repository.dart';
 import 'package:slideforge_mobile/creation/work_creator_screen.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/marketplace/bottom_navigation.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
@@ -103,12 +104,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   bool get _ru => widget.isRussian;
   bool get _uz => widget.isUzbek;
+  MobileLocalizations get _strings =>
+      MobileLocalizations.fromFlags(isRussian: _ru, isUzbek: _uz);
   String _text(String english, String russian, String uzbek) =>
-      _uz
-          ? uzbek
-          : _ru
-          ? russian
-          : english;
+      _strings.text(english, russian, uzbek);
   String get _presentationsTitle =>
       _text('My presentations', 'Мои презентации', 'Taqdimotlarim');
   String get _newTitle =>
@@ -219,12 +218,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         builder:
             (_) => ArtifactLibraryScreen(
               accessToken: widget.accessToken,
-              language:
-                  _uz
-                      ? 'uz'
-                      : _ru
-                      ? 'ru'
-                      : 'en',
+              language: _strings.locale,
+              uiLocale: _strings.locale,
               repository: _artifactRepository,
             ),
       ),

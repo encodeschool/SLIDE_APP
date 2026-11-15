@@ -39,7 +39,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Learning roadmap',
     'titleRu': 'План обучения',
-    'titleUz': 'Ta’lim yoʻl xaritasi',
+    'titleUz': 'Ta’lim yöl xaritasi',
     'description': 'A clear curriculum plan for a modern learning program.',
     'category': 'education',
     'sellerName': 'BrightPath',
@@ -48,7 +48,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Brand launch strategy',
     'titleRu': 'Стратегия запуска бренда',
-    'titleUz': 'Brendni ishga tushirish strategiyasi',
+    'titleUz': 'Brendni işga tuşiriş strategiyasi',
     'description': 'A practical launch plan with campaign milestones.',
     'category': 'marketing',
     'sellerName': 'Mosaic Creative',
@@ -66,7 +66,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Quarterly business review',
     'titleRu': 'Квартальный обзор бизнеса',
-    'titleUz': 'Choraklik biznes hisoboti',
+    'titleUz': 'Çoraklik biznes hisoboti',
     'description': 'An executive-ready review for quarterly results.',
     'category': 'business',
     'sellerName': 'Northstar Studio',
@@ -75,7 +75,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Classroom workshop',
     'titleRu': 'Учебный семинар',
-    'titleUz': 'Sinf mashgʻuloti',
+    'titleUz': 'Sinf maşğuloti',
     'description': 'A friendly workshop deck for interactive learning.',
     'category': 'education',
     'sellerName': 'BrightPath',
@@ -93,7 +93,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Cloud migration plan',
     'titleRu': 'План миграции в облако',
-    'titleUz': 'Bulutga koʻchirish rejasi',
+    'titleUz': 'Bulutga köçiriş rejasi',
     'description': 'A technology migration plan with phased delivery.',
     'category': 'technology',
     'sellerName': 'Signal Works',
@@ -129,7 +129,7 @@ const marketplaceDemoExamples = <Map<String, dynamic>>[
   {
     'title': 'Customer journey map',
     'titleRu': 'Карта пути клиента',
-    'titleUz': 'Mijoz yoʻli xaritasi',
+    'titleUz': 'Mijoz yöli xaritasi',
     'description': 'Map customer touchpoints and experience insights.',
     'category': 'marketing',
     'sellerName': 'Mosaic Creative',
@@ -176,7 +176,7 @@ List<Map<String, dynamic>> getMarketplaceDemoProducts(
         'slideNumber': 2,
         'title':
             uzbek
-                ? 'Asosiy gʻoya'
+                ? 'Asosiy ğoya'
                 : russian
                 ? 'Главная идея'
                 : 'The big idea',
@@ -194,7 +194,7 @@ List<Map<String, dynamic>> getMarketplaceDemoProducts(
                 : 'What comes next',
         'text': [
           uzbek
-              ? 'Tahrirlanadigan slaydlar bilan boshlang.'
+              ? 'Tahrirlanadigan slaydlar bilan boşlang.'
               : russian
               ? 'Начните с редактируемых слайдов.'
               : 'Start with ready-to-edit slides.',

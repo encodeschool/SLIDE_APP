@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { LoaderCircle, Tags } from "lucide-react";
-import type { Locale } from "../../app/translations";
+import { marketplaceCategoryTranslations, type Locale } from "../../i18n";
 import { authorizedAdminFetch } from "../auth/authApi";
 
 type Category = {
@@ -17,65 +17,8 @@ interface Props {
   onSessionExpired: () => void;
 }
 
-const copy = {
-  en: {
-    title: "Marketplace categories",
-    intro: "Create and manage the categories shown in every storefront language.",
-    slug: "URL slug",
-    nameEn: "English name",
-    nameRu: "Russian name",
-    nameUz: "Uzbek name",
-    add: "Add category",
-    adding: "Adding…",
-    status: "Status",
-    action: "Action",
-    active: "Active",
-    inactive: "Inactive",
-    deactivate: "Deactivate",
-    activate: "Activate",
-    empty: "No categories yet.",
-    error: "Could not load or update categories.",
-  },
-  ru: {
-    title: "Категории маркетплейса",
-    intro: "Создавайте и управляйте категориями на всех языках магазина.",
-    slug: "Код категории",
-    nameEn: "Название на английском",
-    nameRu: "Название на русском",
-    nameUz: "Название на узбекском",
-    add: "Добавить категорию",
-    adding: "Добавление…",
-    status: "Статус",
-    action: "Действие",
-    active: "Активна",
-    inactive: "Неактивна",
-    deactivate: "Отключить",
-    activate: "Включить",
-    empty: "Категорий пока нет.",
-    error: "Не удалось загрузить или изменить категории.",
-  },
-  uz: {
-    title: "Marketpleys turkumlari",
-    intro: "Doʻkonning barcha tillarida koʻrsatiladigan turkumlarni boshqaring.",
-    slug: "Turkum kodi",
-    nameEn: "Inglizcha nomi",
-    nameRu: "Ruscha nomi",
-    nameUz: "Oʻzbekcha nomi",
-    add: "Turkum qoʻshish",
-    adding: "Qoʻshilmoqda…",
-    status: "Holati",
-    action: "Amal",
-    active: "Faol",
-    inactive: "Faol emas",
-    deactivate: "Faolsizlantirish",
-    activate: "Faollashtirish",
-    empty: "Hozircha turkumlar yoʻq.",
-    error: "Turkumlarni yuklab yoki oʻzgartirib boʻlmadi.",
-  },
-};
-
 export function MarketplaceCategories({ accessToken, locale, onSessionExpired }: Props) {
-  const t = copy[locale];
+  const t = marketplaceCategoryTranslations[locale];
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -93,7 +36,7 @@ export function MarketplaceCategories({ accessToken, locale, onSessionExpired }:
       "/api/v1/admin/marketplace/categories",
       accessToken,
       (token) => { if (!token) onSessionExpired(); },
-      "Session expired. Sign in again.",
+      t.sessionExpired,
       t.error,
     )
       .then(async (response) => {
@@ -114,7 +57,7 @@ export function MarketplaceCategories({ accessToken, locale, onSessionExpired }:
         "/api/v1/admin/marketplace/categories",
         accessToken,
         (token) => { if (!token) onSessionExpired(); },
-        "Session expired. Sign in again.",
+        t.sessionExpired,
         t.error,
         {
           method: "POST",
@@ -145,7 +88,7 @@ export function MarketplaceCategories({ accessToken, locale, onSessionExpired }:
         `/api/v1/admin/marketplace/categories/${encodeURIComponent(category.slug)}/status`,
         accessToken,
         (token) => { if (!token) onSessionExpired(); },
-        "Session expired. Sign in again.",
+        t.sessionExpired,
         t.error,
         {
           method: "PATCH",
@@ -180,9 +123,10 @@ export function MarketplaceCategories({ accessToken, locale, onSessionExpired }:
             : <div className="table-scroll"><table>
               <thead><tr><th>{t.slug}</th><th>{t.nameEn}</th><th>{t.nameRu}</th><th>{t.nameUz}</th><th>{t.status}</th><th>{t.action}</th></tr></thead>
               <tbody>{categories.map((category) => <tr key={category.slug}>
-                <td>{category.slug}</td><td>{category.nameEn}</td><td>{category.nameRu}</td><td>{category.nameUz}</td>
-                <td>{category.active ? t.active : t.inactive}</td>
-                <td><button className={category.active ? "danger-button" : "secondary-button"} type="button" disabled={busy} onClick={() => void toggle(category)}>{category.active ? t.deactivate : t.activate}</button></td>
+                <td data-label={t.slug}>{category.slug}</td><td data-label={t.nameEn}>{category.nameEn}</td>
+                <td data-label={t.nameRu}>{category.nameRu}</td><td data-label={t.nameUz}>{category.nameUz}</td>
+                <td data-label={t.status}>{category.active ? t.active : t.inactive}</td>
+                <td data-label={t.action}><button className={category.active ? "danger-button" : "secondary-button"} type="button" disabled={busy} onClick={() => void toggle(category)}>{category.active ? t.deactivate : t.activate}</button></td>
               </tr>)}</tbody>
             </table></div>}
       </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { Translations } from "../../app/translations";
+import type { Translations } from "../../i18n";
 import { isAdmin, login, logout, refreshSession } from "./authApi";
 
 export function useAdminSession(t: Translations) {

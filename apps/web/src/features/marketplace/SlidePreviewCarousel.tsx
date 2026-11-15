@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { Locale } from "../../shared/types";
 import type { PreviewSlide } from "./marketplaceTypes";
+import { carouselLabels } from "../../i18n/carousel";
 
 interface Props {
   title: string;
@@ -10,11 +11,7 @@ interface Props {
   compact?: boolean;
 }
 
-const labels = {
-  en: { preview: "Slide preview", previous: "Previous slide", next: "Next slide" },
-  ru: { preview: "Предпросмотр слайдов", previous: "Предыдущий слайд", next: "Следующий слайд" },
-  uz: { preview: "Slayd koʻrinishi", previous: "Oldingi slayd", next: "Keyingi slayd" },
-};
+
 
 function color(value: string | undefined, fallback: string) {
   return value && /^#[\da-f]{6}$/i.test(value) ? value : fallback;
@@ -27,7 +24,7 @@ export function SlidePreviewCarousel({ title, slides, locale, compact = false }:
     : [{ slideNumber: 1, title, text: [], backgroundColor: "#F3F5F1", accentColor: "#28765D" }];
   const activeIndex = Math.min(index, visibleSlides.length - 1);
   const slide = visibleSlides[activeIndex];
-  const t = labels[locale];
+  const t = carouselLabels[locale];
 
   function move(direction: -1 | 1) {
     setIndex((current) => (current + direction + visibleSlides.length) % visibleSlides.length);

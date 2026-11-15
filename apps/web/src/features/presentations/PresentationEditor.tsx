@@ -1,4 +1,5 @@
-import type { ChangeEventHandler, FormEventHandler, RefObject } from "react";
+import { useRef } from "react";
+import type { ChangeEventHandler, FormEventHandler, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -60,7 +61,7 @@ interface PresentationEditorProps {
   onDeleteElement: () => void;
   onSelectedTextChange: (value: string) => void;
   onCommitSelectedText: () => void;
-  onGeometryChange: (property: "x" | "y" | "w" | "h", value: number) => void;
+  onGeometryChange: (property: "x" | "y" | "w" | "h", value: number, elementId?: string) => void;
   onStyleChange: (patch: Record<string, unknown>) => void;
   onShapeChange: (fill: string) => void;
   onBackgroundChange: (color: string) => void;
@@ -119,6 +120,95 @@ export function PresentationEditor({
   onCommitSlideNotes,
 }: PresentationEditorProps) {
   const isExportBusy = exportStarting !== null || exportJob?.status === "QUEUED" || exportJob?.status === "RUNNING";
+  const elementDrag = useRef<{
+    elementId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    canvasWidth: number;
+    canvasHeight: number;
+  } | null>(null);
+
+  function startElementDrag(event: ReactPointerEvent<HTMLButtonElement>, element: Element) {
+    if (!document || !event.isPrimary || event.button !== 0) return;
+    const canvas = event.currentTarget.closest(".editor-canvas");
+    const bounds = canvas?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+
+    onSelectElement(element);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.classList.add("slide-element-dragging");
+    elementDrag.current = {
+      elementId: element.id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: element.x,
+      originY: element.y,
+      canvasWidth: bounds.width,
+      canvasHeight: bounds.height,
+    };
+  }
+
+  function moveElementDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = elementDrag.current;
+    if (!document || !drag || drag.pointerId !== event.pointerId) return;
+    const element = activeSlide?.elements.find((item) => item.id === drag.elementId);
+    if (!element) return;
+
+    const x = Math.max(0, Math.min(
+      document.size.width - element.w,
+      drag.originX + (event.clientX - drag.startX) / drag.canvasWidth * document.size.width,
+    ));
+    const y = Math.max(0, Math.min(
+      document.size.height - element.h,
+      drag.originY + (event.clientY - drag.startY) / drag.canvasHeight * document.size.height,
+    ));
+    event.currentTarget.style.left = `${x / document.size.width * 100}%`;
+    event.currentTarget.style.top = `${y / document.size.height * 100}%`;
+  }
+
+  function finishElementDrag(event: ReactPointerEvent<HTMLButtonElement>, element: Element, commit: boolean) {
+    const drag = elementDrag.current;
+    if (!document || !drag || drag.pointerId !== event.pointerId) return;
+    elementDrag.current = null;
+    event.currentTarget.classList.remove("slide-element-dragging");
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (!commit) {
+      event.currentTarget.style.left = `${drag.originX / document.size.width * 100}%`;
+      event.currentTarget.style.top = `${drag.originY / document.size.height * 100}%`;
+      return;
+    }
+
+    const deltaX = (event.clientX - drag.startX) / drag.canvasWidth * document.size.width;
+    const deltaY = (event.clientY - drag.startY) / drag.canvasHeight * document.size.height;
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
+    onGeometryChange("x", drag.originX + deltaX, element.id);
+    onGeometryChange("y", drag.originY + deltaY, element.id);
+  }
+
+  function elementDragProps(element: Element) {
+    return {
+      onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => startElementDrag(event, element),
+      onPointerMove: moveElementDrag,
+      onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>) => finishElementDrag(event, element, true),
+      onPointerCancel: (event: ReactPointerEvent<HTMLButtonElement>) => finishElementDrag(event, element, false),
+      onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+        const property = event.key === "ArrowLeft" || event.key === "ArrowRight" ? "x"
+          : event.key === "ArrowUp" || event.key === "ArrowDown" ? "y" : null;
+        if (!property) return;
+        event.preventDefault();
+        const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+        onSelectElement(element);
+        onGeometryChange(property, element[property] + direction * (event.shiftKey ? 10 : 1), element.id);
+      },
+    };
+  }
 
   return (
     <section className="editor-section" aria-labelledby="editor-title">
@@ -194,12 +284,12 @@ export function PresentationEditor({
                   height: `${element.h / document.size.height * 100}%`,
                 };
                 if (element.type === "text") {
-                  return <button className={`slide-text-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} style={{ ...position, fontFamily: element.style?.fontFamily, fontSize: `${(element.style?.fontSize ?? 28) / 12.8}cqw`, fontWeight: element.style?.fontWeight, color: element.style?.color ?? "#242a28", textAlign: element.style?.align ?? "left" }} onClick={() => onSelectElement(element)}>{element.text}</button>;
+                  return <button className={`slide-text-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} style={{ ...position, fontFamily: element.style?.fontFamily, fontSize: `${(element.style?.fontSize ?? 28) / 12.8}cqw`, fontWeight: element.style?.fontWeight, color: element.style?.color ?? "#242a28", textAlign: element.style?.align ?? "left" }} {...elementDragProps(element)} onClick={() => onSelectElement(element)}>{element.text}</button>;
                 }
                 if (element.type === "shape") {
-                  return <button className={`slide-shape-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} aria-label={element.shape === "ellipse" ? copy.ellipse : copy.rectangle} style={{ ...position, background: element.fill, border: element.stroke ? `1px solid ${element.stroke}` : "1px solid transparent", borderRadius: element.shape === "ellipse" ? "50%" : 0 }} onClick={() => onSelectElement(element)} />;
+                  return <button className={`slide-shape-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} aria-label={element.shape === "ellipse" ? copy.ellipse : copy.rectangle} style={{ ...position, background: element.fill, border: element.stroke ? `1px solid ${element.stroke}` : "1px solid transparent", borderRadius: element.shape === "ellipse" ? "50%" : 0 }} {...elementDragProps(element)} onClick={() => onSelectElement(element)} />;
                 }
-                return <button className={`slide-image-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} aria-label={element.alt || copy.elements} style={position} onClick={() => onSelectElement(element)}><img src={element.dataUri} alt="" /></button>;
+                return <button className={`slide-image-element ${element.id === selectedElement?.id ? "slide-element-selected" : ""}`} type="button" key={element.id} aria-label={element.alt || copy.elements} style={position} {...elementDragProps(element)} onClick={() => onSelectElement(element)}><img src={element.dataUri} alt="" /></button>;
               })}
             </div>
           </section>

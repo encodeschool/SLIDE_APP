@@ -1,5 +1,5 @@
 import { authorizedAdminFetch } from "../auth/authApi";
-import type { Locale, Translations } from "../../app/translations";
+import type { Locale, Translations } from "../../i18n";
 import type { AdminUser, UserPage, UserStatus } from "./types";
 
 export async function listUsers(

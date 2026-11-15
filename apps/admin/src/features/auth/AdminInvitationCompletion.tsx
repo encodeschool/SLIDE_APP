@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { LoaderCircle, ShieldCheck } from "lucide-react";
-import type { Translations } from "../../app/translations";
+import type { Translations } from "../../i18n";
 import { completeAdminInvitation } from "./authApi";
 
 interface AdminInvitationCompletionProps {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 
 class MobileAppState {
   static const storageVersion = 2;
@@ -10,7 +11,7 @@ class MobileAppState {
     this.marketplaceSection = 0,
     this.checkoutStep = 0,
     this.workspaceTab = 0,
-    this.locale = 'en',
+    this.locale = MobileLocalizations.defaultLocale,
     this.localeIsSaved = false,
   });
 
@@ -55,11 +56,14 @@ class MobileAppState {
       checkoutStep: step,
       workspaceTab: workspaceTab,
       locale:
-          locale is String && const {'en', 'ru', 'uz'}.contains(locale)
+          locale is String &&
+                  MobileLocalizations.supportedLocales.contains(locale)
               ? locale
-              : 'en',
+              : MobileLocalizations.defaultLocale,
       localeIsSaved:
-          locale is String && const {'en', 'ru', 'uz'}.contains(locale),
+          locale is String &&
+          MobileLocalizations.supportedLocales.contains(locale) &&
+          (json['localeIsSaved'] == true || json['localeIsSaved'] == null),
     );
   }
 
@@ -75,6 +79,7 @@ class MobileAppState {
     'checkoutStep': cartItems.isEmpty ? 0 : checkoutStep,
     'workspaceTab': workspaceTab,
     'locale': locale,
+    'localeIsSaved': localeIsSaved,
   };
 
   static int _boundedInt(Object? value, int min, int max, {int fallback = 0}) {

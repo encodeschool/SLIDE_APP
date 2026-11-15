@@ -2,6 +2,7 @@ import type { FormEventHandler } from "react";
 import { FileText, LoaderCircle, Save, Sparkles } from "lucide-react";
 import type { ArtifactType } from "../../../../../packages/shared-types/src/artifact.ts";
 import type { GenerationJobResponse, Locale } from "../../shared/types";
+import { generationTypeNames } from "../../i18n/generation";
 
 export type CreationType = "slides" | ArtifactType;
 
@@ -46,27 +47,15 @@ export function GenerationPanel({
 }: GenerationPanelProps) {
   const isPresentation = workType === "slides";
   const locked = starting || Boolean(job && (job.status === "QUEUED" || job.status === "RUNNING"));
-  const typeNames: Record<ArtifactType, [string, string, string]> = {
-    essay: ["Essay", "Эссе", "Esse"],
-    "independent-work": ["Independent work", "Самостоятельная работа", "Mustaqil ish"],
-    coursework: ["Coursework", "Курсовая работа", "Kurs ishi"],
-    dissertation: ["Dissertation", "Диссертация", "Dissertatsiya"],
-    "research-article": ["Research article", "Научная статья", "Ilmiy maqola"],
-    quiz: ["Quiz", "Тест", "Test"],
-    crossword: ["Crossword", "Кроссворд", "Krossvord"],
-    "thesis-abstract": ["Thesis abstract", "Тезисы", "Tezis"],
-    glossary: ["Glossary", "Глоссарий", "Glossariy"],
-    "argumentative-essay": ["Argumentative essay", "Аргументативное эссе", "Argumentativ esse"],
-  };
-  const localeIndex = locale === "ru" ? 1 : locale === "uz" ? 2 : 0;
-  const formatName = isPresentation ? copy.generationPresentationType : typeNames[workType][localeIndex];
+  const typeNames = generationTypeNames[locale];
+  const formatName = isPresentation ? copy.generationPresentationType : typeNames[workType];
   const fileFormat = isPresentation ? "PPTX" : "DOCX";
   const itemName = isPresentation
     ? copy.generationSlidesUnit
     : workType === "quiz" ? copy.generationQuestionsUnit
       : workType === "crossword" ? copy.generationCluesUnit
         : workType === "glossary" ? copy.generationTermsUnit : copy.generationSectionsUnit;
-  const languageName = language === "ru" ? "Русский" : language === "uz" ? "Oʻzbekcha" : "English";
+  const languageName = language === "ru" ? copy.languageRussian : language === "uz" ? copy.languageUzbek : copy.languageEnglish;
 
   return (
     <section id="generate" className="projects-section" aria-labelledby="generation-title">
@@ -88,6 +77,33 @@ export function GenerationPanel({
               onChange={(event) => setPrompt(event.target.value)}
             />
           </label>
+          <div className="generation-settings">
+            <label>
+              <span>{copy.generationFormat}</span>
+              <select value={workType} disabled={locked} onChange={(event) => setWorkType(event.target.value as CreationType)}>
+                <option value="slides">{copy.generationPresentationType}</option>
+                {Object.entries(typeNames).map(([type, name]) => (
+                  <option key={type} value={type}>{name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{copy.generationLanguage}</span>
+              <select value={language} disabled={locked} onChange={(event) => setLanguage(event.target.value as Locale)}>
+                <option value="en">{copy.languageEnglish}</option>
+                <option value="ru">{copy.languageRussian}</option>
+                <option value="uz">{copy.languageUzbek}</option>
+              </select>
+            </label>
+            <label>
+              <span>{isPresentation ? copy.generationSlides : copy.generationItemCount}</span>
+              <select value={itemCount} disabled={locked} onChange={(event) => setItemCount(Number(event.target.value))}>
+                {Array.from({ length: 20 }, (_, index) => (
+                  <option key={index + 1} value={index + 1}>{index + 1}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <button className="primary-button" type="submit" disabled={locked || saving}>
             {starting ? <LoaderCircle className="spin-icon" size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
             {starting ? copy.generationSubmitting : isPresentation ? copy.generationSubmit : copy.generationDraftSubmit}
@@ -183,29 +199,6 @@ export function GenerationPanel({
             <p className="generation-preview-caption">{formatName} · {itemCount} {itemName} · {languageName}</p>
           )}
         </aside>
-        <div className="generation-settings">
-          <label>
-            <span>{copy.generationFormat}</span>
-            <select value={workType} disabled={locked} onChange={(event) => setWorkType(event.target.value as CreationType)}>
-              <option value="slides">{copy.generationPresentationType}</option>
-              {Object.entries(typeNames).map(([type, names]) => (
-                <option key={type} value={type}>{names[localeIndex]}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{copy.generationLanguage}</span>
-            <select value={language} disabled={locked} onChange={(event) => setLanguage(event.target.value as Locale)}>
-              <option value="en">English</option>
-              <option value="ru">Русский</option>
-              <option value="uz">Oʻzbekcha</option>
-            </select>
-          </label>
-          <label>
-            <span>{isPresentation ? copy.generationSlides : copy.generationItemCount}</span>
-            <input type="number" min={1} max={20} required disabled={locked} value={itemCount} onChange={(event) => setItemCount(Number(event.target.value))} />
-          </label>
-        </div>
       </form>
       {error && <p className="form-error" role="alert">{error}</p>}
       {draftReady && !isPresentation && <div className="export-state" role="status">{copy.generationDraftReady}</div>}

@@ -1,12 +1,14 @@
 import type { Category, Product, ProductDetail } from "./marketplaceTypes";
+import { marketplaceCategoryFallbacks } from "../../i18n/marketplace";
 
-export const demoCategories: Category[] = [
-  { slug: "business", name: "Business", nameRu: "Бизнес", nameUz: "Biznes" },
-  { slug: "education", name: "Education", nameRu: "Образование", nameUz: "Ta’lim" },
-  { slug: "marketing", name: "Marketing", nameRu: "Маркетинг", nameUz: "Marketing" },
-  { slug: "technology", name: "Technology", nameRu: "Технологии", nameUz: "Texnologiya" },
-  { slug: "other", name: "Other", nameRu: "Другое", nameUz: "Boshqa" },
-];
+const categorySlugs = ["business", "education", "marketing", "technology", "other"] as const;
+
+export const demoCategories: Category[] = categorySlugs.map((slug) => ({
+  slug,
+  name: marketplaceCategoryFallbacks.en[slug],
+  nameRu: marketplaceCategoryFallbacks.ru[slug],
+  nameUz: marketplaceCategoryFallbacks.uz[slug],
+}));
 
 const examples = [
   ["Investor pitch deck", "A polished, editable startup funding presentation.", "business", "Northstar Studio", 1250000],

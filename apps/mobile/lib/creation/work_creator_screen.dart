@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/artifacts/artifact_library_screen.dart';
 import 'package:slideforge_mobile/artifacts/artifact_repository.dart';
+import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/presentations/presentation_editor_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
@@ -39,11 +40,10 @@ class _WorkCreatorScreenState extends State<WorkCreatorScreen> {
   bool get _ru => widget.isRussian;
   bool get _uz => widget.isUzbek;
   String _text(String english, String russian, String uzbek) =>
-      _uz
-          ? uzbek
-          : _ru
-          ? russian
-          : english;
+      MobileLocalizations.fromFlags(
+        isRussian: _ru,
+        isUzbek: _uz,
+      ).text(english, russian, uzbek);
 
   @override
   void initState() {
@@ -58,44 +58,19 @@ class _WorkCreatorScreenState extends State<WorkCreatorScreen> {
   }
 
   String _formatName(String format) => switch (format) {
-    'slides' => _text('Presentation', 'Презентация', 'Taqdimot'),
-    'independent-work' => _text(
-      'Independent work',
-      'Самостоятельная работа',
-      'Mustaqil ish',
-    ),
-    'coursework' => _text('Coursework', 'Курсовая работа', 'Kurs ishi'),
-    'dissertation' => _text('Dissertation', 'Диссертация', 'Dissertatsiya'),
-    'research-article' => _text(
-      'Research article',
-      'Научная статья',
-      'Ilmiy maqola',
-    ),
-    'quiz' => _text('Quiz', 'Тест', 'Test'),
-    'crossword' => _text('Crossword', 'Кроссворд', 'Krossvord'),
-    'thesis-abstract' => _text('Thesis abstract', 'Тезисы', 'Tezis'),
-    'glossary' => _text('Glossary', 'Глоссарий', 'Glossariy'),
-    'argumentative-essay' => _text(
-      'Argumentative essay',
-      'Аргументативное эссе',
-      'Argumentativ esse',
-    ),
-    _ => _text('Essay', 'Эссе', 'Esse'),
+    _ => MobileLocalizations.fromFlags(
+      isRussian: _ru,
+      isUzbek: _uz,
+    ).artifactType(format),
   };
 
-  String get _sizeUnit => switch (_format) {
-    'slides' => _text('slides', 'слайдов', 'slayd'),
-    'quiz' => _text('questions', 'вопросов', 'savol'),
-    'crossword' => _text('clues', 'слов', 'topishmoq'),
-    'glossary' => _text('terms', 'терминов', 'atama'),
-    _ => _text('sections', 'разделов', 'boʻlim'),
-  };
+  String get _sizeUnit => MobileLocalizations.fromFlags(
+    isRussian: _ru,
+    isUzbek: _uz,
+  ).artifactSizeUnit(_format);
 
-  String _languageName(String language) => switch (language) {
-    'ru' => 'Русский',
-    'uz' => 'Oʻzbekcha',
-    _ => 'English',
-  };
+  String _languageName(String language) =>
+      MobileLocalizations(language).languageName;
 
   Future<void> _generate() async {
     final topic = _topicController.text.trim();
@@ -140,6 +115,11 @@ class _WorkCreatorScreenState extends State<WorkCreatorScreen> {
                 (_) => ArtifactEditorScreen(
                   accessToken: widget.accessToken,
                   language: _language,
+                  uiLocale:
+                      MobileLocalizations.fromFlags(
+                        isRussian: _ru,
+                        isUzbek: _uz,
+                      ).locale,
                   repository: widget.artifactRepository,
                   initialDocument: document,
                 ),
@@ -246,7 +226,7 @@ class _WorkCreatorScreenState extends State<WorkCreatorScreen> {
               items: const [
                 DropdownMenuItem(value: 'en', child: Text('English')),
                 DropdownMenuItem(value: 'ru', child: Text('Русский')),
-                DropdownMenuItem(value: 'uz', child: Text('Oʻzbekcha')),
+                DropdownMenuItem(value: 'uz', child: Text('Özbekça')),
               ],
               onChanged:
                   _generating
