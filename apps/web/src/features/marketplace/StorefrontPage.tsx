@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Globe2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Globe2, ShoppingBag } from "lucide-react";
 import type { AuthMode, Locale } from "../../shared/types";
 import { landingCopy } from "../../i18n/landing";
+import { categoryNames } from "../../i18n/marketplace";
 import brandMark from "../../assets/slideforge-mark.svg";
 
 interface StorefrontPageProps {
@@ -9,6 +10,8 @@ interface StorefrontPageProps {
   children: ReactNode;
   authenticated: boolean;
   workspaceLabel: string;
+  cartCount: number;
+  onOpenCart: () => void;
   onAuth: (mode: AuthMode) => void;
   onToggleLocale: () => void;
 }
@@ -18,6 +21,8 @@ export function StorefrontPage({
   children,
   authenticated,
   workspaceLabel,
+  cartCount,
+  onOpenCart,
   onAuth,
   onToggleLocale,
 }: StorefrontPageProps) {
@@ -37,6 +42,16 @@ export function StorefrontPage({
             {homeLabel}
           </a>
           <div className="storefront-actions">
+            <button
+              className="storefront-cart"
+              type="button"
+              onClick={onOpenCart}
+              aria-label={cartCount > 0 ? `${categoryNames[locale].cart}, ${cartCount}` : categoryNames[locale].cart}
+            >
+              <ShoppingBag size={16} aria-hidden="true" />
+              <span className="storefront-cart-label">{categoryNames[locale].cart}</span>
+              {cartCount > 0 && <span className="storefront-cart-count" aria-hidden="true">{cartCount}</span>}
+            </button>
             <button
               className="storefront-language"
               type="button"

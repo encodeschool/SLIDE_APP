@@ -48,6 +48,8 @@ function App() {
   const [accountActive, setAccountActive] = useState(() => window.location.hash === "#account");
   const [marketplaceInitialStage, setMarketplaceInitialStage] = useState<"shop" | "purchases">(() =>
     window.location.hash === "#purchases" ? "purchases" : "shop");
+  const [marketplaceCartCount, setMarketplaceCartCount] = useState(0);
+  const [marketplaceCartOpenRequest, setMarketplaceCartOpenRequest] = useState(0);
   const [locale, setLocale] = useState<Locale>(readLocalePreference);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>(() =>
@@ -1146,6 +1148,8 @@ function App() {
         locale={locale}
         authenticated={authUser !== null}
         workspaceLabel={copy.workspace}
+        cartCount={marketplaceCartCount}
+        onOpenCart={() => setMarketplaceCartOpenRequest((current) => current + 1)}
         onAuth={(mode) => {
           setAuthError("");
           setAuthNotice("");
@@ -1168,6 +1172,10 @@ function App() {
           onRequestTopUp={() => setWalletTopUpOpen(true)}
           onRefreshWallet={refreshWallet}
           onRefreshPresentations={refreshPresentations}
+          cartInNavigation
+          cartOpenRequest={marketplaceCartOpenRequest}
+          onCartOpenHandled={() => setMarketplaceCartOpenRequest(0)}
+          onCartCountChange={setMarketplaceCartCount}
         />
       </StorefrontPage>
     );

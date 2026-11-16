@@ -12,7 +12,7 @@
 	}
 }
 
-slides.encode.uz {
+eduslides.encode.uz {
 	import security_headers
 	encode zstd gzip
 	reverse_proxy web:8080 {
@@ -20,7 +20,11 @@ slides.encode.uz {
 	}
 }
 
-slides-admin.encode.uz {
+www.eduslides.encode.uz {
+	redir https://eduslides.encode.uz{uri} permanent
+}
+
+admin-eduslides.encode.uz {
 	import security_headers
 	encode zstd gzip
 	reverse_proxy admin:8080 {
@@ -28,10 +32,18 @@ slides-admin.encode.uz {
 	}
 }
 
-api-slides.encode.uz {
+www.admin-eduslides.encode.uz {
+	redir https://admin-eduslides.encode.uz{uri} permanent
+}
+
+api-eduslides.encode.uz {
 	import security_headers
 	encode zstd gzip
 	reverse_proxy api:8080 {
 		header_up X-Forwarded-For {remote_host}
 	}
+}
+
+www.api-eduslides.encode.uz {
+	redir https://api-eduslides.encode.uz{uri} permanent
 }

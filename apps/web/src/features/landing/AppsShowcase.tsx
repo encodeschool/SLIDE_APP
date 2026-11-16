@@ -59,7 +59,7 @@ export function AppsShowcase({ locale }: AppsShowcaseProps) {
           <h2>{copy.adminTitle}</h2>
           <p>{copy.adminCopy}</p>
           <ProductPoints points={[copy.adminPointOne, copy.adminPointTwo, copy.adminPointThree]} />
-          <a className="landing-secondary-button apps-admin-link" href="https://slides-admin.encode.uz" target="_blank" rel="noreferrer">
+          <a className="landing-secondary-button apps-admin-link" href="https://admin-eduslides.encode.uz" target="_blank" rel="noreferrer">
             {copy.adminLink}<ArrowRight size={16} aria-hidden="true" />
           </a>
         </div>

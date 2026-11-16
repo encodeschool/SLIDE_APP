@@ -48,7 +48,7 @@ jobs:
           flutter build appbundle --release \
             --build-name="${GITHUB_REF_NAME#v}" \
             --build-number="${GITHUB_RUN_NUMBER}" \
-            --dart-define=API_BASE_URL=https://api-slides.encode.uz
+            --dart-define=API_BASE_URL=https://api-eduslides.encode.uz
 
       - uses: actions/upload-artifact@v4
         with:

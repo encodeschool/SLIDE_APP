@@ -7,7 +7,7 @@ export const landingCopy = {
     switchLanguage: "Switch language",
     editorPreview: "Preview of the Slideforge presentation editor",
     saved: "Saved",
-    navFeatures: "What you can make",
+    navFeatures: "What can you make?",
     navHow: "How it works",
     navWeb: "Web",
     navAdmin: "Admin",

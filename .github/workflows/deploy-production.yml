@@ -108,8 +108,8 @@ jobs:
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           docker build -f backend/api/Dockerfile -t "$namespace-api:$SOURCE_SHA" backend/api
           docker build -f services/presentation-renderer/Dockerfile -t "$namespace-renderer:$SOURCE_SHA" services/presentation-renderer
-          docker build -f apps/web/Dockerfile -t "$namespace-web:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-slides.encode.uz .
-          docker build -f apps/admin/Dockerfile -t "$namespace-admin:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-slides.encode.uz .
+          docker build -f apps/web/Dockerfile -t "$namespace-web:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-eduslides.encode.uz .
+          docker build -f apps/admin/Dockerfile -t "$namespace-admin:$SOURCE_SHA" --build-arg VITE_API_URL=https://api-eduslides.encode.uz .
           docker push "$namespace-api:$SOURCE_SHA"
           docker push "$namespace-renderer:$SOURCE_SHA"
           docker push "$namespace-web:$SOURCE_SHA"
@@ -206,7 +206,7 @@ jobs:
           wait_for_url() {
             local url="$1"
             for attempt in {1..30}; do
-              if curl --fail --silent --show-error --max-time 10 "$url"; then
+              if curl --location --fail --silent --show-error --max-time 10 "$url"; then
                 return 0
               fi
               sleep 10
@@ -214,17 +214,25 @@ jobs:
             echo "Health check timed out: $url" >&2
             return 1
           }
-          wait_for_url https://slides.encode.uz/ >/dev/null
-          wait_for_url https://slides-admin.encode.uz/ >/dev/null
-          for attempt in {1..30}; do
-            if curl --fail --silent --show-error --max-time 10 https://api-slides.encode.uz/actuator/health \
-              | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
-              exit 0
-            fi
-            sleep 10
+          wait_for_url https://eduslides.encode.uz/ >/dev/null
+          wait_for_url https://www.eduslides.encode.uz/ >/dev/null
+          wait_for_url https://admin-eduslides.encode.uz/ >/dev/null
+          wait_for_url https://www.admin-eduslides.encode.uz/ >/dev/null
+          for api_url in \
+            https://api-eduslides.encode.uz/actuator/health \
+            https://www.api-eduslides.encode.uz/actuator/health; do
+            for attempt in {1..30}; do
+              if curl --location --fail --silent --show-error --max-time 10 "$api_url" \
+                | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+                break
+              fi
+              if [[ "$attempt" -eq 30 ]]; then
+                echo "API health check timed out or reported a non-UP status: $api_url" >&2
+                exit 1
+              fi
+              sleep 10
+            done
           done
-          echo "API health check timed out or reported a non-UP status." >&2
-          exit 1
 
       - name: Roll back failed deployment
         if: failure() && steps.deploy.outputs.started == 'true'

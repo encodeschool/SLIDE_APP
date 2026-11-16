@@ -16,9 +16,12 @@ import {
 } from "lucide-react";
 import type { AuthMode, Locale } from "../../shared/types";
 import { landingCopy } from "../../i18n/landing";
+import { marketplaceCategoryFallbacks, purchaseActionLabels } from "../../i18n/marketplace";
 import brandMark from "../../assets/slideforge-mark.svg";
 import { AppsShowcase } from "./AppsShowcase";
 import { usePublicPageMotion } from "./usePublicPageMotion";
+import { SlidePreviewCarousel } from "../marketplace/SlidePreviewCarousel";
+import { demoProducts } from "../marketplace/demoCatalog";
 
 interface LandingPageProps {
   locale: Locale;
@@ -36,6 +39,8 @@ const features = [
 
 export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps) {
   const copy = landingCopy[locale];
+  const featuredProduct = demoProducts[0];
+  const purchaseCopy = purchaseActionLabels[locale];
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [introLoading, setIntroLoading] = useState(true);
   const finishIntro = useCallback(() => setIntroLoading(false), []);
@@ -51,17 +56,13 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
         </a>
         <nav className="landing-nav" aria-label={copy.mainNavigation}>
           <a href="#landing-features">{copy.navFeatures}</a>
-          <a href="#product-web">{copy.navWeb}</a>
-          <a href="#product-admin">{copy.navAdmin}</a>
-          <a href="#product-mobile">{copy.navMobile}</a>
-          <a href="/marketplace">{copy.navMarketplace}</a>
-          <a href="#landing-how">{copy.navHow}</a>
-        </nav>
-        <div className="landing-header-actions">
-          <a className="landing-marketplace-link" href="/marketplace">
+          <a className="landing-nav-marketplace" href="/marketplace">
             <ShoppingBag size={15} aria-hidden="true" />
             {copy.navMarketplace}
           </a>
+          <a href="#landing-how">{copy.navHow}</a>
+        </nav>
+        <div className="landing-header-actions">
           <button className="landing-language" type="button" onClick={onToggleLocale} aria-label={copy.switchLanguage}>
             <Globe2 size={16} aria-hidden="true" />{locale.toUpperCase()}
           </button>
@@ -164,6 +165,36 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
         </section>
 
         <AppsShowcase locale={locale} />
+
+        {featuredProduct && (
+          <section className="landing-marketplace" id="landing-marketplace" aria-labelledby="landing-marketplace-title">
+            <div className="landing-marketplace-copy" data-reveal>
+              <span className="landing-eyebrow"><span />{copy.marketplaceEyebrow}</span>
+              <h2 id="landing-marketplace-title">{copy.marketplaceTitle}</h2>
+              <p>{copy.marketplaceCopy}</p>
+              <a className="landing-primary-button" href="/marketplace">
+                {copy.marketplaceButton}<ArrowRight size={16} aria-hidden="true" />
+              </a>
+            </div>
+            <article className="landing-marketplace-feature" data-reveal>
+              <div className="landing-marketplace-product">
+                <h3>{featuredProduct.title}</h3>
+                <p>{featuredProduct.description}</p>
+              </div>
+              <SlidePreviewCarousel
+                title={featuredProduct.title}
+                slides={featuredProduct.previewSlides?.slice(0, 2) ?? []}
+                locale={locale}
+                categoryTag={marketplaceCategoryFallbacks[locale][featuredProduct.category] ?? featuredProduct.category}
+                slideCount={featuredProduct.slideCount}
+                lockedLabel={purchaseCopy.lockedSlides.replace("{count}", String(Math.max(0, featuredProduct.slideCount - Math.min(featuredProduct.previewSlides?.length ?? 0, 2))))}
+                lockedMessage={purchaseCopy.lockedNote}
+                purchaseLabel={purchaseCopy.purchaseToUnlock}
+                onPurchase={() => { window.location.href = "/marketplace"; }}
+              />
+            </article>
+          </section>
+        )}
 
         <section className="landing-workflow" id="landing-how">
           <div className="landing-workflow-heading" data-reveal>

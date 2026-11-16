@@ -5,7 +5,7 @@ RUN cd apps/admin && npm ci
 COPY apps/admin/index.html apps/admin/tsconfig.json apps/admin/vite.config.ts ./apps/admin/
 COPY apps/admin/src ./apps/admin/src
 COPY docs ./docs
-ARG VITE_API_URL=https://api-slides.encode.uz
+ARG VITE_API_URL=https://api-eduslides.encode.uz
 RUN cd apps/admin && VITE_API_URL="${VITE_API_URL}" npm run build
 
 FROM nginx:1.27-alpine

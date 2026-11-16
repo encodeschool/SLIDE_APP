@@ -49,7 +49,7 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/slideforge
       DATABASE_USER: slideforge
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-      ALLOWED_ORIGINS: https://slides.encode.uz,https://slides-admin.encode.uz
+      ALLOWED_ORIGINS: https://eduslides.encode.uz,https://admin-eduslides.encode.uz
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?Set BOOTSTRAP_ADMIN_EMAIL}
       BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:?Set BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64}
@@ -65,8 +65,8 @@ services:
       SMTP_STARTTLS_ENABLE: "true"
       SMTP_STARTTLS_REQUIRED: "true"
       MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
-      PUBLIC_APP_URL: https://slides.encode.uz
-      PUBLIC_ADMIN_URL: https://slides-admin.encode.uz
+      PUBLIC_APP_URL: https://eduslides.encode.uz
+      PUBLIC_ADMIN_URL: https://admin-eduslides.encode.uz
       EMAIL_VERIFICATION_TOKEN_TTL_HOURS: ${EMAIL_VERIFICATION_TOKEN_TTL_HOURS:-24}
       PASSWORD_RECOVERY_TOKEN_TTL_MINUTES: ${PASSWORD_RECOVERY_TOKEN_TTL_MINUTES:-30}
       RENDERER_URL: http://renderer:8090

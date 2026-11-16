@@ -11,6 +11,8 @@ fi
 
 for name in POSTGRES_PASSWORD JWT_SECRET; do
   value="$(sed -n "s/^${name}=//p" "$env_file" | tail -n 1)"
+  value="${value#\"}"
+  value="${value%\"}"
   if [[ ${#value} -lt 32 || ! "$value" =~ ^[A-Za-z0-9_-]+$ ]]; then
     echo "$name must be at least 32 characters and contain only letters, digits, _ or -" >&2
     exit 1

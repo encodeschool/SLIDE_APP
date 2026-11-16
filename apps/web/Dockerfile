@@ -6,7 +6,7 @@ COPY apps/web/index.html apps/web/tsconfig.json apps/web/vite.config.ts ./apps/w
 COPY apps/web/src ./apps/web/src
 COPY packages/shared-types/src ./packages/shared-types/src
 COPY docs ./docs
-ARG VITE_API_URL=https://api-slides.encode.uz
+ARG VITE_API_URL=https://api-eduslides.encode.uz
 RUN cd apps/web && VITE_API_URL="${VITE_API_URL}" npm run build
 
 FROM nginx:1.27-alpine
