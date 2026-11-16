@@ -30,7 +30,7 @@ from pptx import Presentation
 p = Presentation(sys.argv[1])
 shape = next(s for s in p.slides[0].shapes if s.has_text_frame and s.text_frame.text)
 run = shape.text_frame.paragraphs[0].runs[0]
-print(json.dumps({"italic": run.italic, "underline": run.underline}))`;
+print(json.dumps({"italic": run.font.italic, "underline": run.font.underline}))`;
   assert.deepStrictEqual(
     JSON.parse(execFileSync("python3", ["-c", py, pptx]).toString()),
     { italic: true, underline: true },

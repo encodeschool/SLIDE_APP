@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(properties = "app.auth.rate-limit-max-requests=100")
+@SpringBootTest(properties = "app.auth.rate-limit-max-requests=10000")
 @AutoConfigureMockMvc
 @Transactional
 class PresentationIntegrationTest {

@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
     "spring.profiles.active=sandbox",
     "app.payments.sandbox.enabled=true",
     "app.exports.worker-enabled=false",
-    "app.auth.rate-limit-max-requests=100"
+    "app.auth.rate-limit-max-requests=10000"
 })
 @AutoConfigureMockMvc
 @Transactional

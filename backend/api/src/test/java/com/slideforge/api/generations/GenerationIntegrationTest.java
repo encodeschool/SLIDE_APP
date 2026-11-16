@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.MvcResult;
         "spring.profiles.active=sandbox",
         "app.payments.sandbox.enabled=true",
         "app.generations.poll-interval-ms=50",
-        "app.auth.rate-limit-max-requests=100"
+        "app.auth.rate-limit-max-requests=10000"
 })
 @AutoConfigureMockMvc
 class GenerationIntegrationTest {

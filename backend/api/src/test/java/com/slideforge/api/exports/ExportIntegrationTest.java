@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = {
         "app.exports.worker-enabled=false",
-        "app.auth.rate-limit-max-requests=100"
+        "app.auth.rate-limit-max-requests=10000"
 })
 @AutoConfigureMockMvc
 @Transactional

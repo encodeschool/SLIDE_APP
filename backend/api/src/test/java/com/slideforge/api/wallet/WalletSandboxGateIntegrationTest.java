@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest(properties = {
         "app.payments.sandbox.enabled=false",
         "app.generations.worker-enabled=false",
-        "app.auth.rate-limit-max-requests=100"
+        "app.auth.rate-limit-max-requests=10000"
 })
 @AutoConfigureMockMvc
 class WalletSandboxGateIntegrationTest {
