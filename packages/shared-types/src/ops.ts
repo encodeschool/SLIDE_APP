@@ -9,6 +9,7 @@ export type Op =
   | { kind: "removeElement"; slideId: string; elementId: string }
   | { kind: "updateElement"; slideId: string; elementId: string; patch: Record<string, unknown> }
   | { kind: "setBackground"; slideId: string; color?: string }
+  | { kind: "setTheme"; theme?: Deck["theme"] }
   | { kind: "setNotes"; slideId: string; notes: string };
 
 export class OpError extends Error {}
@@ -106,6 +107,13 @@ export function apply(deck: Deck, op: Op): { deck: Deck; inverse: Op } {
       return {
         deck: withSlides(deck, slides),
         inverse: { kind: "setBackground", slideId: op.slideId, color: previousColor },
+      };
+    }
+    case "setTheme": {
+      const { theme: _theme, ...withoutTheme } = deck;
+      return {
+        deck: op.theme === undefined ? withoutTheme : { ...deck, theme: op.theme },
+        inverse: { kind: "setTheme", theme: deck.theme },
       };
     }
   }

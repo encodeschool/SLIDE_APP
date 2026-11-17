@@ -40,7 +40,8 @@ import {
   UserRound,
 } from "lucide-react";
 
-
+type SlidePoint = { x: number; y: number };
+type EditorIcon = "star" | "check" | "arrow";
 
 function App() {
   const [marketplaceActive, setMarketplaceActive] = useState(() =>
@@ -934,33 +935,52 @@ function App() {
     );
   }
 
-  function addTextElement() {
+  function addTextElement(position?: SlidePoint, text = copy.newText, isIcon = false) {
     if (!editorDocument || !activeSlideId) return;
+    const width = isIcon ? 160 : editorDocument.size.width * 0.72;
+    const height = isIcon ? 160 : editorDocument.size.height * 0.16;
     const element: TextElement = {
       id: crypto.randomUUID(),
       type: "text",
-      x: editorDocument.size.width * 0.08,
-      y: editorDocument.size.height * 0.12,
-      w: editorDocument.size.width * 0.72,
-      h: editorDocument.size.height * 0.16,
-      text: copy.newText,
-      style: { fontSize: 44, color: "#242a28" },
+      x: position
+        ? Math.max(0, Math.min(editorDocument.size.width - width, position.x - width / 2))
+        : isIcon ? (editorDocument.size.width - width) / 2 : editorDocument.size.width * 0.08,
+      y: position
+        ? Math.max(0, Math.min(editorDocument.size.height - height, position.y - height / 2))
+        : isIcon ? (editorDocument.size.height - height) / 2 : editorDocument.size.height * 0.12,
+      w: width,
+      h: height,
+      text,
+      style: isIcon
+        ? { fontSize: 128, fontWeight: 700, color: "#28765d", align: "center", fontFamily: "Arial" }
+        : { fontSize: 44, color: "#242a28" },
     };
     applyEditorOperation({ kind: "addElement", slideId: activeSlideId, element });
     setSelectedElementId(element.id);
     setSelectedTextDraft(element.text);
   }
 
-  function addShapeElement(shape: ShapeElement["shape"]) {
+  function addIconElement(icon: EditorIcon, position?: SlidePoint) {
+    const glyphs: Record<EditorIcon, string> = { star: "★", check: "✓", arrow: "➜" };
+    addTextElement(position, glyphs[icon], true);
+  }
+
+  function addShapeElement(shape: ShapeElement["shape"], position?: SlidePoint) {
     if (!editorDocument || !activeSlideId) return;
+    const width = editorDocument.size.width * 0.28;
+    const height = editorDocument.size.height * 0.28;
     const element: ShapeElement = {
       id: crypto.randomUUID(),
       type: "shape",
       shape,
-      x: editorDocument.size.width * 0.34,
-      y: editorDocument.size.height * 0.36,
-      w: editorDocument.size.width * 0.28,
-      h: editorDocument.size.height * 0.28,
+      x: position
+        ? Math.max(0, Math.min(editorDocument.size.width - width, position.x - width / 2))
+        : editorDocument.size.width * 0.34,
+      y: position
+        ? Math.max(0, Math.min(editorDocument.size.height - height, position.y - height / 2))
+        : editorDocument.size.height * 0.36,
+      w: width,
+      h: height,
       fill: "#dceee1",
     };
     applyEditorOperation({ kind: "addElement", slideId: activeSlideId, element });
@@ -968,9 +988,7 @@ function App() {
     setSelectedTextDraft("");
   }
 
-  function addImageElement(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
+  function addImageFile(file: File, position?: SlidePoint) {
     if (!editorDocument || !activeSlideId || !file) return;
     if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
       setEditorError(copy.invalidImage);
@@ -987,8 +1005,12 @@ function App() {
       const element: ImageElement = {
         id: crypto.randomUUID(),
         type: "image",
-        x: (editorDocument.size.width - width) / 2,
-        y: (editorDocument.size.height - height) / 2,
+        x: position
+          ? Math.max(0, Math.min(editorDocument.size.width - width, position.x - width / 2))
+          : (editorDocument.size.width - width) / 2,
+        y: position
+          ? Math.max(0, Math.min(editorDocument.size.height - height, position.y - height / 2))
+          : (editorDocument.size.height - height) / 2,
         w: width,
         h: height,
         dataUri: reader.result,
@@ -1011,6 +1033,12 @@ function App() {
     };
     reader.onerror = () => setEditorError(copy.invalidImage);
     reader.readAsDataURL(file);
+  }
+
+  function addImageElement(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (file) addImageFile(file);
   }
 
   function selectElement(element: Deck["slides"][number]["elements"][number]) {
@@ -1126,6 +1154,7 @@ function App() {
   const showStorefront = window.location.pathname.replace(/\/+$/, "") === "/marketplace"
     && !landingAuthOpen
     && !authRestoring;
+  const editorActive = Boolean(authUser && editorPresentation && !marketplaceActive && !accountActive);
 
   if (showPublicLanding) {
     return (
@@ -1195,7 +1224,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${editorActive ? " app-shell-editor" : ""}`}>
       <aside className="sidebar">
         <a className="brand" href="#workspace" aria-label={copy.workspaceAria}>
           <span className="brand-mark"><img src={brandMark} alt="" /></span>
@@ -1255,44 +1284,48 @@ function App() {
         </div>
       </aside>
 
-      <main id="workspace" className="main-panel">
-        <header className="topbar">
-          <span className="breadcrumb">
-            {copy.workspace}
-            <span>/</span>
-            <strong>{marketplaceActive
-              ? marketplaceInitialStage === "purchases" ? copy.purchases : copy.marketplace
-              : accountActive ? copy.account : copy.home}</strong>
-          </span>
-          <div className="mr-5">
-            {authUser && (
-              <button className="text-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
-                <LogOut size={16} aria-hidden="true" />
+      <main id="workspace" className={`main-panel${editorActive ? " main-panel-editor" : ""}`}>
+        {!editorActive && (
+          <header className="topbar">
+            <span className="breadcrumb">
+              {copy.workspace}
+              <span>/</span>
+              <strong>{marketplaceActive
+                ? marketplaceInitialStage === "purchases" ? copy.purchases : copy.marketplace
+                : accountActive ? copy.account : copy.home}</strong>
+            </span>
+            <div className="mr-5">
+              {authUser && (
+                <button className="text-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
+                  <LogOut size={16} aria-hidden="true" />
+                </button>
+              )}
+              <button
+                className="language-button"
+                type="button"
+                title={copy.language}
+                aria-label={copy.language}
+                onClick={toggleLocale}
+              >
+                <Globe2 size={17} aria-hidden="true" />
+                {locale.toUpperCase()}
               </button>
-            )}
-            <button
-              className="language-button"
-              type="button"
-              title={copy.language}
-              aria-label={copy.language}
-              onClick={toggleLocale}
-            >
-              <Globe2 size={17} aria-hidden="true" />
-              {locale.toUpperCase()}
-            </button>
-          </div>
-        </header>
+            </div>
+          </header>
+        )}
 
-        {!marketplaceActive && !accountActive && <section className="welcome-section" aria-labelledby="welcome-title">
-          <div className="eyebrow"><span className="eyebrow-dot" />{copy.status}</div>
-          <h1 id="welcome-title">{copy.foundation}</h1>
-          <p className="welcome-copy">{copy.intro}</p>
-          <div className="status-row" role="status" aria-live="polite">
-            <div className="status-glyph"><Settings2 size={18} aria-hidden="true" /></div>
-            <div><strong>{copy.api}</strong><span>{apiStatusText}</span></div>
-            <span className={`status-indicator ${apiAvailable === null ? "status-checking" : apiAvailable ? "" : "status-unavailable"}`} aria-label={apiStatusText} />
-          </div>
-        </section>}
+        {/* {!editorActive && !marketplaceActive && !accountActive && (
+          <section className="welcome-section" aria-labelledby="welcome-title">
+            <div className="eyebrow"><span className="eyebrow-dot" />{copy.status}</div>
+            <h1 id="welcome-title">{copy.foundation}</h1>
+            <p className="welcome-copy">{copy.intro}</p>
+            <div className="status-row" role="status" aria-live="polite">
+              <div className="status-glyph"><Settings2 size={18} aria-hidden="true" /></div>
+              <div><strong>{copy.api}</strong><span>{apiStatusText}</span></div>
+              <span className={`status-indicator ${apiAvailable === null ? "status-checking" : apiAvailable ? "" : "status-unavailable"}`} aria-label={apiStatusText} />
+            </div>
+          </section>
+        )} */}
 
         {authUser && accountActive && (
           <section className="account-page" id="account" aria-labelledby="account-title">
@@ -1456,7 +1489,9 @@ function App() {
             onSelectElement={selectElement}
             onAddText={addTextElement}
             onAddShape={addShapeElement}
+            onAddIcon={addIconElement}
             onImageChange={addImageElement}
+            onImageDrop={addImageFile}
             onDeleteElement={deleteSelectedElement}
             onSelectedTextChange={(value) => { setSelectedTextDraft(value); setEditorSaved(false); setEditorDirty(true); }}
             onCommitSelectedText={commitSelectedText}
@@ -1464,6 +1499,7 @@ function App() {
             onStyleChange={updateSelectedStyle}
             onShapeChange={updateSelectedShape}
             onBackgroundChange={updateSlideBackground}
+            onThemeChange={(theme) => applyEditorOperation({ kind: "setTheme", theme })}
             onImageAltChange={(element, value) => {
               if (element.type !== "image") return;
               applyEditorOperation({ kind: "updateElement", slideId: activeSlideId, elementId: element.id, patch: { alt: value } });
@@ -1475,10 +1511,12 @@ function App() {
 
 
 
-        <footer className="app-footer">
-          <span>Slideforge <span className="footer-separator">·</span> {copy.workspaceFooter}</span>
-          <a href={`${API_URL}/api/v1/status`} target="_blank" rel="noreferrer">API status <ArrowUpRight size={13} /></a>
-        </footer>
+        {!editorActive && (
+          <footer className="app-footer">
+            <span>Slideforge <span className="footer-separator">·</span> {copy.workspaceFooter}</span>
+            <a href={`${API_URL}/api/v1/status`} target="_blank" rel="noreferrer">API status <ArrowUpRight size={13} /></a>
+          </footer>
+        )}
       </main>
     </div>
   );

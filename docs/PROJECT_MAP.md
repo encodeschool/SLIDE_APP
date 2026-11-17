@@ -104,7 +104,7 @@ sequenceDiagram
 | Renderer | `services/presentation-renderer/` | Editable PPTX generation and PDF conversion |
 | Marketplace UI | `apps/web/src/features/marketplace/StorefrontPage.tsx`, `apps/web/src/features/marketplace/Marketplace.tsx` | Dedicated responsive storefront at `/marketplace` with catalog, cart, checkout, and publish dialog for owned canonical presentations; arbitrary-file upload is not implemented |
 | Account billing UI | `apps/web/src/features/wallet/WalletPanel.tsx` | Wallet balance and transaction ledger; real card processing and legal invoices are not implemented |
-| Web editor | `apps/web/src/features/presentations/PresentationEditor.tsx` | Pointer-drag and keyboard positioning for slide elements |
+| Web editor | `apps/web/src/features/presentations/PresentationEditor.tsx` | Full-height responsive editor contained in the workspace main panel, with slide rail, canvas, tool inspector, inline text editing, drag-and-drop tools/images, theme and typography controls, undo/redo, save, and export |
 | Infrastructure | `docker-compose.yml`, `infra/deployment/`, `.github/workflows/deploy-production.yml` | Local development services plus Ubuntu 24.04 Compose/Caddy/GHCR deployment for `eduslides.encode.uz`, `admin-eduslides.encode.uz`, and `api-eduslides.encode.uz` (with `www` redirects), configured for `/home/encode/eduslides`; live VDS deployment is unverified |
 | Roadmap / active status | `docs/ROADMAP.md`, `docs/CONTINUATION.md` | Phase status and next concrete work |
 | API details | `docs/API.md` | HTTP contract |

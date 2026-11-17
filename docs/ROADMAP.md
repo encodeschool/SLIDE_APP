@@ -6,7 +6,7 @@
 | 1 Foundation (compose, Flyway, health, CI, app shells) | **Done** (stack starts, migrations run, API and clients validated) |
 | 2 Auth + core data | **Done** (email verification/recovery, owner-scoped versioned deck CRUD, configurable auth endpoint rate limits; release operations still need live verification) |
 | 2b Editor core (deck types, ops, undo/redo) | **Done**, typecheck passes and all 6 tests pass |
-| 3 Web editor + export integration | **Implemented** (responsive visual editor, drag/keyboard element positioning, versioned saves, authenticated PPTX/PDF jobs and downloads; production smoke test pending) |
+| 3 Web editor + export integration | **Implemented** (full-height responsive editor contained in the workspace main panel, with slide rail, canvas, tool inspector, inline text editing, drag/drop text/shapes/icons/images, theme/font controls, versioned saves, authenticated PPTX/PDF jobs and downloads; production smoke test pending) |
 | 4 AI generation | **Implemented, provider-gated** (authenticated persisted jobs and validated web flow; no live provider compatibility test) |
 | 5 Marketplace + payments | Responsive catalog, owned-presentation publishing, orders, wallet transaction history, and sandbox top-ups implemented; real card processing, seller payouts, legal invoices, and arbitrary-file uploads/delivery remain gated |
 | 6 Admin panel | **Implemented** (role-protected sign-in, user management, marketplace listing moderation, and SUPERADMIN category management) |

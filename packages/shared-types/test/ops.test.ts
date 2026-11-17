@@ -15,6 +15,7 @@ test("every operation is reversed exactly by its inverse", () => {
     { kind: "updateElement", slideId: "s1", elementId: "e1", patch: { x: 99, text: "Changed" } },
     { kind: "setNotes", slideId: "s1", notes: "other" },
     { kind: "setBackground", slideId: "s1", color: "#ddeeff" },
+    { kind: "setTheme", theme: { background: "#f5f0e8", text: "#292b36", fontBody: "Georgia" } },
     { kind: "moveSlide", slideId: "s1", toIndex: 1 },
     { kind: "removeSlide", slideId: "s2" },
     { kind: "addSlide", slide: { id: "s3", elements: [] }, index: 1 },
@@ -32,6 +33,28 @@ test("apply never mutates its input", () => {
   const snapshot = structuredClone(d);
   apply(d, { kind: "updateElement", slideId: "s1", elementId: "e1", patch: { x: 1 } });
   assert.deepEqual(d, snapshot);
+});
+
+test("theme and font-family edits persist in the canonical deck and undo cleanly", () => {
+  const before = load();
+  const { deck: themed, inverse } = apply(before, {
+    kind: "setTheme",
+    theme: { background: "#edf4f8", text: "#203749", fontBody: "Georgia" },
+  });
+  assert.deepEqual(themed.theme, { background: "#edf4f8", text: "#203749", fontBody: "Georgia" });
+  assert.deepEqual(apply(themed, inverse).deck, before);
+
+  const text = before.slides[0]!.elements.find((element) => element.type === "text");
+  assert.ok(text && text.type === "text");
+  const updated = apply(before, {
+    kind: "updateElement",
+    slideId: before.slides[0]!.id,
+    elementId: text.id,
+    patch: { style: { ...text.style, fontFamily: "Montserrat" } },
+  }).deck;
+  const changedText = updated.slides[0]!.elements.find((element) => element.id === text.id);
+  assert.ok(changedText && changedText.type === "text");
+  assert.equal(changedText.style?.fontFamily, "Montserrat");
 });
 
 test("invalid operations are rejected", () => {

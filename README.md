@@ -23,7 +23,7 @@ The VDS deployment directory is `/home/encode/eduslides`. The Flutter app is not
 
 | Component | Source | Build / role |
 |---|---|---|
-| Web | `apps/web/` | Vite/React landing page, workspace, storefront and checkout |
+| Web | `apps/web/` | Vite/React landing page, workspace, storefront and a responsive slide editor contained in the workspace main panel |
 | Admin | `apps/admin/` | Vite/React role-protected admin console |
 | API | `backend/api/` | Java 21 / Spring Boot REST API and Flyway migrations |
 | Renderer | `services/presentation-renderer/` | Node.js service for editable PPTX and PDF generation |
