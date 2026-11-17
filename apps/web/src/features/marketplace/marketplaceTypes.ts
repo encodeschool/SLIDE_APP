@@ -13,6 +13,14 @@ export type PreviewSlide = {
   accentColor: string;
 };
 
+export type MarketplaceWorkType =
+  | "presentation"
+  | "document"
+  | "coursework"
+  | "worksheet"
+  | "design"
+  | "other";
+
 export type Product = {
   listingId: string;
   listingVersionId: string;
@@ -25,6 +33,9 @@ export type Product = {
   currency: string;
   publishedAt: string;
   category: string;
+  workType: MarketplaceWorkType;
+  fileFormat: string | null;
+  hasDownloadableFile: boolean;
   slideCount: number;
   previewSlides?: PreviewSlide[];
 };
@@ -41,6 +52,10 @@ export type Purchase = {
   priceTiyin: number;
   currency: string;
   purchasedAt: string;
+  workType: MarketplaceWorkType;
+  fileName: string | null;
+  fileSize: number;
+  hasDownloadableFile: boolean;
   slideCount: number;
   previewSlides: PreviewSlide[];
 };

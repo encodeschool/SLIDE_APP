@@ -1,14 +1,19 @@
 package com.slideforge.api.marketplace;
 
-import java.util.List;
-import java.util.UUID;
-import java.net.URI;
-import jakarta.validation.Valid;
 import com.slideforge.api.exports.CreateExportRequest;
 import com.slideforge.api.exports.ExportJobResponse;
+import jakarta.validation.Valid;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +41,24 @@ public class PurchaseController {
     public PurchaseContentResponse content(
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID entitlementId) {
         return marketplaceService.purchasedContent(userId(jwt), entitlementId);
+    }
+
+    @GetMapping("/{entitlementId}/file")
+    public ResponseEntity<FileSystemResource> file(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID entitlementId) {
+        PurchasedFileDownload download = marketplaceService.purchasedFile(userId(jwt), entitlementId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(download.sizeBytes())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(download.fileName(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(new FileSystemResource(download.path()));
     }
 
     @PostMapping("/{entitlementId}/exports")

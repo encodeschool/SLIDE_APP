@@ -16,6 +16,9 @@ public record ListingDetailResponse(
         long priceTiyin,
         String currency,
         String category,
+        String workType,
+        String fileFormat,
+        boolean hasDownloadableFile,
         Instant publishedAt,
         int slideCount,
         List<CatalogSlidePreview> previewSlides) {

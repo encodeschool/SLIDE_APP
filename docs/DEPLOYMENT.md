@@ -235,7 +235,7 @@ docker compose --env-file slideforge.production.env -f compose.production.yml lo
 docker compose --env-file slideforge.production.env -f compose.production.yml logs --tail=200 caddy
 ```
 
-Deploy releases through GitHub Actions so image tags and the matching production environment file remain aligned. Do not run `docker compose down -v` on production; it deletes persistent PostgreSQL, export, and certificate data. Keep the `caddy_data` volume and the owner-only permissions on `slideforge.production.env`.
+Deploy releases through GitHub Actions so image tags and the matching production environment file remain aligned. Do not run `docker compose down -v` on production; it deletes persistent PostgreSQL, export/marketplace-file, and certificate data. Marketplace uploads live in the `exports_data` volume at `/var/lib/slideforge/exports/marketplace`. Keep the `caddy_data` volume and the owner-only permissions on `slideforge.production.env`.
 
 If a deployment fails, inspect the Actions log and service health first. The workflow attempts rollback automatically. For a recovery after a successful release, deploy a reviewed revert through the normal CI/release path. Never manually roll back the database volume or delete Flyway history.
 
@@ -251,7 +251,7 @@ BACKUP_RCLONE_DESTINATION='offsite:eduslides' \
   bash ./backup-production.sh slideforge.production.env "$HOME/eduslides-backups"
 ```
 
-Schedule the command with systemd or cron only after testing the remote destination and restore procedure. Periodically decrypt a backup on a separate trusted machine, restore the database to an isolated PostgreSQL instance, and verify export files. Decide and configure retention/deletion on the off-host storage; the helper intentionally does not delete prior backups.
+Schedule the command with systemd or cron only after testing the remote destination and restore procedure. Periodically decrypt a backup on a separate trusted machine, restore the database to an isolated PostgreSQL instance, and verify export artifacts and marketplace uploads from the volume backup. Decide and configure retention/deletion on the off-host storage; the helper intentionally does not delete prior backups.
 
 ## 8. Build and test locally
 

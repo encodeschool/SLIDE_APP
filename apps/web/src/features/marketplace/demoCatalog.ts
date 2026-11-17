@@ -37,6 +37,9 @@ export const demoProducts: Product[] = examples.map((example, index) => ({
   currency: "UZS",
   publishedAt: new Date("2026-01-01T00:00:00Z").toISOString(),
   category: example[2],
+  workType: "presentation",
+  fileFormat: null,
+  hasDownloadableFile: false,
   slideCount: 10,
   previewSlides: [
     {

@@ -9,11 +9,13 @@ flowchart LR
     Mobile[Flutter app] -->|REST /api/v1| API
     API --> DB[(PostgreSQL + Flyway)]
     API -->|claims persisted export jobs| Renderer[Node PPTX/PDF renderer + LibreOffice]
+    API -->|private marketplace files| Files[(Persistent API export volume)]
+    Web -->|authenticated seller upload / buyer download| API
     API -. other future queued jobs .-> MQ[(RabbitMQ)]
-    API -. object metadata in a later phase .-> S3[(RustFS S3-compatible storage)]
+    API -. future object-storage backend .-> S3[(RustFS S3-compatible storage)]
 ```
 
-The backend is one deployable Spring Boot modular monolith. Packages are grouped by business capability; PostgreSQL is the source of truth. The canonical, versioned deck JSON is shared by the presentation editor and renderer. Written/interactive learning artifacts use a distinct typed JSON model with immutable PostgreSQL versions and are never encoded as decks. The renderer is a separate Node package: `pptxgenjs` writes editable PowerPoint and LibreOffice produces PDF, while artifact rendering writes editable DOCX and printable PDF. Local object storage uses RustFS behind the S3 API; the current marketplace snapshots canonical JSON and does not upload binaries. Web and Flutter provide presentation and artifact libraries/editors; the admin client provides role-protected user management.
+The backend is one deployable Spring Boot modular monolith. Packages are grouped by business capability; PostgreSQL is the source of truth for metadata and immutable listing versions. The canonical, versioned deck JSON is shared by the presentation editor and renderer. Written/interactive learning artifacts use a distinct typed JSON model with immutable PostgreSQL versions and are never encoded as decks. The renderer is a separate Node package: `pptxgenjs` writes editable PowerPoint and LibreOffice produces PDF, while artifact rendering writes editable DOCX and printable PDF. Marketplace uploads use an API-private directory under the persistent export volume; RustFS is not yet integrated with marketplace files. Web and Flutter provide presentation and artifact libraries/editors; the admin client provides role-protected user management.
 
 ## Request and job flows
 
@@ -27,6 +29,35 @@ AI generation flow: an authenticated API request persists a bounded owner-scoped
 
 Artifact AI drafting uses a separate type-specific server prompt and validates the returned structure before exposing it as an editable draft. This first artifact flow calls the configured provider synchronously and does not persist draft-job status; persisted artifact content and every later edit are versioned independently.
 
+## Marketplace file flow
+
+```mermaid
+sequenceDiagram
+    actor Seller
+    actor Buyer
+    participant Web as Web marketplace
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+    participant Files as Private API file directory
+
+    Seller->>Web: Select work type, metadata, and supported file
+    Web->>API: Authenticated multipart upload (maximum 25 MiB)
+    API->>API: Check allowlisted extension, content signature, and size
+    API->>Files: Write under a random private object key
+    API->>DB: Save listing version, digest, size, and file metadata
+    Web->>API: Publish owner-scoped draft listing
+    API->>DB: Mark listing PUBLISHED
+    Buyer->>Web: Place order and pay from wallet
+    Web->>API: Create order and pay
+    API->>DB: Record PAID order and grant entitlement
+    Buyer->>API: Authenticated GET purchase file
+    API->>DB: Verify buyer, active entitlement, and paid order
+    API->>Files: Read private file
+    API-->>Buyer: Download attachment (octet-stream, nosniff)
+```
+
+The private directory shares the persistent `exports_data` volume in local and production Compose. The API does not expose object keys or public download URLs. Uploaded files currently lack malware scanning/quarantine; extension/signature validation is not a substitute for scanning. RustFS/S3 remains a possible future shared-storage backend.
+
 ## Security boundaries
 
-The API, not a client, authorizes roles and presentation ownership. PostgreSQL stores metadata and canonical JSON, not uploaded binaries. AI provider credentials stay server-side. The status, health, auth, published catalog, and API documentation routes are public as appropriate; category preferences, orders, seller operations, and other protected business routes require bearer authentication. Admin and owner management routes enforce roles/ownership at the API boundary. The storefront and developer sandbox flow are implemented. Authenticated buyer entitlements for canonical presentations exist, but real payment-provider callbacks, binary uploads, and buyer delivery of uploaded files are not implemented.
+The API, not a client, authorizes roles, presentation ownership, and purchase entitlements. PostgreSQL stores metadata and canonical JSON; uploaded bytes reside in the private API volume. AI provider credentials stay server-side. The status, health, auth, published catalog, and API documentation routes are public as appropriate; category preferences, orders, seller operations, and other protected business routes require bearer authentication. Admin and owner management routes enforce roles/ownership at the API boundary. The storefront and developer sandbox flow are implemented. Authenticated buyer entitlements cover canonical presentations and uploaded files, but real payment-provider callbacks are not implemented.

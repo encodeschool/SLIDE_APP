@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.slideforge.api.common.exception.ApiException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -21,6 +22,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class MarketplaceService {
@@ -28,11 +31,14 @@ public class MarketplaceService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final MarketplaceFileStorage fileStorage;
 
-    public MarketplaceService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, Clock clock) {
+    public MarketplaceService(
+            JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, Clock clock, MarketplaceFileStorage fileStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.fileStorage = fileStorage;
     }
 
     private JsonNode decodeDocument(String serialized) {
@@ -96,6 +102,62 @@ public class MarketplaceService {
     }
 
     @Transactional
+    public ListingResponse createFileDraft(UUID sellerId, CreateFileListingRequest request) {
+        String category = request.category() == null || request.category().isBlank() ? "other" : request.category();
+        requireCategory(category);
+        StoredMarketplaceFile file = fileStorage.store(request.file(), request.workType());
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            fileStorage.delete(file.objectKey());
+            throw new IllegalStateException("File listing creation requires an active transaction");
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    fileStorage.delete(file.objectKey());
+                }
+            }
+        });
+
+        String title = request.title().strip();
+        String description = request.description().strip();
+        UUID listingId = UUID.randomUUID();
+        OffsetDateTime now = databaseTimestamp(clock.instant());
+        jdbcTemplate.update(
+                """
+                INSERT INTO listings (id, seller_id, title, description, category, status, current_version, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'DRAFT', 1, ?, ?)
+                """,
+                listingId,
+                sellerId,
+                title,
+                description,
+                category,
+                now,
+                now);
+        jdbcTemplate.update(
+                """
+                INSERT INTO listing_versions
+                    (id, listing_id, version, price_tiyin, currency, file_object_key, file_sha256,
+                     license_terms, document, title, description, created_at, work_type, file_name, file_size)
+                VALUES (?, ?, 1, ?, 'UZS', ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+                """,
+                UUID.randomUUID(),
+                listingId,
+                request.priceTiyin(),
+                file.objectKey(),
+                file.sha256(),
+                request.licenseTerms().strip(),
+                title,
+                description,
+                now,
+                request.workType(),
+                file.fileName(),
+                file.sizeBytes());
+        return findOwnerListing(sellerId, listingId);
+    }
+
+    @Transactional
     public ListingResponse updateDraft(UUID sellerId, UUID listingId, UpdateDraftListingRequest request) {
         Listing listing = lockOwnerListing(sellerId, listingId);
         if (!"DRAFT".equals(listing.status())) {
@@ -105,6 +167,12 @@ public class MarketplaceService {
             throw new ApiException(HttpStatus.CONFLICT, "LISTING_VERSION_CONFLICT", "Listing changed; reload before editing");
         }
         ListingVersion current = currentVersion(listingId, listing.currentVersion());
+        if (current.document() == null) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "FILE_LISTING_NOT_EDITABLE",
+                    "Uploaded-file listings cannot be edited; create a new listing instead");
+        }
         int nextVersion = listing.currentVersion() + 1;
         Instant now = clock.instant();
         String category = request.category() == null
@@ -173,11 +241,13 @@ public class MarketplaceService {
                 """
                 SELECT l.id AS listing_id, lv.id AS version_id, lv.title, lv.description,
                        l.seller_id, u.display_name AS seller_name, lv.version, lv.price_tiyin,
-                       lv.currency, l.updated_at, l.category, lv.document::text AS document
+                       lv.currency, l.updated_at, l.category, lv.work_type, lv.file_name,
+                       lv.document::text AS document
                 FROM listings l
                 JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                 JOIN users u ON u.id = l.seller_id
-                WHERE l.status = 'PUBLISHED' AND lv.document IS NOT NULL AND lv.title IS NOT NULL
+                WHERE l.status = 'PUBLISHED' AND lv.title IS NOT NULL
+                  AND (lv.document IS NOT NULL OR lv.file_name IS NOT NULL)
                   AND (CAST(? AS VARCHAR) IS NULL OR l.category = CAST(? AS VARCHAR))
                   AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin >= CAST(? AS BIGINT))
                   AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin <= CAST(? AS BIGINT))
@@ -203,7 +273,8 @@ public class MarketplaceService {
                 SELECT count(*)
                 FROM listings l
                 JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
-                WHERE l.status = 'PUBLISHED' AND lv.document IS NOT NULL AND lv.title IS NOT NULL
+                WHERE l.status = 'PUBLISHED' AND lv.title IS NOT NULL
+                  AND (lv.document IS NOT NULL OR lv.file_name IS NOT NULL)
                   AND (CAST(? AS VARCHAR) IS NULL OR l.category = CAST(? AS VARCHAR))
                   AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin >= CAST(? AS BIGINT))
                   AND (CAST(? AS BIGINT) IS NULL OR lv.price_tiyin <= CAST(? AS BIGINT))
@@ -225,12 +296,14 @@ public class MarketplaceService {
                     """
                     SELECT l.id AS listing_id, lv.id AS version_id, lv.title, lv.description,
                            lv.license_terms, l.seller_id, u.display_name AS seller_name, lv.version,
-                           lv.price_tiyin, lv.currency, l.category, l.updated_at, lv.document::text AS document
+                           lv.price_tiyin, lv.currency, l.category, l.updated_at, lv.work_type,
+                           lv.file_name, lv.document::text AS document
                     FROM listings l
                     JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                     JOIN users u ON u.id = l.seller_id
                     WHERE l.id = ? AND l.status = 'PUBLISHED'
-                      AND lv.document IS NOT NULL AND lv.title IS NOT NULL
+                      AND lv.title IS NOT NULL
+                      AND (lv.document IS NOT NULL OR lv.file_name IS NOT NULL)
                     """,
                     (rs, row) -> {
                         PreviewData preview = previewData(rs.getString("document"));
@@ -246,6 +319,9 @@ public class MarketplaceService {
                                 rs.getLong("price_tiyin"),
                                 rs.getString("currency"),
                                 rs.getString("category"),
+                                rs.getString("work_type"),
+                                fileFormat(rs.getString("file_name")),
+                                rs.getString("file_name") != null,
                                 rs.getTimestamp("updated_at").toInstant(),
                                 preview.slideCount(),
                                 preview.slides());
@@ -262,7 +338,8 @@ public class MarketplaceService {
                 """
                 SELECT e.id AS entitlement_id, l.id AS listing_id, lv.id AS listing_version_id,
                        o.id AS order_id, lv.title, u.display_name AS seller_name, oi.price_tiyin,
-                       lv.currency, e.granted_at, lv.document::text AS document
+                       lv.currency, e.granted_at, lv.work_type, lv.file_name, lv.file_size,
+                       lv.document::text AS document
                 FROM entitlements e
                 JOIN orders o ON o.id = e.order_id AND o.status = 'PAID'
                 JOIN order_items oi ON oi.order_id = o.id AND oi.listing_version_id = e.listing_version_id
@@ -284,10 +361,37 @@ public class MarketplaceService {
                             rs.getLong("price_tiyin"),
                             rs.getString("currency"),
                             rs.getTimestamp("granted_at").toInstant(),
+                            rs.getString("work_type"),
+                            rs.getString("file_name"),
+                            rs.getLong("file_size"),
+                            rs.getString("file_name") != null,
                             preview.slideCount(),
                             preview.slides());
                 },
                 buyerId);
+    }
+
+    @Transactional(readOnly = true)
+    public PurchasedFileDownload purchasedFile(UUID buyerId, UUID entitlementId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT lv.file_object_key, lv.file_name, lv.file_size
+                    FROM entitlements e
+                    JOIN orders o ON o.id = e.order_id AND o.status = 'PAID'
+                    JOIN listing_versions lv ON lv.id = e.listing_version_id
+                    WHERE e.id = ? AND e.user_id = ? AND e.revoked_at IS NULL
+                      AND lv.file_name IS NOT NULL
+                    """,
+                    (rs, row) -> new PurchasedFileDownload(
+                            fileStorage.resolveStoredFile(rs.getString("file_object_key")),
+                            rs.getString("file_name"),
+                            rs.getLong("file_size")),
+                    entitlementId,
+                    buyerId);
+        } catch (EmptyResultDataAccessException exception) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "PURCHASE_NOT_FOUND", "Purchase was not found");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -404,7 +508,8 @@ public class MarketplaceService {
         return jdbcTemplate.query(
                 """
                 SELECT l.id, lv.title, lv.description, l.status, l.current_version,
-                       lv.price_tiyin, lv.currency, l.created_at, l.updated_at
+                       lv.price_tiyin, lv.currency, lv.work_type, lv.file_name,
+                       COALESCE(lv.file_size, 0) AS file_size, l.created_at, l.updated_at
                 FROM listings l
                 JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                 WHERE l.seller_id = ?
@@ -418,6 +523,9 @@ public class MarketplaceService {
                         rs.getInt("current_version"),
                         rs.getLong("price_tiyin"),
                         rs.getString("currency"),
+                        rs.getString("work_type"),
+                        rs.getString("file_name"),
+                        rs.getLong("file_size"),
                         rs.getTimestamp("created_at").toInstant(),
                         rs.getTimestamp("updated_at").toInstant()),
                 sellerId);
@@ -555,7 +663,8 @@ public class MarketplaceService {
                     SELECT lv.id, lv.price_tiyin, lv.currency
                     FROM listings l
                     JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
-                    WHERE l.id = ? AND l.status = 'PUBLISHED' AND lv.document IS NOT NULL AND lv.title IS NOT NULL
+                    WHERE l.id = ? AND l.status = 'PUBLISHED' AND lv.title IS NOT NULL
+                      AND (lv.document IS NOT NULL OR lv.file_name IS NOT NULL)
                     FOR SHARE OF l
                     """,
                     (rs, row) -> new PurchasableVersion(
@@ -720,6 +829,12 @@ public class MarketplaceService {
         }
     }
 
+    private String fileFormat(String fileName) {
+        if (fileName == null) return null;
+        int dot = fileName.lastIndexOf('.');
+        return dot < 0 ? null : fileName.substring(dot + 1).toUpperCase(java.util.Locale.ROOT);
+    }
+
     private static OffsetDateTime databaseTimestamp(Instant instant) {
         return instant.atOffset(ZoneOffset.UTC);
     }
@@ -741,7 +856,8 @@ public class MarketplaceService {
             return jdbcTemplate.queryForObject(
                     """
                     SELECT l.id, lv.title, lv.description, l.status, l.current_version,
-                           lv.price_tiyin, lv.currency, l.created_at, l.updated_at
+                           lv.price_tiyin, lv.currency, lv.work_type, lv.file_name,
+                           COALESCE(lv.file_size, 0) AS file_size, l.created_at, l.updated_at
                     FROM listings l
                     JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
                     WHERE l.id = ? AND l.seller_id = ?
@@ -754,6 +870,9 @@ public class MarketplaceService {
                             rs.getInt("current_version"),
                             rs.getLong("price_tiyin"),
                             rs.getString("currency"),
+                            rs.getString("work_type"),
+                            rs.getString("file_name"),
+                            rs.getLong("file_size"),
                             rs.getTimestamp("created_at").toInstant(),
                             rs.getTimestamp("updated_at").toInstant()),
                     listingId,
@@ -766,7 +885,10 @@ public class MarketplaceService {
     private ListingVersion currentVersion(UUID listingId, int version) {
         return jdbcTemplate.queryForObject(
                 "SELECT document::text FROM listing_versions WHERE listing_id = ? AND version = ?",
-                (rs, row) -> new ListingVersion(decodeDocument(rs.getString(1))),
+                (rs, row) -> {
+                    String document = rs.getString(1);
+                    return new ListingVersion(document == null ? null : decodeDocument(document));
+                },
                 listingId,
                 version);
     }
@@ -791,6 +913,9 @@ public class MarketplaceService {
     }
 
     private PreviewData previewData(String serializedDocument) {
+        if (serializedDocument == null) {
+            return new PreviewData(0, List.of());
+        }
         JsonNode slides = decodeDocument(serializedDocument).path("slides");
         if (!slides.isArray()) {
             return new PreviewData(0, List.of());
@@ -863,6 +988,9 @@ public class MarketplaceService {
                     rs.getTimestamp("updated_at").toInstant(),
                     rs.getString("category"),
                     rs.getString("seller_name"),
+                    rs.getString("work_type"),
+                    fileFormat(rs.getString("file_name")),
+                    rs.getString("file_name") != null,
                     preview.slideCount(),
                     preview.slides());
         };

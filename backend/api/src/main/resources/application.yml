@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: slideforge-api
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/slideforge}
     username: ${DATABASE_USER:slideforge}
@@ -70,6 +74,8 @@ app:
     worker-enabled: ${EXPORT_WORKER_ENABLED:true}
     poll-interval-ms: ${EXPORT_POLL_INTERVAL_MS:1000}
     stale-running-minutes: ${EXPORT_STALE_RUNNING_MINUTES:5}
+  marketplace:
+    storage-path: ${MARKETPLACE_STORAGE_PATH:${EXPORT_STORAGE_PATH:${java.io.tmpdir}/slideforge-exports}/marketplace}
   generations:
     provider-base-url: ${AI_PROVIDER_BASE_URL:}
     provider-model: ${AI_PROVIDER_MODEL:}

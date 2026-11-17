@@ -14,6 +14,10 @@ public record PurchaseResponse(
         long priceTiyin,
         String currency,
         Instant purchasedAt,
+        String workType,
+        String fileName,
+        long fileSize,
+        boolean hasDownloadableFile,
         int slideCount,
         List<CatalogSlidePreview> previewSlides) {
 }

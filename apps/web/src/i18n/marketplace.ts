@@ -7,83 +7,103 @@ export const marketplaceCategoryFallbacks: Record<Locale, Record<string, string>
 };
 
 export const categoryNames = {
-  en: { shop: "Presentation marketplace", intro: "Discover and sell editable presentations.", category: "Category", all: "All categories", search: "Search presentations", add: "Add to cart", added: "Added", remove: "Remove", cart: "Cart", checkout: "Checkout", payment: "Payment", continue: "Continue", pay: "Pay for order", sandbox: "Sandbox payment", sandboxInfo: "Sandbox payments only; confirmation is disabled unless an operator enables them.", total: "Order total", signInToPay: "Sign in to continue to payment", secureNote: "Your account session is protected; payment details are handled by the payment provider.", emptyCart: "Your cart is empty.", empty: "No published presentations yet.", seller: "Seller", license: "License terms", details: "View details", back: "Back to marketplace", more: "Load 10 more", signIn: "Sign in to checkout", sell: "Sell a presentation", choose: "Choose a presentation", price: "Price (UZS)", description: "Listing description", terms: "License terms", publish: "Publish listing", myListings: "My listings", published: "Listing published", saved: "Preference saved", pending: "Order created but payment is pending. Sandbox confirmation is disabled; no purchase was completed.", complete: "Purchase complete", error: "Could not complete the request. Please try again.", noDecks: "Create a presentation before publishing.", demo: "Demo catalog — sample items only. Purchases are not available in demo mode.", demoPaid: "Demo only: no order or payment was created." },
-  ru: { shop: "Маркетплейс презентаций", intro: "Покупайте и продавайте редактируемые презентации.", category: "Категория", all: "Все категории", search: "Поиск презентаций", add: "В корзину", added: "Добавлено", remove: "Удалить", cart: "Корзина", checkout: "Оформление", payment: "Оплата", continue: "Продолжить", pay: "Оплатить заказ", sandbox: "Тестовая оплата", sandboxInfo: "Тестовый режим; подтверждение отключено, пока оператор его не включит.", total: "Итого", signInToPay: "Войдите, чтобы перейти к оплате", secureNote: "Сессия защищена; платёжные данные обрабатываются платёжным провайдером.", emptyCart: "Корзина пока пуста.", empty: "Пока нет опубликованных презентаций.", seller: "Продавец", license: "Условия лицензии", details: "Подробнее", back: "Назад в маркетплейс", more: "Загрузить ещё 10", signIn: "Войдите для оформления", sell: "Продать презентацию", choose: "Выберите презентацию", price: "Цена (UZS)", description: "Описание объявления", terms: "Условия лицензии", publish: "Опубликовать", myListings: "Мои объявления", published: "Объявление опубликовано", saved: "Настройка сохранена", pending: "Заказ создан, оплата ожидает подтверждения. Тестовая оплата отключена; покупка не завершена.", complete: "Покупка завершена", error: "Не удалось выполнить запрос. Попробуйте ещё раз.", noDecks: "Сначала создайте презентацию.", demo: "Демо-каталог — примеры. Покупки недоступны в демо-режиме.", demoPaid: "Демо: заказ и платёж не создавались." },
-  uz: { shop: "Taqdimotlar marketpleysi", intro: "Tahrirlanadigan taqdimotlarni köring va soting.", category: "Turkum", all: "Barça turkumlar", search: "Taqdimotlarni qidiriş", add: "Savatga qöşiş", added: "Qöşildi", remove: "Öçiriş", cart: "Savat", checkout: "Buyurtmani rasmiylaştiriş", payment: "Tölov", continue: "Davom etiş", pay: "Buyurtma uçun tölaş", sandbox: "Sinov tölovi", sandboxInfo: "Faqat sinov tölovlari; operator yoqmagunça tasdiqlaş işlamaydi.", total: "Jami", signInToPay: "Tölov uçun tizimga kiring", secureNote: "Hisob sessiyangiz himoyalangan; tölov maʼlumotlarini provayder qayta işlaydi.", emptyCart: "Savatingiz böş.", empty: "Hozirça çop etilgan taqdimotlar yöq.", seller: "Sotuvçi", license: "Litsenziya şartlari", details: "Batafsil", back: "Marketpleysga qaytiş", more: "Yana 10 tasini yuklaş", signIn: "Xarid uçun tizimga kiring", sell: "Taqdimot sotiş", choose: "Taqdimotni tanlang", price: "Narxi (UZS)", description: "Eʼlon tavsifi", terms: "Litsenziya şartlari", publish: "Eʼlon qiliş", myListings: "Eʼlonlarim", published: "Eʼlon çop etildi", saved: "Sozlama saqlandi", pending: "Buyurtma yaratildi, lekin tölov tasdiqlanmadi. Sinov tölovi öçiq; xarid yakunlanmadi.", complete: "Xarid yakunlandi", error: "Sörovni bajarib bölmadi. Qayta urinib köring.", noDecks: "Avval taqdimot yarating.", demo: "Namoyiş katalogi — namunaviy mahsulotlar. Xaridlar mavjud emas.", demoPaid: "Namoyiş: buyurtma va tölov yaratilmagan." },
+  en: { shop: "EduSlides marketplace", intro: "Discover and sell presentations, documents, and learning resources.", category: "Category", all: "All categories", search: "Search marketplace", add: "Add to cart", added: "Added", remove: "Remove", cart: "Cart", checkout: "Checkout", payment: "Payment", continue: "Continue", pay: "Pay for order", sandbox: "Sandbox payment", sandboxInfo: "Sandbox payments only; confirmation is disabled unless an operator enables them.", total: "Order total", signInToPay: "Sign in to continue to payment", secureNote: "Your account session is protected; payment details are handled by the payment provider.", emptyCart: "Your cart is empty.", empty: "No published work yet.", seller: "Seller", license: "License terms", details: "View details", back: "Back to marketplace", more: "Load 10 more", signIn: "Sign in to checkout", sell: "Sell your work", choose: "Choose a presentation", price: "Price (UZS)", description: "Listing description", terms: "License terms", publish: "Publish listing", myListings: "My listings", published: "Listing published", saved: "Preference saved", pending: "Order created but payment is pending. Sandbox confirmation is disabled; no purchase was completed.", complete: "Purchase complete", error: "Could not complete the request. Please try again.", noDecks: "Create a presentation before publishing.", demo: "Demo catalog — sample items only. Purchases are not available in demo mode.", demoPaid: "Demo only: no order or payment was created." },
+  ru: { shop: "Маркетплейс EduSlides", intro: "Покупайте и продавайте презентации, документы и учебные материалы.", category: "Категория", all: "Все категории", search: "Поиск по маркетплейсу", add: "В корзину", added: "Добавлено", remove: "Удалить", cart: "Корзина", checkout: "Оформление", payment: "Оплата", continue: "Продолжить", pay: "Оплатить заказ", sandbox: "Тестовая оплата", sandboxInfo: "Тестовый режим; подтверждение отключено, пока оператор его не включит.", total: "Итого", signInToPay: "Войдите, чтобы перейти к оплате", secureNote: "Сессия защищена; платёжные данные обрабатываются платёжным провайдером.", emptyCart: "Корзина пока пуста.", empty: "Пока нет опубликованных материалов.", seller: "Продавец", license: "Условия лицензии", details: "Подробнее", back: "Назад в маркетплейс", more: "Загрузить ещё 10", signIn: "Войдите для оформления", sell: "Продать материал", choose: "Выберите презентацию", price: "Цена (UZS)", description: "Описание объявления", terms: "Условия лицензии", publish: "Опубликовать", myListings: "Мои объявления", published: "Объявление опубликовано", saved: "Настройка сохранена", pending: "Заказ создан, оплата ожидает подтверждения. Тестовая оплата отключена; покупка не завершена.", complete: "Покупка завершена", error: "Не удалось выполнить запрос. Попробуйте ещё раз.", noDecks: "Сначала создайте презентацию.", demo: "Демо-каталог — примеры. Покупки недоступны в демо-режиме.", demoPaid: "Демо: заказ и платёж не создавались." },
+  uz: { shop: "EduSlides marketpleysi", intro: "Taqdimotlar, hujjatlar va taʼlim materiallarini toping hamda soting.", category: "Turkum", all: "Barça turkumlar", search: "Marketpleysdan qidiriş", add: "Savatga qöşiş", added: "Qöşildi", remove: "Öçiriş", cart: "Savat", checkout: "Buyurtmani rasmiylaştiriş", payment: "Tölov", continue: "Davom etiş", pay: "Buyurtma uçun tölaş", sandbox: "Sinov tölovi", sandboxInfo: "Faqat sinov tölovlari; operator yoqmagunça tasdiqlaş işlamaydi.", total: "Jami", signInToPay: "Tölov uçun tizimga kiring", secureNote: "Hisob sessiyangiz himoyalangan; tölov maʼlumotlarini provayder qayta işlaydi.", emptyCart: "Savatingiz böş.", empty: "Hozirça çop etilgan materiallar yöq.", seller: "Sotuvçi", license: "Litsenziya şartlari", details: "Batafsil", back: "Marketpleysga qaytiş", more: "Yana 10 tasini yuklaş", signIn: "Xarid uçun tizimga kiring", sell: "Material sotiş", choose: "Taqdimotni tanlang", price: "Narxi (UZS)", description: "Eʼlon tavsifi", terms: "Litsenziya şartlari", publish: "Eʼlon qiliş", myListings: "Eʼlonlarim", published: "Eʼlon çop etildi", saved: "Sozlama saqlandi", pending: "Buyurtma yaratildi, lekin tölov tasdiqlanmadi. Sinov tölovi öçiq; xarid yakunlanmadi.", complete: "Xarid yakunlandi", error: "Sörovni bajarib bölmadi. Qayta urinib köring.", noDecks: "Avval taqdimot yarating.", demo: "Namoyiş katalogi — namunaviy mahsulotlar. Xaridlar mavjud emas.", demoPaid: "Namoyiş: buyurtma va tölov yaratilmagan." },
 };
 
 export const publishDialogCopy = {
   en: {
-    prompt: "Publish an editable presentation you own. You can also prepare a file-work listing, but uploads and buyer delivery are not available yet.",
+    prompt: "Choose your work type, then publish an owned presentation or upload a supported file for sale.",
     close: "Close",
     workType: "Work type",
+    sourceType: "How will you add it?",
     presentation: "Editable presentation",
+    ownedPresentation: "Use a saved presentation",
+    uploadFile: "Upload a file",
     document: "Document",
     coursework: "Coursework",
     worksheet: "Worksheet",
     design: "Design or artwork",
     other: "Other work",
-    filePrompt: "Choose or drop one file in any format",
-    localOnly: "Local selection only: this file stays in your browser and is not uploaded or listed. Secure storage and buyer delivery are not implemented.",
-    fileSelected: "Selected locally",
-    fileTooLarge: "Choose a file smaller than 25 MB.",
+    title: "Work title",
+    filePrompt: "Choose or drop one file",
+    fileFormats: "Supported formats: {formats}",
+    fileSecurityNotice: "Files are stored privately and only buyers with a completed purchase can download them. Upload only files you trust and have permission to sell; files are not automatically scanned for malware.",
+    fileTypeMismatch: "Choose a supported file format for this work type.",
+    fileSelected: "Selected",
+    fileTooLarge: "Choose a file that is 25 MB or smaller.",
     fileSize: "Size",
     choose: "Choose an owned presentation",
-    blockedPublish: "File-work publishing is unavailable until secure upload, storage, and buyer delivery are implemented.",
   },
   ru: {
-    prompt: "Опубликуйте принадлежащую вам редактируемую презентацию или подготовьте объявление для файла. Загрузка и передача файлов покупателям пока недоступны.",
+    prompt: "Выберите тип работы, затем опубликуйте свою презентацию или загрузите поддерживаемый файл для продажи.",
     close: "Закрыть",
     workType: "Тип работы",
+    sourceType: "Как добавить материал?",
     presentation: "Редактируемая презентация",
+    ownedPresentation: "Выбрать сохранённую презентацию",
+    uploadFile: "Загрузить файл",
     document: "Документ",
     coursework: "Курсовая работа",
     worksheet: "Рабочий лист",
     design: "Дизайн или иллюстрация",
     other: "Другая работа",
-    filePrompt: "Выберите или перетащите файл любого формата",
-    localOnly: "Только локальный выбор: файл остаётся в браузере и не загружается и не публикуется. Защищённое хранилище и передача покупателю не реализованы.",
-    fileSelected: "Выбран локально",
-    fileTooLarge: "Выберите файл размером менее 25 МБ.",
+    title: "Название работы",
+    filePrompt: "Выберите файл или перетащите его сюда",
+    fileFormats: "Поддерживаемые форматы: {formats}",
+    fileSecurityNotice: "Файлы хранятся приватно и доступны для скачивания только после завершённой покупки. Загружайте только проверенные файлы, которые вы вправе продавать; автоматическая проверка на вирусы не выполняется.",
+    fileTypeMismatch: "Выберите поддерживаемый формат для этого типа работы.",
+    fileSelected: "Выбрано",
+    fileTooLarge: "Размер файла не должен превышать 25 МБ.",
     fileSize: "Размер",
     choose: "Выберите свою презентацию",
-    blockedPublish: "Публикация файловых работ недоступна до реализации защищённой загрузки, хранения и передачи покупателю.",
   },
   uz: {
-    prompt: "Özingizga tegişli tahrirlanadigan taqdimotni eʼlon qiling yoki faylli eʼlonni tayyorlang. Fayl yuklaş va xaridorga yetkaziş hozirça mavjud emas.",
+    prompt: "Iş turini tanlang, söng özingizga tegişli taqdimotni çop eting yoki sotuv uçun mos faylni yuklang.",
     close: "Yopiş",
     workType: "Iş turi",
+    sourceType: "Materialni qanday qöşasiz?",
     presentation: "Tahrirlanadigan taqdimot",
+    ownedPresentation: "Saqlangan taqdimotni tanlaş",
+    uploadFile: "Fayl yuklaş",
     document: "Hujjat",
     coursework: "Kurs işi",
     worksheet: "Iş varaqasi",
     design: "Dizayn yoki rasm",
     other: "Boşqa iş",
-    filePrompt: "Istalgan formatdagi faylni tanlang yoki şu yerga taşlang",
-    localOnly: "Faqat mahalliy tanlov: fayl brauzeringizda qoladi, yuklanmaydi va eʼlon qilinmaydi. Himoyalangan saqlaş va xaridorga yetkaziş amalga oşirilmagan.",
-    fileSelected: "Mahalliy tanlandi",
-    fileTooLarge: "25 MB dan kiçik faylni tanlang.",
+    title: "Iş nomi",
+    filePrompt: "Faylni tanlang yoki şu yerga taşlang",
+    fileFormats: "Qöllab-quvvatlanadigan formatlar: {formats}",
+    fileSecurityNotice: "Fayllar maxfiy saqlanadi va faqat xarid yakunlangandan söng yuklab olinadi. Faqat özingiz işonadigan va sotishga ruxsatingiz bor fayllarni yuklang; fayllar zararli dasturlarga avtomatik tekşirilmaydi.",
+    fileTypeMismatch: "Iş turiga mos qöllab-quvvatlanadigan formatni tanlang.",
+    fileSelected: "Tanlandi",
+    fileTooLarge: "Hajmi 25 MB yoki undan kiçik faylni tanlang.",
     fileSize: "Hajmi",
     choose: "Özingizga tegişli taqdimotni tanlang",
-    blockedPublish: "Himoyalangan yuklaş, saqlaş va xaridorga yetkaziş amalga oşmagunça faylli işlarni eʼlon qilib bölmaydi.",
   },
 } satisfies Record<Locale, {
   prompt: string;
   close: string;
   workType: string;
+  sourceType: string;
   presentation: string;
+  ownedPresentation: string;
+  uploadFile: string;
   document: string;
   coursework: string;
   worksheet: string;
   design: string;
   other: string;
+  title: string;
   filePrompt: string;
-  localOnly: string;
+  fileFormats: string;
+  fileSecurityNotice: string;
+  fileTypeMismatch: string;
   fileSelected: string;
   fileTooLarge: string;
   fileSize: string;
   choose: string;
-  blockedPublish: string;
 }>;
 
 export const browseLabels = {
@@ -192,6 +212,11 @@ export const purchaseActionLabels = {
     downloadPptx: "Download PPTX",
     downloadPdf: "Download PDF",
     exporting: "Preparing download…",
+    downloadFile: "Download original file",
+    downloadingFile: "Downloading file…",
+    fileDownloadFailed: "Could not download the file. Please try again.",
+    fileDetails: "File details",
+    fileFormatLabel: "File format",
     exportReady: "Download started. A copy is saved in My presentations.",
     exportFailed: "Could not prepare the download. Please try again.",
     exportTimedOut: "This export is taking longer than expected. Check Purchases again shortly.",
@@ -217,6 +242,11 @@ export const purchaseActionLabels = {
     downloadPptx: "Скачать PPTX",
     downloadPdf: "Скачать PDF",
     exporting: "Готовим файл…",
+    downloadFile: "Скачать исходный файл",
+    downloadingFile: "Скачивание файла…",
+    fileDownloadFailed: "Не удалось скачать файл. Попробуйте ещё раз.",
+    fileDetails: "Сведения о файле",
+    fileFormatLabel: "Формат файла",
     exportReady: "Скачивание началось. Копия сохранена в разделе презентаций.",
     exportFailed: "Не удалось подготовить файл. Попробуйте ещё раз.",
     exportTimedOut: "Экспорт занимает больше времени. Проверьте покупки чуть позже.",
@@ -242,6 +272,11 @@ export const purchaseActionLabels = {
     downloadPptx: "PPTX yuklab oliş",
     downloadPdf: "PDF yuklab oliş",
     exporting: "Fayl tayyorlanmoqda…",
+    downloadFile: "Asl faylni yuklab oliş",
+    downloadingFile: "Fayl yuklab olinmoqda…",
+    fileDownloadFailed: "Faylni yuklab olib bölmadi. Qayta urinib köring.",
+    fileDetails: "Fayl maʼlumotlari",
+    fileFormatLabel: "Fayl formati",
     exportReady: "Yuklab oliş boşlandi. Nusxa taqdimotlaringizga saqlandi.",
     exportFailed: "Faylni tayyorlab bölmadi. Qayta urinib köring.",
     exportTimedOut: "Eksport uzoqroq davom etmoqda. Xaridlar bölimini keyinroq tekşiring.",

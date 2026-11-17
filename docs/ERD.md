@@ -90,6 +90,9 @@ erDiagram
       uuid id PK
       uuid listing_id FK
       bigint price_tiyin
+      string work_type
+      string file_name
+      bigint file_size
       string file_sha256
     }
     ORDERS {
@@ -120,4 +123,4 @@ erDiagram
     }
 ```
 
-Flyway migrations create users/roles/sessions/presentations, learning artifacts and immutable artifact versions (V13), work-credit wallets and their top-up/debit ledger (V14), hashed verification and password-recovery tokens, persisted presentation generation jobs, marketplace listing snapshots, idempotent orders, payment events, and entitlements. V8 conditionally bootstraps the first administrator from operator-provided email and BCrypt hash. Wallet top-ups are sandbox-only; real provider callbacks, uploaded assets, moderation, reviews, notifications, and immutable admin audit events remain future work.
+Flyway migrations create users/roles/sessions/presentations, learning artifacts and immutable artifact versions (V13), work-credit wallets and their top-up/debit ledger (V14), hashed verification and password-recovery tokens, persisted presentation generation jobs, marketplace listing snapshots, idempotent orders, payment events, and entitlements. V17 adds work-type and upload metadata to immutable listing versions; file bytes stay in the API's private persistent directory and are not stored in PostgreSQL. V8 conditionally bootstraps the first administrator from operator-provided email and BCrypt hash. Wallet top-ups are sandbox-only; real provider callbacks, malware scanning/quarantine, moderation, reviews, notifications, and immutable admin audit events remain future work.

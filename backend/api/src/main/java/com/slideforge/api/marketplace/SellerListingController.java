@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,6 +36,13 @@ public class SellerListingController {
     public ResponseEntity<ListingResponse> create(
             @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateListingRequest request) {
         ListingResponse listing = marketplaceService.createDraft(userId(jwt), request);
+        return ResponseEntity.created(URI.create("/api/v1/seller/listings/" + listing.id())).body(listing);
+    }
+
+    @PostMapping(path = "/uploads", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ListingResponse> createFile(
+            @AuthenticationPrincipal Jwt jwt, @Valid @ModelAttribute CreateFileListingRequest request) {
+        ListingResponse listing = marketplaceService.createFileDraft(userId(jwt), request);
         return ResponseEntity.created(URI.create("/api/v1/seller/listings/" + listing.id())).body(listing);
     }
 

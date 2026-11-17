@@ -16,6 +16,9 @@ public record CatalogItemResponse(
         Instant publishedAt,
         String category,
         String sellerName,
+        String workType,
+        String fileFormat,
+        boolean hasDownloadableFile,
         int slideCount,
         List<CatalogSlidePreview> previewSlides) {
 }

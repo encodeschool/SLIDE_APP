@@ -15,6 +15,7 @@ flowchart LR
     API[Spring Boot API<br/>backend/api]
     AuthLimit[In-memory auth rate limiter<br/>per API instance]
     DB[(PostgreSQL<br/>Flyway migrations)]
+    MarketplaceFiles[(Private marketplace files<br/>persistent export volume)]
     Worker[Persisted export worker<br/>backend/api]
     Renderer[Private PPTX/PDF renderer<br/>services/presentation-renderer]
     Files[(Persistent export volume)]
@@ -22,7 +23,7 @@ flowchart LR
     AIProvider[OpenAI-compatible AI provider<br/>optional, server-side config]
     Mail[Configured SMTP service<br/>verification and recovery]
     Queue[(RabbitMQ<br/>reserved for other future jobs)]
-    Storage[(RustFS / S3 API<br/>reserved for future marketplace assets)]
+    Storage[(RustFS / S3 API<br/>future shared-storage backend)]
 
     User --> Web
     User --> Admin
@@ -35,6 +36,8 @@ flowchart LR
     Admin -->|role-protected REST /api/v1/admin| API
     Mobile -->|REST /api/v1| API
     API --> DB
+    API -->|random private object keys| MarketplaceFiles
+    Web -->|authenticated multipart upload / entitlement download| API
     API -->|verification and recovery messages| Mail
     API -->|register/login/refresh| AuthLimit
     API -->|claim queued export| Worker
@@ -48,7 +51,7 @@ flowchart LR
     Renderer -->|PPTX/PDF artifact| Files
     API -->|owner-authorized download| User
     API -. future queued workflows .-> Queue
-    API -. future uploaded assets .-> Storage
+    API -. future shared-storage backend .-> Storage
 ```
 
 Solid paths are documented as implemented; dashed paths are planned or reserved and should not be treated as working features without code verification.
@@ -89,11 +92,36 @@ sequenceDiagram
     Web->>API: Save successful deck as presentation
 ```
 
+```mermaid
+sequenceDiagram
+    actor Seller
+    actor Buyer
+    participant Web as Web marketplace
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+    participant Files as Private file directory
+
+    Seller->>Web: Choose work type and file
+    Web->>API: Authenticated multipart upload (maximum 25 MiB)
+    API->>API: Validate allowlist, signature, and size
+    API->>Files: Store under random private key
+    API->>DB: Save immutable listing file metadata
+    Seller->>API: Publish draft listing
+    Buyer->>API: Place order and pay
+    API->>DB: Grant entitlement after paid transition
+    Buyer->>API: Request purchased file
+    API->>DB: Check buyer, paid order, and active entitlement
+    API->>Files: Read private file
+    API-->>Buyer: Download attachment
+```
+
+Uploaded file downloads are entitlement-gated and attachment-only. The API currently uses a persistent private filesystem directory; RustFS is not yet integrated, and automatic malware scanning/quarantine remains a release limitation.
+
 ## Where to look
 
 | Area | Location | Responsibility |
 |---|---|---|
-| Web app | `apps/web/` | Public landing page plus a separate `/marketplace` storefront, standalone sign-in and self-registration, authenticated presentation library, draggable editor, save/export UI, responsive marketplace publishing for owned presentations, and account wallet history |
+| Web app | `apps/web/` | Public landing page plus a separate `/marketplace` storefront, standalone sign-in and self-registration, authenticated presentation library, draggable editor, save/export UI, responsive marketplace publishing for owned presentations and typed work files, and account wallet history |
 | Localization | `apps/web/src/i18n/`, `apps/admin/src/i18n/`, `apps/mobile/lib/i18n/` | Per-app English, Russian, and Uzbek catalogs and locale preference helpers; new clients default to Uzbek with Ş/ş, Ç/ç, Ö/ö, and Ğ/ğ |
 | Web landing and brand | `apps/web/src/features/landing/LandingPage.tsx`, `apps/web/src/features/landing/AppsShowcase.tsx`, `apps/web/src/features/landing/usePublicPageMotion.ts`, `apps/web/src/assets/slideforge-mark.svg` | Localized landing at `/`, centered in-page web/admin/mobile sections with illustrative previews, a desktop header for “What can you make?”, highlighted Marketplace, and “How it works”, plus a mobile logo-only header and Liquid Glass marketplace/sign-in/register bottom bar |
 | Admin app | `apps/admin/` | Standalone staff sign-in and invitation-only registration, then role-protected user and marketplace management with responsive table layouts |
@@ -102,7 +130,8 @@ sequenceDiagram
 | Auth rate limit | `backend/api/src/main/java/com/slideforge/api/common/AuthRateLimitFilter.java` | Per-instance fixed-window limits for register/login/refresh |
 | Shared deck model | `packages/shared-types/` | Versioned deck types, operations, undo/redo |
 | Renderer | `services/presentation-renderer/` | Editable PPTX generation and PDF conversion |
-| Marketplace UI | `apps/web/src/features/marketplace/StorefrontPage.tsx`, `apps/web/src/features/marketplace/Marketplace.tsx` | Dedicated responsive storefront at `/marketplace` with catalog, cart, checkout, and publish dialog for owned canonical presentations; arbitrary-file upload is not implemented |
+| Marketplace UI | `apps/web/src/features/marketplace/StorefrontPage.tsx`, `apps/web/src/features/marketplace/Marketplace.tsx` | Dedicated responsive storefront at `/marketplace` with catalog, cart, checkout, typed upload/publish flow, and purchase downloads |
+| Marketplace file API | `backend/api/src/main/java/com/slideforge/api/marketplace/MarketplaceFileStorage.java`, `MarketplaceService.java`, `PurchaseController.java` | Server-side format/size checks, private persistent storage, immutable listing file metadata, and buyer-entitlement-gated attachment downloads |
 | Account billing UI | `apps/web/src/features/wallet/WalletPanel.tsx` | Wallet balance and transaction ledger; real card processing and legal invoices are not implemented |
 | Web editor | `apps/web/src/features/presentations/PresentationEditor.tsx` | Full-height responsive editor contained in the workspace main panel, with slide rail, canvas, tool inspector, inline text editing, drag-and-drop tools/images, theme and typography controls, undo/redo, save, and export |
 | Infrastructure | `docker-compose.yml`, `infra/deployment/`, `.github/workflows/deploy-production.yml` | Local development services plus Ubuntu 24.04 Compose/Caddy/GHCR deployment for `eduslides.encode.uz`, `admin-eduslides.encode.uz`, and `api-eduslides.encode.uz` (with `www` redirects), configured for `/home/encode/eduslides`; live VDS deployment is unverified |

@@ -11,6 +11,9 @@ public record ListingResponse(
         int currentVersion,
         long priceTiyin,
         String currency,
+        String workType,
+        String fileName,
+        long fileSize,
         Instant createdAt,
         Instant updatedAt) {
 }

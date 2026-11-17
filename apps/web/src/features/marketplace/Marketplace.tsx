@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowDownWideNarrow, ArrowLeft, ArrowRight, BookOpen, Check, CircleDollarSign, CreditCard, Download, Filter, Layers3, LoaderCircle, LockKeyhole, Plus, RotateCcw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Store, Tag, X } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowLeft, ArrowRight, BookOpen, Check, CircleDollarSign, CreditCard, Download, FileText, Filter, Layers3, LoaderCircle, LockKeyhole, Plus, RotateCcw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Store, Tag, X } from "lucide-react";
 import { API_URL, authorizedFetch } from "../../shared/api/client";
 import type { AuthResponse, ExportFormat, ExportJobResponse, Locale, PresentationSummary } from "../../shared/types";
 import { SlidePreviewCarousel } from "./SlidePreviewCarousel";
 import { demoCatalogPage, demoCategories, demoProductDetails } from "./demoCatalog";
-import type { Category, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
+import type { Category, MarketplaceWorkType, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
 import { browseLabels, categoryNames, marketplaceCategoryFallbacks, publishDialogCopy, purchaseActionLabels } from "../../i18n/marketplace";
 type Listing = {
   id: string;
@@ -13,13 +13,25 @@ type Listing = {
   status: string;
   currentVersion: number;
   priceTiyin: number;
+  workType: MarketplaceWorkType;
+  fileName: string | null;
+  fileSize: number;
 };
 type Order = { id: string; status: string; totalTiyin: number; currency: string };
 type MarketplaceStage = "shop" | "cart" | "checkout" | "payment" | "purchases";
 type MarketplaceDetailTab = "overview" | "slides" | "license";
-type SellerWorkType = "presentation" | "document" | "coursework" | "worksheet" | "design" | "other";
+type SellerWorkType = MarketplaceWorkType;
+type SellerSource = "owned" | "file";
 
-const maximumLocalFileSize = 25 * 1024 * 1024;
+const maximumUploadSize = 25 * 1024 * 1024;
+const allowedFormatsByWorkType: Record<SellerWorkType, string[]> = {
+  presentation: ["pptx", "pdf", "odp"],
+  document: ["docx", "odt", "rtf", "txt", "pdf"],
+  coursework: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt"],
+  worksheet: ["xlsx", "ods", "docx", "odt", "pdf", "txt"],
+  design: ["pdf", "png", "jpg", "jpeg", "webp"],
+  other: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "png", "jpg", "jpeg", "webp"],
+};
 
 interface Props {
   locale: Locale;
@@ -72,6 +84,9 @@ function restoreProduct(value: unknown): Product | null {
   const publishedAt = value.publishedAt;
   const category = value.category;
   const slideCount = value.slideCount;
+  const workType = value.workType;
+  const fileFormat = value.fileFormat;
+  const hasDownloadableFile = value.hasDownloadableFile;
   if (
     typeof listingId !== "string" || !listingId || listingId.length > 120 ||
     typeof listingVersionId !== "string" || !listingVersionId || listingVersionId.length > 120 ||
@@ -84,8 +99,13 @@ function restoreProduct(value: unknown): Product | null {
     typeof publishedAt !== "string" || publishedAt.length > 80 ||
     typeof category !== "string" || category.length > 100 ||
     (slideCount !== undefined &&
-      (typeof slideCount !== "number" || !Number.isSafeInteger(slideCount) || slideCount < 1))
+      (typeof slideCount !== "number" || !Number.isSafeInteger(slideCount) || slideCount < 0))
   ) return null;
+  const supportedWorkTypes: MarketplaceWorkType[] = ["presentation", "document", "coursework", "worksheet", "design", "other"];
+  const normalizedWorkType = supportedWorkTypes.find((type) => type === workType) ?? "presentation";
+  const normalizedFileFormat = typeof fileFormat === "string" && /^[A-Z0-9]{2,5}$/.test(fileFormat)
+    ? fileFormat
+    : null;
 
   const description = typeof value.description === "string" ? value.description.slice(0, 4000) : "";
   const previewSlides = Array.isArray(value.previewSlides)
@@ -121,6 +141,11 @@ function restoreProduct(value: unknown): Product | null {
     currency,
     publishedAt,
     category,
+    workType: normalizedWorkType,
+    fileFormat: normalizedFileFormat,
+    hasDownloadableFile: typeof hasDownloadableFile === "boolean"
+      ? hasDownloadableFile
+      : normalizedFileFormat !== null,
     slideCount: typeof slideCount === "number"
       ? Math.max(slideCount, previewSlides?.length ?? 0)
       : previewSlides?.length ?? 0,
@@ -174,6 +199,24 @@ function readMarketplaceState(storageKey: string): SavedMarketplaceState {
 function formatPrice(priceTiyin: number, currency: string, locale: Locale) {
   const numberLocale = locale === "ru" ? "ru-RU" : locale === "uz" ? "uz-UZ" : "en-US";
   return `${(priceTiyin / 100).toLocaleString(numberLocale)} ${currency}`;
+}
+
+function FileWorkPreview({
+  fileFormat,
+  workTypeLabel,
+  compact = false,
+}: {
+  fileFormat: string | null;
+  workTypeLabel: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`market-file-preview${compact ? " market-file-preview-compact" : ""}`}>
+      <FileText size={compact ? 24 : 34} aria-hidden="true" />
+      <strong>{fileFormat ?? "FILE"}</strong>
+      <small>{workTypeLabel}</small>
+    </div>
+  );
 }
 
 export function Marketplace({
@@ -236,12 +279,16 @@ export function Marketplace({
   const [sellerListings, setSellerListings] = useState<Listing[]>([]);
   const [selectedPresentation, setSelectedPresentation] = useState("");
   const [listingDescription, setListingDescription] = useState("");
+  const [listingTitle, setListingTitle] = useState("");
   const [licenseTerms, setLicenseTerms] = useState("");
   const [price, setPrice] = useState("10000");
   const [listingCategory, setListingCategory] = useState("");
   const [sellerWorkType, setSellerWorkType] = useState<SellerWorkType>("presentation");
+  const [sellerSource, setSellerSource] = useState<SellerSource>("owned");
   const [stagedWorkFile, setStagedWorkFile] = useState<File | null>(null);
   const [workFileError, setWorkFileError] = useState("");
+  const [fileDownloadEntitlement, setFileDownloadEntitlement] = useState<string | null>(null);
+  const [fileDownloadError, setFileDownloadError] = useState("");
   const [search, setSearch] = useState(savedState.search);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(false);
@@ -254,6 +301,16 @@ export function Marketplace({
   const loadMoreLock = useRef(false);
   const sellerDialogRef = useRef<HTMLDialogElement | null>(null);
   const [sellerDialogOpen, setSellerDialogOpen] = useState(false);
+  const isFileListing = sellerWorkType !== "presentation" || sellerSource === "file";
+  const allowedFormats = allowedFormatsByWorkType[sellerWorkType];
+  const workTypeName = (workType: MarketplaceWorkType) => ({
+    presentation: publishCopy.presentation,
+    document: publishCopy.document,
+    coursework: publishCopy.coursework,
+    worksheet: publishCopy.worksheet,
+    design: publishCopy.design,
+    other: publishCopy.other,
+  })[workType];
   const translatedCategory = (slug: string) => {
     const category = categories.find((item) => item.slug === slug);
     if (locale === "ru") return category?.nameRu ?? marketplaceCategoryFallbacks.ru[slug] ?? category?.name ?? slug;
@@ -534,11 +591,47 @@ export function Marketplace({
     } catch { setError(t.error); } finally { setPurchasesLoading(false); }
   }
 
+  async function downloadPurchasedFile(purchase: Purchase) {
+    if (!token) {
+      onRequireAuth();
+      return;
+    }
+    setFileDownloadEntitlement(purchase.entitlementId);
+    setFileDownloadError("");
+    try {
+      const response = await authorizedFetch(
+        `/api/v1/purchases/${purchase.entitlementId}/file`,
+        token,
+        {},
+        onSession,
+        onExpired,
+      );
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? b.fileDownloadFailed);
+      }
+      const fileUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = purchase.fileName ?? "eduslides-download";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+    } catch (downloadError) {
+      setFileDownloadError(downloadError instanceof Error ? downloadError.message : b.fileDownloadFailed);
+    } finally {
+      setFileDownloadEntitlement(null);
+    }
+  }
+
   useEffect(() => {
     if (stage === "purchases") void loadPurchases();
   }, [stage, token]);
 
   async function openPurchase(purchase: Purchase) {
+    if (purchase.hasDownloadableFile) {
+      await downloadPurchasedFile(purchase);
+      return;
+    }
     if (!token) {
       onRequireAuth();
       return;
@@ -730,45 +823,88 @@ export function Marketplace({
 
   async function publishListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (sellerWorkType !== "presentation") return;
     if (!token) { onRequireAuth(); return; }
-    if (!selectedPresentation) return;
+    if (isFileListing && !stagedWorkFile) {
+      setWorkFileError(publishCopy.filePrompt);
+      return;
+    }
+    if (!isFileListing && !selectedPresentation) return;
     if (!categories.some((item) => item.slug === listingCategory)) {
+      setError(t.error);
+      return;
+    }
+    const priceUzs = Number(price);
+    if (!Number.isFinite(priceUzs) || priceUzs <= 0 || !Number.isSafeInteger(Math.round(priceUzs * 100))) {
       setError(t.error);
       return;
     }
     setBusy(true);
     setError("");
     try {
-      const draftResponse = await authorizedFetch("/api/v1/seller/listings", token, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          presentationId: selectedPresentation,
-          presentationVersion: presentations.find((p) => p.id === selectedPresentation)?.currentVersion,
-          priceTiyin: Math.round(Number(price) * 100),
-          description: listingDescription,
-          licenseTerms,
-          category: listingCategory,
-        }),
-      }, onSession, onExpired);
-      if (!draftResponse.ok) throw new Error();
+      let draftResponse: Response;
+      if (isFileListing && stagedWorkFile) {
+        const formData = new FormData();
+        formData.append("title", listingTitle);
+        formData.append("workType", sellerWorkType);
+        formData.append("priceTiyin", String(Math.round(priceUzs * 100)));
+        formData.append("description", listingDescription);
+        formData.append("licenseTerms", licenseTerms);
+        formData.append("category", listingCategory);
+        formData.append("file", stagedWorkFile);
+        draftResponse = await authorizedFetch("/api/v1/seller/listings/uploads", token, {
+          method: "POST",
+          body: formData,
+        }, onSession, onExpired);
+      } else {
+        draftResponse = await authorizedFetch("/api/v1/seller/listings", token, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            presentationId: selectedPresentation,
+            presentationVersion: presentations.find((p) => p.id === selectedPresentation)?.currentVersion,
+            priceTiyin: Math.round(priceUzs * 100),
+            description: listingDescription,
+            licenseTerms,
+            category: listingCategory,
+          }),
+        }, onSession, onExpired);
+      }
+      if (!draftResponse.ok) {
+        const problem = await draftResponse.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? t.error);
+      }
       const draft = await draftResponse.json() as Listing;
       const publishResponse = await authorizedFetch(`/api/v1/seller/listings/${draft.id}/publish`, token, { method: "POST" }, onSession, onExpired);
-      if (!publishResponse.ok) throw new Error();
+      if (!publishResponse.ok) {
+        const problem = await publishResponse.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? t.error);
+      }
       setNotice(t.published);
       const listing = await publishResponse.json() as Listing;
       setSellerListings((current) => [listing, ...current]);
       setSellerDialogOpen(false);
-    } catch { setError(t.error); } finally { setBusy(false); }
+      setListingTitle("");
+      setListingDescription("");
+      setLicenseTerms("");
+      setStagedWorkFile(null);
+      setSelectedPresentation("");
+    } catch (publishError) {
+      setError(publishError instanceof Error ? publishError.message : t.error);
+    } finally { setBusy(false); }
   }
 
   function stageWorkFile(file: File | undefined) {
     setWorkFileError("");
     if (!file) return;
-    if (file.size > maximumLocalFileSize) {
+    if (file.size > maximumUploadSize) {
       setStagedWorkFile(null);
       setWorkFileError(publishCopy.fileTooLarge);
+      return;
+    }
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!extension || !allowedFormats.includes(extension)) {
+      setStagedWorkFile(null);
+      setWorkFileError(publishCopy.fileTypeMismatch);
       return;
     }
     setStagedWorkFile(file);
@@ -814,24 +950,32 @@ export function Marketplace({
         <div className="market-detail">
           <div className="market-detail-main">
             <div className="market-detail-preview">
-              <SlidePreviewCarousel
-                title={detail.title}
-                slides={detail.previewSlides?.slice(0, 2) ?? []}
-                locale={locale}
-                categoryTag={translatedCategory(detail.category)}
-                {...lockedCarouselCopy(totalSlideCount, detail.previewSlides)}
-                onPurchase={() => { addToCart(detail); setDetail(null); setStage("cart"); }}
-              />
-              <p className="market-preview-count">
-                {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
-              </p>
+                {detail.hasDownloadableFile ? (
+                  <FileWorkPreview fileFormat={detail.fileFormat} workTypeLabel={workTypeName(detail.workType)} />
+                ) : (
+                  <>
+                    <SlidePreviewCarousel
+                      title={detail.title}
+                      slides={detail.previewSlides?.slice(0, 2) ?? []}
+                      locale={locale}
+                      categoryTag={translatedCategory(detail.category)}
+                      {...lockedCarouselCopy(totalSlideCount, detail.previewSlides)}
+                      onPurchase={() => { addToCart(detail); setDetail(null); setStage("cart"); }}
+                    />
+                    <p className="market-preview-count">
+                      {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
+                    </p>
+                  </>
+                )}
             </div>
 
             <header className="market-detail-heading">
               <span className="market-category"><Tag size={12} aria-hidden="true" />{translatedCategory(detail.category)}</span>
               <h1 id="market-detail-title">{detail.title}</h1>
               <div className="market-detail-meta">
-                <span><Layers3 size={15} aria-hidden="true" />{totalSlideCount} {b.slideUnit}</span>
+                {detail.hasDownloadableFile
+                  ? <span><FileText size={15} aria-hidden="true" />{b.fileFormatLabel}: {detail.fileFormat}</span>
+                  : <span><Layers3 size={15} aria-hidden="true" />{totalSlideCount} {b.slideUnit}</span>}
                 <span><BookOpen size={15} aria-hidden="true" />v{detail.version}</span>
               </div>
             </header>
@@ -843,35 +987,42 @@ export function Marketplace({
 
             <nav className="market-detail-tabs" aria-label={b.detailSections}>
               <button type="button" aria-pressed={detailTab === "overview"} onClick={() => setDetailTab("overview")}>{b.detailOverview}</button>
-              <button type="button" aria-pressed={detailTab === "slides"} onClick={() => setDetailTab("slides")}>{b.detailSlideOutline}</button>
+              <button type="button" aria-pressed={detailTab === "slides"} onClick={() => setDetailTab("slides")}>{detail.hasDownloadableFile ? b.fileDetails : b.detailSlideOutline}</button>
               <button type="button" aria-pressed={detailTab === "license"} onClick={() => setDetailTab("license")}>{b.detailLicense}</button>
             </nav>
 
             <section className="market-detail-panel" aria-live="polite">
               {detailTab === "overview" && <p>{detail.description}</p>}
               {detailTab === "slides" && (
-                <>
-                  <h2>{b.detailSlideOutline}</h2>
-                  {detail.previewSlides?.slice(0, 2).length ? (
-                    <ol className="market-detail-slide-outline">
-                      {detail.previewSlides.slice(0, 2).map((slide) => (
-                        <li key={slide.slideNumber}>
-                          <span>{String(slide.slideNumber).padStart(2, "0")}</span>
-                          <strong>{slide.title}</strong>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : <p>{detail.description}</p>}
-                  {lockedSlideCount > 0 && (
-                    <div className="market-detail-locked-note">
-                      <LockKeyhole size={16} aria-hidden="true" />
-                      <span>{b.lockedSlides.replace("{count}", String(lockedSlideCount))}. {b.lockedNote}</span>
-                      <button className="secondary-button" type="button" onClick={() => { addToCart(detail); setDetail(null); setStage("cart"); }}>
-                        <ShoppingBag size={14} aria-hidden="true" />{b.purchaseToUnlock}
-                      </button>
-                    </div>
-                  )}
-                </>
+                detail.hasDownloadableFile ? (
+                  <>
+                    <h2>{b.fileDetails}</h2>
+                    <p>{workTypeName(detail.workType)} · {b.fileFormatLabel}: {detail.fileFormat}</p>
+                  </>
+                ) : (
+                  <>
+                    <h2>{b.detailSlideOutline}</h2>
+                    {detail.previewSlides?.slice(0, 2).length ? (
+                      <ol className="market-detail-slide-outline">
+                        {detail.previewSlides.slice(0, 2).map((slide) => (
+                          <li key={slide.slideNumber}>
+                            <span>{String(slide.slideNumber).padStart(2, "0")}</span>
+                            <strong>{slide.title}</strong>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p>{detail.description}</p>}
+                    {lockedSlideCount > 0 && (
+                      <div className="market-detail-locked-note">
+                        <LockKeyhole size={16} aria-hidden="true" />
+                        <span>{b.lockedSlides.replace("{count}", String(lockedSlideCount))}. {b.lockedNote}</span>
+                        <button className="secondary-button" type="button" onClick={() => { addToCart(detail); setDetail(null); setStage("cart"); }}>
+                          <ShoppingBag size={14} aria-hidden="true" />{b.purchaseToUnlock}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )
               )}
               {detailTab === "license" && <><h2>{b.detailLicense}</h2><p>{detail.licenseTerms}</p></>}
             </section>
@@ -939,11 +1090,15 @@ export function Marketplace({
               <div className="market-cart-lines" aria-label={b.orderSummary}>
                 {cart.map((item) => (
                   <article className="market-cart-line" key={item.listingId}>
-                    <div className="market-cart-line-preview"><SlidePreviewCarousel title={item.title} slides={item.previewSlides} locale={locale} compact categoryTag={translatedCategory(item.category)} {...lockedCarouselCopy(item.slideCount, item.previewSlides)} /></div>
+                    <div className="market-cart-line-preview">
+                      {item.hasDownloadableFile
+                        ? <FileWorkPreview fileFormat={item.fileFormat} workTypeLabel={workTypeName(item.workType)} compact />
+                        : <SlidePreviewCarousel title={item.title} slides={item.previewSlides} locale={locale} compact categoryTag={translatedCategory(item.category)} {...lockedCarouselCopy(item.slideCount, item.previewSlides)} />}
+                    </div>
                     <div className="market-cart-line-copy">
                       <strong>{item.title}</strong>
                       <small>{t.seller}: {item.sellerName}</small>
-                      <small>{item.slideCount} {b.slideUnit} · v{item.version}</small>
+                      <small>{item.hasDownloadableFile ? `${item.fileFormat} · ${workTypeName(item.workType)}` : `${item.slideCount} ${b.slideUnit} · v${item.version}`}</small>
                     </div>
                     <strong className="market-cart-line-price">{formatPrice(item.priceTiyin, item.currency, locale)}</strong>
                     {stage === "cart" && <button className="text-button market-remove-button" type="button" aria-label={`${t.remove}: ${item.title}`} onClick={() => setCart((current) => current.filter((entry) => entry.listingId !== item.listingId))}><X size={15} aria-hidden="true" />{t.remove}</button>}
@@ -1068,15 +1223,28 @@ export function Marketplace({
           <div className="market-purchases-list">
             {purchases.map((purchase) => (
               <article className="market-purchase-card" key={purchase.entitlementId}>
-                <SlidePreviewCarousel title={purchase.title} slides={purchase.previewSlides} locale={locale} compact />
+                {purchase.hasDownloadableFile
+                  ? <FileWorkPreview fileFormat={purchase.fileName?.split(".").pop()?.toUpperCase() ?? null} workTypeLabel={workTypeName(purchase.workType)} compact />
+                  : <SlidePreviewCarousel title={purchase.title} slides={purchase.previewSlides} locale={locale} compact />}
                 <h2>{purchase.title}</h2>
-                <p>{t.seller}: {purchase.sellerName} · {purchase.slideCount} {b.slideUnit}</p>
+                <p>{t.seller}: {purchase.sellerName}{purchase.hasDownloadableFile ? ` · ${workTypeName(purchase.workType)}` : ` · ${purchase.slideCount} ${b.slideUnit}`}</p>
                 <strong>{formatPrice(purchase.priceTiyin, purchase.currency, locale)}</strong>
-                <button className="primary-button" type="button" onClick={() => void openPurchase(purchase)}>{b.openPurchase}</button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={fileDownloadEntitlement === purchase.entitlementId}
+                  onClick={() => void openPurchase(purchase)}
+                >
+                  {fileDownloadEntitlement === purchase.entitlementId && <LoaderCircle className="spin-icon" size={16} aria-hidden="true" />}
+                  {purchase.hasDownloadableFile
+                    ? fileDownloadEntitlement === purchase.entitlementId ? b.downloadingFile : b.downloadFile
+                    : b.openPurchase}
+                </button>
               </article>
             ))}
           </div>
         )}
+        {fileDownloadError && <p className="form-error" role="alert">{fileDownloadError}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </div>
     </section>
@@ -1143,22 +1311,26 @@ export function Marketplace({
               void showDetail(item);
             }}
           >
-            <SlidePreviewCarousel
-              title={item.title}
-              slides={item.previewSlides?.slice(0, 2) ?? []}
-              locale={locale}
-              compact
-              categoryTag={translatedCategory(item.category)}
-              {...lockedCarouselCopy(totalSlideCount, item.previewSlides)}
-              onPurchase={() => { addToCart(item); setStage("cart"); }}
-            />
+            {item.hasDownloadableFile
+              ? <FileWorkPreview fileFormat={item.fileFormat} workTypeLabel={workTypeName(item.workType)} compact />
+              : <SlidePreviewCarousel
+                  title={item.title}
+                  slides={item.previewSlides?.slice(0, 2) ?? []}
+                  locale={locale}
+                  compact
+                  categoryTag={translatedCategory(item.category)}
+                  {...lockedCarouselCopy(totalSlideCount, item.previewSlides)}
+                  onPurchase={() => { addToCart(item); setStage("cart"); }}
+                />}
             <div className="market-card-copy">
               <span className="market-category"><Tag size={12} aria-hidden="true" />{translatedCategory(item.category)}</span>
               <h2>{item.title}</h2>
               <p>{item.description}</p>
               <small>{t.seller}: {item.sellerName}</small>
               <small className="market-preview-count">
-                {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
+                {item.hasDownloadableFile
+                  ? `${workTypeName(item.workType)} · ${item.fileFormat}`
+                  : b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
               </small>
               {lockedSlideCount > 0 && (
                 <span className="market-card-lock-note">
@@ -1225,7 +1397,9 @@ export function Marketplace({
         <form className="seller-form" onSubmit={(event) => void publishListing(event)}>
           <label>{publishCopy.workType}
             <select value={sellerWorkType} onChange={(event) => {
-              setSellerWorkType(event.target.value as SellerWorkType);
+              const nextWorkType = event.target.value as SellerWorkType;
+              setSellerWorkType(nextWorkType);
+              setSellerSource(nextWorkType === "presentation" ? "owned" : "file");
               setStagedWorkFile(null);
               setWorkFileError("");
             }}>
@@ -1237,12 +1411,26 @@ export function Marketplace({
               <option value="other">{publishCopy.other}</option>
             </select>
           </label>
-          {sellerWorkType === "presentation" ? (
-            presentations.length ? (
-              <label>{publishCopy.choose}<select required value={selectedPresentation} onChange={(e) => setSelectedPresentation(e.target.value)}><option value="">—</option>{presentations.map((p) => <option key={p.id} value={p.id}>{p.title} · v{p.currentVersion}</option>)}</select></label>
-            ) : <p className="seller-dialog-empty">{t.noDecks}</p>
-          ) : (
+          {sellerWorkType === "presentation" && (
+            <label>{publishCopy.sourceType}
+              <select value={sellerSource} onChange={(event) => {
+                setSellerSource(event.target.value as SellerSource);
+                setStagedWorkFile(null);
+                setWorkFileError("");
+              }}>
+                <option value="owned">{publishCopy.ownedPresentation}</option>
+                <option value="file">{publishCopy.uploadFile}</option>
+              </select>
+            </label>
+          )}
+          {!isFileListing && (presentations.length ? (
+            <label>{publishCopy.choose}<select required value={selectedPresentation} onChange={(e) => setSelectedPresentation(e.target.value)}><option value="">—</option>{presentations.map((p) => <option key={p.id} value={p.id}>{p.title} · v{p.currentVersion}</option>)}</select></label>
+          ) : <p className="seller-dialog-empty">{t.noDecks}</p>)}
+          {isFileListing && (
             <div className="seller-file-work">
+              <label>{publishCopy.title}
+                <input required maxLength={200} value={listingTitle} onChange={(event) => setListingTitle(event.target.value)} />
+              </label>
               <label
                 className="seller-file-drop"
                 onDragOver={(event) => event.preventDefault()}
@@ -1254,6 +1442,7 @@ export function Marketplace({
                 <span>{publishCopy.filePrompt}</span>
                 <input
                   type="file"
+                  accept={allowedFormats.map((format) => `.${format}`).join(",")}
                   onChange={(event) => {
                     stageWorkFile(event.currentTarget.files?.[0]);
                     event.currentTarget.value = "";
@@ -1262,17 +1451,17 @@ export function Marketplace({
               </label>
               {stagedWorkFile && <p className="seller-file-selected" role="status">{publishCopy.fileSelected}: {stagedWorkFile.name} · {publishCopy.fileSize}: {(stagedWorkFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
               {workFileError && <p className="form-error" role="alert">{workFileError}</p>}
-              <p className="seller-file-notice">{publishCopy.localOnly}</p>
-              <p className="seller-file-blocked">{publishCopy.blockedPublish}</p>
+              <p className="seller-file-notice">{publishCopy.fileFormats.replace("{formats}", allowedFormats.map((format) => `.${format}`).join(", "))}</p>
+              <p className="seller-file-notice">{publishCopy.fileSecurityNotice}</p>
             </div>
           )}
           <label>{t.category}<select required value={listingCategory} onChange={(e) => setListingCategory(e.target.value)}><option value="">—</option>{categories.map((c) => <option key={c.slug} value={c.slug}>{translatedCategory(c.slug)}</option>)}</select></label>
           <label>{t.price}<input type="number" min="1" step="1" required value={price} onChange={(e) => setPrice(e.target.value)} /></label>
           <label>{t.description}<textarea required maxLength={20000} value={listingDescription} onChange={(e) => setListingDescription(e.target.value)} /></label>
           <label>{t.terms}<textarea required maxLength={20000} value={licenseTerms} onChange={(e) => setLicenseTerms(e.target.value)} /></label>
-          <button className="primary-button" type="submit" disabled={busy || sellerWorkType !== "presentation" || !presentations.length || !categories.some((item) => item.slug === listingCategory)}>{t.publish}</button>
+          <button className="primary-button" type="submit" disabled={busy || (isFileListing ? !stagedWorkFile || !listingTitle.trim() : !selectedPresentation) || !categories.some((item) => item.slug === listingCategory)}>{t.publish}</button>
         </form>
-        {sellerListings.length > 0 && <div className="seller-listings"><h3>{t.myListings}</h3>{sellerListings.map((item) => <div key={item.id}><span>{item.title}</span><span>{item.status}</span></div>)}</div>}
+        {sellerListings.length > 0 && <div className="seller-listings"><h3>{t.myListings}</h3>{sellerListings.map((item) => <div key={item.id}><span>{item.title}{item.fileName && ` · ${item.fileName}`}</span><span>{item.status}</span></div>)}</div>}
       </dialog>
     </section>
   );

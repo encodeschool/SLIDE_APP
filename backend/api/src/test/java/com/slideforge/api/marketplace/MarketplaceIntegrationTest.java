@@ -2,11 +2,14 @@ package com.slideforge.api.marketplace;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.hamcrest.Matchers.containsString;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -312,6 +316,128 @@ class MarketplaceIntegrationTest {
         mockMvc.perform(get("/api/v1/catalog?size=51"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_PAGE"));
+    }
+
+    @Test
+    void fileListingsArePrivateUntilPurchaseAndDownloadRequiresTheBuyersEntitlement() throws Exception {
+        Account seller = register("file-seller");
+        Account buyer = register("file-buyer");
+        Account stranger = register("file-stranger");
+        byte[] fileBytes = "%PDF-1.7\nprivate course notes".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        MockMultipartFile file = new MockMultipartFile("file", "client-report.pdf", "application/pdf", fileBytes);
+
+        MvcResult created = mockMvc.perform(multipart("/api/v1/seller/listings/uploads")
+                        .file(file)
+                        .header("Authorization", bearer(seller.token()))
+                        .param("title", "Course notes")
+                        .param("workType", "document")
+                        .param("priceTiyin", "4250")
+                        .param("description", "A downloadable document")
+                        .param("licenseTerms", "Personal use")
+                        .param("category", "education"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.workType").value("document"))
+                .andExpect(jsonPath("$.fileName").value("client-report.pdf"))
+                .andExpect(jsonPath("$.fileSize").value(fileBytes.length))
+                .andReturn();
+        UUID listingId = UUID.fromString(
+                objectMapper.readTree(created.getResponse().getContentAsString()).path("id").asText());
+
+        mockMvc.perform(post("/api/v1/seller/listings/{id}/publish", listingId)
+                        .header("Authorization", bearer(seller.token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workType").value("document"))
+                .andExpect(jsonPath("$.fileFormat").value("PDF"))
+                .andExpect(jsonPath("$.hasDownloadableFile").value(true))
+                .andExpect(jsonPath("$.fileName").doesNotExist())
+                .andExpect(jsonPath("$.slideCount").value(0));
+        mockMvc.perform(get("/api/v1/catalog"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.listingId == '" + listingId + "')].hasDownloadableFile").value(true));
+
+        MvcResult order = mockMvc.perform(post("/api/v1/orders")
+                        .header("Authorization", bearer(buyer.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(new CreateOrderRequest(listingId, "file-" + UUID.randomUUID()))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalTiyin").value(4250))
+                .andReturn();
+        UUID orderId = UUID.fromString(objectMapper.readTree(order.getResponse().getContentAsString()).path("id").asText());
+        UUID versionId = jdbcTemplate.queryForObject(
+                "SELECT listing_version_id FROM order_items WHERE order_id = ?", UUID.class, orderId);
+        jdbcTemplate.update("UPDATE orders SET status = 'PAID', paid_at = now() WHERE id = ?", orderId);
+        UUID entitlementId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO entitlements (id, user_id, listing_version_id, order_id) VALUES (?, ?, ?, ?)",
+                entitlementId,
+                buyer.id(),
+                versionId,
+                orderId);
+
+        mockMvc.perform(get("/api/v1/purchases")
+                        .header("Authorization", bearer(buyer.token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].hasDownloadableFile").value(true))
+                .andExpect(jsonPath("$[0].fileName").value("client-report.pdf"));
+        mockMvc.perform(get("/api/v1/purchases/{id}/file", entitlementId)
+                        .header("Authorization", bearer(stranger.token())))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/purchases/{id}/file", entitlementId)
+                        .header("Authorization", bearer(seller.token())))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/purchases/{id}/file", entitlementId))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/purchases/{id}/file", entitlementId)
+                        .header("Authorization", bearer(buyer.token())))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andExpect(content().bytes(fileBytes))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Disposition", containsString("attachment")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Cache-Control", "private, no-store"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("X-Content-Type-Options", "nosniff"));
+    }
+
+    @Test
+    void fileListingUploadRejectsUnsupportedTypeAndSpoofedPdfContent() throws Exception {
+        Account seller = register("file-validation");
+        MockMultipartFile unsupported = new MockMultipartFile(
+                "file", "program.exe", "application/octet-stream", new byte[] {1, 2, 3});
+        mockMvc.perform(multipart("/api/v1/seller/listings/uploads")
+                        .file(unsupported)
+                        .header("Authorization", bearer(seller.token()))
+                        .param("title", "Unsupported")
+                        .param("workType", "other")
+                        .param("priceTiyin", "100")
+                        .param("description", "Description")
+                        .param("licenseTerms", "Terms")
+                        .param("category", "education"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_FILE_TYPE"));
+
+        MockMultipartFile spoofed = new MockMultipartFile(
+                "file", "report.pdf", "application/pdf", "not a pdf".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        mockMvc.perform(multipart("/api/v1/seller/listings/uploads")
+                        .file(spoofed)
+                        .header("Authorization", bearer(seller.token()))
+                        .param("title", "Spoofed")
+                        .param("workType", "document")
+                        .param("priceTiyin", "100")
+                        .param("description", "Description")
+                        .param("licenseTerms", "Terms")
+                        .param("category", "education"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("FILE_CONTENT_MISMATCH"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                0,
+                jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM listing_versions WHERE file_name IS NOT NULL", Integer.class));
     }
 
     private Account register(String prefix) throws Exception {

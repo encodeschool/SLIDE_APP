@@ -71,6 +71,7 @@ services:
       PASSWORD_RECOVERY_TOKEN_TTL_MINUTES: ${PASSWORD_RECOVERY_TOKEN_TTL_MINUTES:-30}
       RENDERER_URL: http://renderer:8090
       EXPORT_STORAGE_PATH: /var/lib/slideforge/exports
+      MARKETPLACE_STORAGE_PATH: /var/lib/slideforge/exports/marketplace
       EXPORT_WORKER_ENABLED: "true"
       EXPORT_POLL_INTERVAL_MS: "1000"
       EXPORT_STALE_RUNNING_MINUTES: "5"

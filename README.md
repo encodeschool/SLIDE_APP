@@ -23,7 +23,7 @@ The VDS deployment directory is `/home/encode/eduslides`. The Flutter app is not
 
 | Component | Source | Build / role |
 |---|---|---|
-| Web | `apps/web/` | Vite/React landing page, workspace, storefront and a responsive slide editor contained in the workspace main panel |
+| Web | `apps/web/` | Vite/React landing page, workspace, storefront with typed file publishing and buyer downloads, and a responsive slide editor contained in the workspace main panel |
 | Admin | `apps/admin/` | Vite/React role-protected admin console |
 | API | `backend/api/` | Java 21 / Spring Boot REST API and Flyway migrations |
 | Renderer | `services/presentation-renderer/` | Node.js service for editable PPTX and PDF generation |
@@ -141,7 +141,7 @@ Push-Location backend\api; mvn test; Pop-Location
 cd backend/api && mvn -B test
 ```
 
-The production Dockerfile builds the API with Maven and runs it on Java 21. Flyway migrations run on application startup. Keep migrations additive and compatible with the previous app release because deployment rollback does not roll database migrations back.
+The production Dockerfile builds the API with Maven and runs it on Java 21. Flyway migrations run on application startup. Marketplace uploads are stored in the private `exports_data` volume alongside generated exports; preserve and back up the volume. Keep migrations additive and compatible with the previous app release because deployment rollback does not roll database migrations back.
 
 ### Shared deck model
 
@@ -237,15 +237,16 @@ docker compose --env-file slideforge.production.env -f compose.production.yml lo
 docker compose --env-file slideforge.production.env -f compose.production.yml logs --tail=200 caddy
 ```
 
-Deploy through GitHub Actions so images and configuration stay in sync. Never run `docker compose down -v` on production; it removes persistent database, exports, and Caddy certificate data.
+Deploy through GitHub Actions so images and configuration stay in sync. Never run `docker compose down -v` on production; it removes persistent database, exports/marketplace files, and Caddy certificate data.
 
-Configure encrypted off-host backups before accepting real user data. The helper is `infra/deployment/backup-production.sh`; it archives PostgreSQL and exports, encrypts them with `age`, and uploads them with `rclone`. Keep the age private key off the VDS, test restores, and configure retention. Full instructions are in [the deployment runbook](docs/DEPLOYMENT.md#backups-and-recovery).
+Configure encrypted off-host backups before accepting real user data. The helper is `infra/deployment/backup-production.sh`; it archives PostgreSQL and the persistent export volume (including marketplace files), encrypts them with `age`, and uploads them with `rclone`. Keep the age private key off the VDS, test restores, and configure retention. Full instructions are in [the deployment runbook](docs/DEPLOYMENT.md#backups-and-recovery).
 
 ## Current limitations and release gates
 
 - No live VDS deployment, SMTP delivery test, or production AI-provider test has been performed yet.
 - Real external payment processing, seller payouts, and legal invoices are not implemented.
-- Arbitrary marketplace file uploads and buyer file delivery are not implemented.
+- Marketplace uploads and entitlement-gated buyer downloads are implemented for the documented file allowlist; uploaded files are not currently malware-scanned or previewed.
+- The web bundle builds with Vite, but the full production build is currently blocked by pre-existing unused declarations in `apps/web/src/app/App.tsx`; see [the continuation notes](docs/CONTINUATION.md#current-checkpoint).
 - The authentication rate limiter is process-local; a multi-instance API deployment needs a distributed limiter.
 - Production backups, monitoring/alerting, and an incident/restore drill must be operator-configured.
 - The Flutter app is released separately and is not included in the VDS Compose stack.
