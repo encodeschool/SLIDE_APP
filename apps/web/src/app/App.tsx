@@ -1314,7 +1314,7 @@ function App() {
           </header>
         )}
 
-        {/* {!editorActive && !marketplaceActive && !accountActive && (
+        {!editorActive && !marketplaceActive && !accountActive && (
           <section className="welcome-section" aria-labelledby="welcome-title">
             <div className="eyebrow"><span className="eyebrow-dot" />{copy.status}</div>
             <h1 id="welcome-title">{copy.foundation}</h1>
@@ -1325,7 +1325,7 @@ function App() {
               <span className={`status-indicator ${apiAvailable === null ? "status-checking" : apiAvailable ? "" : "status-unavailable"}`} aria-label={apiStatusText} />
             </div>
           </section>
-        )} */}
+        )}
 
         {authUser && accountActive && (
           <section className="account-page" id="account" aria-labelledby="account-title">
