@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
-import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/shared/eduslides_brand_mark.dart';
 
 enum AuthSubmitResult { signedIn, registered, failed }
 

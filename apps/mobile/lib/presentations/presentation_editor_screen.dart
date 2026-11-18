@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:slideforge_mobile/presentations/presentation_repository.dart';
+import 'package:eduslides_mobile/presentations/presentation_repository.dart';
 
 class PresentationEditorScreen extends StatefulWidget {
   const PresentationEditorScreen({

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/auth/app_state_store.dart';
-import 'package:slideforge_mobile/auth/auth_gate.dart';
-import 'package:slideforge_mobile/auth/auth_repository.dart';
-import 'package:slideforge_mobile/presentations/presentation_repository.dart';
+import 'package:eduslides_mobile/auth/app_state_store.dart';
+import 'package:eduslides_mobile/auth/auth_gate.dart';
+import 'package:eduslides_mobile/auth/auth_repository.dart';
+import 'package:eduslides_mobile/presentations/presentation_repository.dart';
 
 void main() {
   runApp(const SlideforgeApp());

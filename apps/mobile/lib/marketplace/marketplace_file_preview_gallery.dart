@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
 
 class MarketplaceFilePreview {
   const MarketplaceFilePreview({required this.totalPages, required this.pages});

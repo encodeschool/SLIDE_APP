@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
 
 class MobileAppState {
   static const storageVersion = 2;

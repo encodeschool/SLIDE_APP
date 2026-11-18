@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/auth/app_state_store.dart';
-import 'package:slideforge_mobile/auth/auth_repository.dart';
-import 'package:slideforge_mobile/auth/auth_screen.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
-import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
-import 'package:slideforge_mobile/presentations/presentation_library_screen.dart';
-import 'package:slideforge_mobile/presentations/presentation_repository.dart';
-import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
+import 'package:eduslides_mobile/auth/app_state_store.dart';
+import 'package:eduslides_mobile/auth/auth_repository.dart';
+import 'package:eduslides_mobile/auth/auth_screen.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/marketplace/marketplace_screen.dart';
+import 'package:eduslides_mobile/presentations/presentation_library_screen.dart';
+import 'package:eduslides_mobile/presentations/presentation_repository.dart';
+import 'package:eduslides_mobile/shared/eduslides_brand_mark.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({

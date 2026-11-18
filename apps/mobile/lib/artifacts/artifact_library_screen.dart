@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:slideforge_mobile/artifacts/artifact_repository.dart';
+import 'package:eduslides_mobile/artifacts/artifact_repository.dart';
 
 class ArtifactLibraryScreen extends StatefulWidget {
   const ArtifactLibraryScreen({

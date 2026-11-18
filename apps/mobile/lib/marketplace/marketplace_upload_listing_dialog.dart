@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
-import 'package:slideforge_mobile/marketplace/marketplace_upload_policy.dart';
+import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
+import 'package:eduslides_mobile/marketplace/marketplace_upload_policy.dart';
 
 class MarketplaceUploadDraft {
   const MarketplaceUploadDraft({
