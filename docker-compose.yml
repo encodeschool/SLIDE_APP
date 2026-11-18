@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-slideforge}
       POSTGRES_USER: ${POSTGRES_USER:-slideforge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:nurik2512453}
     ports: ["${POSTGRES_PORT:-5432}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
@@ -88,9 +88,9 @@ services:
       PORT: 8080
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-slideforge}
       DATABASE_USER: ${POSTGRES_USER:-slideforge}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:nurik2512453}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175}
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      JWT_SECRET: ${JWT_SECRET:nurik2512453-to-a-long-random-string}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:-}
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
