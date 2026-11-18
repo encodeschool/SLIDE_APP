@@ -24,8 +24,20 @@ section {
   margin: 0 clamp(22px, 5vw, 72px);
 }
 
+.admin-shell footer {
+  margin: 0 clamp(24px, 6vw, 90px)!important;
+  padding: 28px 0 20px!important;
+}
+
+.admin-shell #admin-users, .admin-shell #marketplace-monitoring {
+  margin: unset !important;
+    width: unset !important;
+    padding: 30px clamp(24px, 6vw, 90px);
+    max-width: unset!important;
+}
+
 .admin-topbar, footer {
-  padding: 0 clamp(22px, 5vw, 72px)!important;
+  padding: 0 clamp(24px, 6vw, 90px)!important;
 }
 .admin-main { min-width: 0; display: flex; flex-direction: column;  }
 .admin-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 68px; border-bottom: 1px solid var(--line); color: #717b74; font-size: 12px; }

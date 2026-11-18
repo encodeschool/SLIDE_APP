@@ -1,19 +1,15 @@
 name: Deploy production
 
 on:
-  push:
-  pull_request:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
-# on:
-#   workflow_run:
-#     workflows: ["CI"]
-#     types: [completed]
-#     branches: [main]
-#   workflow_dispatch:
-
-# permissions:
-#   contents: read
-#   packages: write
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   deploy:
