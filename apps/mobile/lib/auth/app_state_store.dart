@@ -99,6 +99,8 @@ class MobileAppState {
     final publishedAt = item['publishedAt'];
     final category = item['category'];
     final slideCount = item['slideCount'];
+    final fileFormat = item['fileFormat'];
+    final hasDownloadableFile = item['hasDownloadableFile'];
     if (listingId is! String ||
         listingId.isEmpty ||
         listingId.length > 120 ||
@@ -153,11 +155,18 @@ class MobileAppState {
         slideCount == slideCount.roundToDouble()) {
       sanitized['slideCount'] = slideCount;
     }
+    if (fileFormat is String &&
+        RegExp(r'^[A-Z0-9]{2,5}$').hasMatch(fileFormat)) {
+      sanitized['fileFormat'] = fileFormat;
+    }
+    if (hasDownloadableFile is bool) {
+      sanitized['hasDownloadableFile'] = hasDownloadableFile;
+    }
     final slides = item['previewSlides'];
     if (slides is List) {
       sanitized['previewSlides'] =
           slides
-              .take(3)
+              .take(2)
               .whereType<Map>()
               .map(_sanitizePreviewSlide)
               .whereType<Map<String, dynamic>>()

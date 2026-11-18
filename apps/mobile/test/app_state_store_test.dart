@@ -26,6 +26,20 @@ void main() {
         'backgroundColor': '#ffffff',
         'accentColor': '#7354d6',
       },
+      {
+        'slideNumber': 2,
+        'title': 'Budget',
+        'text': ['A sample cost breakdown'],
+        'backgroundColor': '#ffffff',
+        'accentColor': '#7354d6',
+      },
+      {
+        'slideNumber': 3,
+        'title': 'Timeline',
+        'text': ['A sample delivery plan'],
+        'backgroundColor': '#ffffff',
+        'accentColor': '#7354d6',
+      },
     ],
   };
 
@@ -54,12 +68,24 @@ void main() {
     expect(state.cartItems.single['slideCount'], 12);
     expect(
       (state.cartItems.single['previewSlides'] as List).length,
-      lessThanOrEqualTo(3),
+      lessThanOrEqualTo(2),
     );
     final serialized = state.toJson();
     expect(serialized['version'], MobileAppState.storageVersion);
     expect(serialized['cartItems'].toString(), isNot(contains('accessToken')));
     expect(serialized['cartItems'].toString(), isNot(contains('paymentCard')));
+  });
+
+  test('file listing metadata survives safe cart persistence', () {
+    final state = MobileAppState.fromJson({
+      'version': MobileAppState.storageVersion,
+      'cartItems': [
+        {...product, 'fileFormat': 'PDF', 'hasDownloadableFile': true},
+      ],
+    });
+
+    expect(state.cartItems.single['fileFormat'], 'PDF');
+    expect(state.cartItems.single['hasDownloadableFile'], isTrue);
   });
 
   test(

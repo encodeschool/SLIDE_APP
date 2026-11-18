@@ -54,6 +54,21 @@ test("renderer rejects invalid decks before rendering", async (context) => {
   assert.ok((await response.json()).errors.length > 0);
 });
 
+test("marketplace preview endpoint rejects unsupported file formats", async (context) => {
+  const server = createRendererServer();
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/render/marketplace-preview/exe`, {
+    method: "POST",
+    headers: { "content-type": "application/octet-stream" },
+    body: Buffer.from([1, 2, 3]),
+  });
+
+  assert.equal(response.status, 415);
+  assert.match((await response.json()).error, /unsupported/i);
+});
+
 test("artifact renderer HTTP endpoint returns an editable Word document", async (context) => {
   const server = createRendererServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));

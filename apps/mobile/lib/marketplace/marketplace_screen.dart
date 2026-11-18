@@ -3,10 +3,13 @@ import 'dart:ui' show ImageFilter;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/marketplace/bottom_navigation.dart';
+import 'package:slideforge_mobile/marketplace/marketplace_file_preview_gallery.dart';
+import 'package:slideforge_mobile/marketplace/marketplace_upload_listing_dialog.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_demo_data.dart';
 import 'package:slideforge_mobile/marketplace/slide_preview_carousel.dart';
 import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
+import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({
@@ -153,11 +156,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   void _addToCart(Map<String, dynamic> item) {
     if (_cart.any((entry) => entry['listingId'] == item['listingId'])) return;
     _updateCart([..._cart, item]);
-    final message = _text(
-      'Presentation added to your cart.',
-      'Презентация добавлена в корзину.',
-      'Taqdimot savatga qoʻshildi.',
-    );
+    final message =
+        item['hasDownloadableFile'] == true
+            ? _text(
+              'Work added to your cart.',
+              'Работа добавлена в корзину.',
+              'Iş savatga qoʻshildi.',
+            )
+            : _text(
+              'Presentation added to your cart.',
+              'Презентация добавлена в корзину.',
+              'Taqdimot savatga qoʻshildi.',
+            );
     setState(() {
       _notice = message;
     });
@@ -654,19 +664,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       value is List
           ? value
               .whereType<Map>()
-              .take(3)
+              .take(2)
               .map((slide) => Map<String, dynamic>.from(slide))
               .toList()
           : const [];
 
-  Widget _previewAccessNotice(Map<String, dynamic> item) {
+  Widget _previewAccessNotice(
+    Map<String, dynamic> item, {
+    int? lockedFilePageCount,
+  }) {
     final visibleCount = _slidePreviews(item['previewSlides']).length;
     final slideCount =
         item['slideCount'] is num
             ? (item['slideCount'] as num).toInt()
             : visibleCount;
-    final lockedCount = (slideCount - visibleCount).clamp(0, 100000);
+    final lockedCount =
+        lockedFilePageCount ??
+        (slideCount - visibleCount).clamp(0, 100000).toInt();
     if (lockedCount == 0) return const SizedBox.shrink();
+    final lockedContentLabel =
+        lockedFilePageCount == null
+            ? _text(
+              '$lockedCount more slides are locked',
+              'Ещё $lockedCount слайдов закрыты',
+              'Yana $lockedCount ta slayd qulflangan',
+            )
+            : _text(
+              '$lockedCount more pages are locked',
+              'Ещё $lockedCount страниц закрыто',
+              'Yana $lockedCount ta sahifa qulflangan',
+            );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -697,20 +724,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _text(
-                    '$lockedCount more slides are locked',
-                    'Ещё $lockedCount слайдов закрыты',
-                    'Yana $lockedCount ta slayd qulflangan',
-                  ),
+                  lockedContentLabel,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _text(
-                    'Purchase to unlock all slides and download the presentation.',
-                    'Купите презентацию, чтобы открыть все слайды и скачать её.',
-                    'Barcha slaydlarni ochish va yuklab olish uchun xarid qiling.',
-                  ),
+                  lockedFilePageCount == null
+                      ? _text(
+                        'Purchase to unlock all slides and download the presentation.',
+                        'Купите презентацию, чтобы открыть все слайды и скачать её.',
+                        'Barcha slaydlarni ochish va yuklab olish uchun xarid qiling.',
+                      )
+                      : _text(
+                        'Purchase to unlock the remaining pages.',
+                        'Купите работу, чтобы открыть остальные страницы.',
+                        'Qolgan sahifalarni ochish uchun xarid qiling.',
+                      ),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
@@ -803,6 +832,42 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         fallback;
   }
 
+  Widget _fileFormatPreview(
+    Map<String, dynamic> item,
+    ColorScheme colors, {
+    double height = 128,
+  }) {
+    final format = (item['fileFormat'] as String? ?? 'FILE').toUpperCase();
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.insert_drive_file_outlined,
+            size: height < 100 ? 28 : 38,
+            color: colors.primary,
+          ),
+          const SizedBox(height: 4),
+          Text(format, style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text(
+            _text(
+              'Uploaded work file',
+              'Загруженный файл работы',
+              'Yuklangan iş fayli',
+            ),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: height < 100 ? 9 : 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   IconData _categoryIcon(String slug) => switch (slug) {
     'business' => Icons.business_center_rounded,
     'education' => Icons.school_rounded,
@@ -864,6 +929,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 '/api/v1/catalog/${item['listingId']}',
               )).data!;
       if (!mounted) return;
+      MarketplaceFilePreview? filePreview;
+      String? filePreviewError;
+      if (detail['fileFormat'] is String) {
+        try {
+          final response = await _dio.get<Map<String, dynamic>>(
+            '/api/v1/catalog/${item['listingId']}/preview',
+            options: Options(receiveTimeout: const Duration(seconds: 30)),
+          );
+          filePreview = MarketplaceFilePreview.fromJson(response.data!);
+        } catch (_) {
+          filePreviewError = _text(
+            'File preview is temporarily unavailable.',
+            'Предпросмотр файла временно недоступен.',
+            'Fayl koʻrinishi vaqtincha mavjud emas.',
+          );
+        }
+      }
+      if (!mounted) return;
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -878,11 +961,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _text(
-                              'Presentation preview',
-                              'Предпросмотр презентации',
-                              'Taqdimot koʻrinishi',
-                            ),
+                            detail['fileFormat'] is String
+                                ? _text(
+                                  'Work preview',
+                                  'Предпросмотр работы',
+                                  'Iş koʻrinishi',
+                                )
+                                : _text(
+                                  'Presentation preview',
+                                  'Предпросмотр презентации',
+                                  'Taqdimot koʻrinishi',
+                                ),
                             style: Theme.of(context).textTheme.labelLarge,
                           ),
                         ),
@@ -894,16 +983,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    SlidePreviewCarousel(
-                      title: detail['title'] as String,
-                      slides:
-                          _slidePreviews(
-                            detail['previewSlides'],
-                          ).take(3).toList(),
-                      height: 190,
-                    ),
+                    if (filePreview != null)
+                      MarketplaceFilePreviewGallery(
+                        preview: filePreview,
+                        localizations: _strings,
+                      )
+                    else if (filePreviewError != null)
+                      Text(
+                        filePreviewError,
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      )
+                    else
+                      SlidePreviewCarousel(
+                        title: detail['title'] as String,
+                        slides: _slidePreviews(detail['previewSlides']),
+                        height: 190,
+                      ),
                     const SizedBox(height: 8),
-                    _previewAccessNotice(detail),
+                    if (filePreview != null)
+                      _previewAccessNotice(
+                        detail,
+                        lockedFilePageCount: filePreview.lockedPageCount,
+                      )
+                    else
+                      _previewAccessNotice(detail),
                     const SizedBox(height: 24),
                     Text(
                       detail['title'] as String,
@@ -1092,7 +1195,172 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
-  Future<void> _publishListing() async {
+  Future<void> _chooseListingType() async {
+    if (widget.accessToken == null) {
+      widget.onRequireAuth?.call(_section, _checkoutStep);
+      return;
+    }
+    final selectedType = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.upload_file_rounded),
+                  title: Text(
+                    _text(
+                      'Upload a work file',
+                      'Загрузить файл работы',
+                      'Iş faylini yuklash',
+                    ),
+                  ),
+                  subtitle: Text(
+                    _text(
+                      'Documents, presentations, spreadsheets, PDFs, and images',
+                      'Документы, презентации, таблицы, PDF и изображения',
+                      'Hujjatlar, taqdimotlar, jadvallar, PDF va rasmlar',
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context, 'file'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.slideshow_rounded),
+                  title: Text(
+                    _text(
+                      'Sell an existing presentation',
+                      'Продать готовую презентацию',
+                      'Mavjud taqdimotni sotish',
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context, 'presentation'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+    );
+    if (!mounted) return;
+    if (selectedType == 'file') {
+      await _publishFileListing();
+    } else if (selectedType == 'presentation') {
+      await _publishPresentationListing();
+    }
+  }
+
+  Future<void> _publishFileListing() async {
+    final accessToken = widget.accessToken;
+    if (accessToken == null) {
+      widget.onRequireAuth?.call(_section, _checkoutStep);
+      return;
+    }
+    if (_busy) return;
+    if (_categories.isEmpty) {
+      setState(
+        () =>
+            _error = _text(
+              'No active categories are available.',
+              'Нет активных категорий.',
+              'Faol turkumlar mavjud emas.',
+            ),
+      );
+      return;
+    }
+
+    final draft = await showDialog<MarketplaceUploadDraft>(
+      context: context,
+      builder:
+          (context) => MarketplaceUploadListingDialog(
+            localizations: _strings,
+            categories: _categories,
+            categoryLabel: _categoryLabel,
+          ),
+    );
+    if (draft == null || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final filePart = MultipartFile.fromStream(
+        draft.file.readAsByteStream,
+        draft.fileSize,
+        filename: draft.file.name,
+      );
+      final form = FormData.fromMap({
+        'title': draft.title,
+        'workType': draft.workType,
+        'priceTiyin': draft.priceTiyin.toString(),
+        'description': draft.description,
+        'licenseTerms': draft.licenseTerms,
+        'category': draft.category,
+        'file': filePart,
+      });
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/api/v1/seller/listings/uploads',
+        data: form,
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
+      final listingId = response.data?['id'];
+      if (listingId is! String || listingId.isEmpty) {
+        throw const FormatException(
+          'Upload response did not include a listing ID.',
+        );
+      }
+      await _dio.post<void>(
+        '/api/v1/seller/listings/$listingId/publish',
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
+      await _loadCatalog();
+      if (mounted) {
+        setState(
+          () =>
+              _notice = _text(
+                'Your work was published.',
+                'Ваша работа опубликована.',
+                'Işingiz eʼlon qilindi.',
+              ),
+        );
+      }
+    } on DioException catch (exception) {
+      if (mounted) {
+        final response = exception.response?.data;
+        final detail =
+            response is Map && response['detail'] is String
+                ? (response['detail'] as String).trim()
+                : '';
+        setState(
+          () =>
+              _error =
+                  detail.isNotEmpty
+                      ? detail
+                      : _text(
+                        'Could not upload and publish the file.',
+                        'Не удалось загрузить и опубликовать файл.',
+                        'Faylni yuklab, eʼlon qilib boʻlmadi.',
+                      ),
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        setState(
+          () =>
+              _error = _text(
+                'The selected file could not be read.',
+                'Не удалось прочитать выбранный файл.',
+                'Tanlangan faylni oʻqib boʻlmadi.',
+              ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _publishPresentationListing() async {
     final accessToken = widget.accessToken;
     if (accessToken == null) {
       widget.onRequireAuth?.call(_section, _checkoutStep);
@@ -1753,11 +2021,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       (entry) => entry['listingId'] == item['listingId'],
     );
     final previews = _slidePreviews(item['previewSlides']);
+    final isFileListing = item['hasDownloadableFile'] == true;
     final totalSlides =
         item['slideCount'] is num
             ? (item['slideCount'] as num).toInt()
             : previews.length;
-    final lockedSlides = (totalSlides - previews.length).clamp(0, 100000);
+    final lockedSlides =
+        isFileListing
+            ? 0
+            : (totalSlides - previews.length).clamp(0, 100000).toInt();
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1781,12 +2053,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         padding: const EdgeInsets.all(6),
-                        child: SlidePreviewCarousel(
-                          title: item['title'] as String,
-                          slides: previews,
-                          height: 84,
-                          showSlideDetails: false,
-                        ),
+                        child:
+                            isFileListing
+                                ? _fileFormatPreview(item, colors, height: 84)
+                                : SlidePreviewCarousel(
+                                  title: item['title'] as String,
+                                  slides: previews,
+                                  height: 84,
+                                  showSlideDetails: false,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1832,11 +2107,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ),
                       ),
                       Text(
-                        _text(
-                          'Previewing ${previews.length} of $totalSlides slides',
-                          'Предпросмотр: ${previews.length} из $totalSlides слайдов',
-                          '$totalSlides slayddan ${previews.length} tasi koʻrsatilmoqda',
-                        ),
+                        isFileListing
+                            ? _text(
+                              '${(item['fileFormat'] as String? ?? 'FILE').toUpperCase()} · tap for page previews',
+                              '${(item['fileFormat'] as String? ?? 'FILE').toUpperCase()} · нажмите для предпросмотра страниц',
+                              '${(item['fileFormat'] as String? ?? 'FILE').toUpperCase()} · sahifalarni koʻrish uchun bosing',
+                            )
+                            : _text(
+                              'Previewing ${previews.length} of $totalSlides slides',
+                              'Предпросмотр: ${previews.length} из $totalSlides слайдов',
+                              '$totalSlides slayddan ${previews.length} tasi koʻrsatilmoqda',
+                            ),
                         style: TextStyle(
                           color: colors.onSurfaceVariant,
                           fontSize: 9,
@@ -1922,6 +2203,80 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  Widget _cartQuickAccess(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final total = _cart.fold<num>(
+      0,
+      (sum, item) => sum + ((item['priceTiyin'] as num?) ?? 0),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Material(
+        key: const ValueKey('marketplace-cart-summary'),
+        color: colors.primary,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            setState(() {
+              _section = 1;
+              _checkoutStep = 0;
+            });
+            widget.onStateChanged?.call(1, 0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.shopping_bag_rounded,
+                  color: colors.onPrimary,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _text(
+                          'Cart · ${_cart.length}',
+                          'Корзина · ${_cart.length}',
+                          'Savat · ${_cart.length}',
+                        ),
+                        style: TextStyle(
+                          color: colors.onPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '${(total / 100).toStringAsFixed(0)} UZS',
+                        style: TextStyle(
+                          color: colors.onPrimary.withValues(alpha: .82),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _text('View cart', 'Открыть', 'Savatni ochish'),
+                  style: TextStyle(
+                    color: colors.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right_rounded, color: colors.onPrimary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _cartContent(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final total = _cart.fold<num>(
@@ -1969,11 +2324,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SlidePreviewCarousel(
-                            title: item['title'] as String,
-                            slides: _slidePreviews(item['previewSlides']),
-                            height: 128,
-                          ),
+                          if (item['hasDownloadableFile'] == true)
+                            _fileFormatPreview(item, colors)
+                          else
+                            SlidePreviewCarousel(
+                              title: item['title'] as String,
+                              slides: _slidePreviews(item['previewSlides']),
+                              height: 128,
+                            ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -2024,11 +2382,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 const SizedBox(height: 12),
                 _totalRow(colors, total),
               ] else if (_checkoutStep == 1) ...[
-                SlidePreviewCarousel(
-                  title: _cart.first['title'] as String,
-                  slides: _slidePreviews(_cart.first['previewSlides']),
-                  height: 150,
-                ),
+                if (_cart.first['hasDownloadableFile'] == true)
+                  _fileFormatPreview(_cart.first, colors, height: 150)
+                else
+                  SlidePreviewCarousel(
+                    title: _cart.first['title'] as String,
+                    slides: _slidePreviews(_cart.first['previewSlides']),
+                    height: 150,
+                  ),
                 const SizedBox(height: 14),
                 ..._cart.map(
                   (item) => ListTile(
@@ -2106,11 +2467,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
                 if (_cart.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  SlidePreviewCarousel(
-                    title: _cart.first['title'] as String,
-                    slides: _slidePreviews(_cart.first['previewSlides']),
-                    height: 128,
-                  ),
+                  if (_cart.first['hasDownloadableFile'] == true)
+                    _fileFormatPreview(_cart.first, colors)
+                  else
+                    SlidePreviewCarousel(
+                      title: _cart.first['title'] as String,
+                      slides: _slidePreviews(_cart.first['previewSlides']),
+                      height: 128,
+                    ),
                 ],
                 const SizedBox(height: 12),
                 _totalRow(colors, total),
@@ -2455,11 +2819,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SlidePreviewCarousel(
-                          title: purchase['title'] as String,
-                          slides: _slidePreviews(purchase['previewSlides']),
-                          height: 128,
-                        ),
+                        if (purchase['hasDownloadableFile'] == true)
+                          _fileFormatPreview(purchase, colors)
+                        else
+                          SlidePreviewCarousel(
+                            title: purchase['title'] as String,
+                            slides: _slidePreviews(purchase['previewSlides']),
+                            height: 128,
+                          ),
                         const SizedBox(height: 10),
                         Text(
                           purchase['title'] as String,
@@ -2503,9 +2870,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         Text(
           signedIn
               ? _text(
-                'You are signed in to Slideforge.',
-                'Вы вошли в Slideforge.',
-                'Slideforge tizimiga kirdingiz.',
+                'You are signed in to EDU Slides.',
+                'Вы вошли в EDU Slides.',
+                'EDU Slides tizimiga kirdingiz.',
               )
               : _text(
                 'Sign in to buy or sell presentations.',
@@ -2535,13 +2902,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: _busy ? null : _publishListing,
+            onPressed: _busy ? null : _chooseListingType,
             icon: const Icon(Icons.storefront_outlined),
             label: Text(
               _text(
-                'Sell a presentation',
-                'Продать презентацию',
-                'Taqdimot sotish',
+                'Sell your work',
+                'Продать свою работу',
+                'Işingizni sotish',
               ),
             ),
           ),
@@ -2629,9 +2996,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           if (!widget.showNavigation) return animatedContent;
           return Scaffold(
             appBar: AppBar(
-              title: const Text(
-                'slideforge',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              title: const Row(
+                children: [
+                  EduslidesBrandMark(size: 34),
+                  SizedBox(width: 10),
+                  Text(
+                    'EDU Slides',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
               ),
               actions: [
                 IconButton(
@@ -2667,30 +3040,36 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 Expanded(child: animatedContent),
               ],
             ),
-            bottomNavigationBar: SlideforgeBottomNavigationBar(
-              selectedIndex: _section,
-              items: [
-                SlideforgeNavigationItem(
-                  label: _text('Shop', 'Магазин', 'Doʻkon'),
-                  icon: Icons.storefront_outlined,
-                  selectedIcon: Icons.storefront_rounded,
-                ),
-                SlideforgeNavigationItem(
-                  label: _text('Cart', 'Корзина', 'Savat'),
-                  icon: Icons.shopping_bag_outlined,
-                  selectedIcon: Icons.shopping_bag_rounded,
-                  badgeCount: _cart.length,
-                ),
-                SlideforgeNavigationItem(
-                  label: _text('Account', 'Аккаунт', 'Hisob'),
-                  icon: Icons.account_circle_outlined,
-                  selectedIcon: Icons.account_circle_rounded,
+            bottomNavigationBar: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_cart.isNotEmpty) _cartQuickAccess(context),
+                SlideforgeBottomNavigationBar(
+                  selectedIndex: _section,
+                  items: [
+                    SlideforgeNavigationItem(
+                      label: _text('Shop', 'Магазин', 'Doʻkon'),
+                      icon: Icons.storefront_outlined,
+                      selectedIcon: Icons.storefront_rounded,
+                    ),
+                    SlideforgeNavigationItem(
+                      label: _text('Cart', 'Корзина', 'Savat'),
+                      icon: Icons.shopping_bag_outlined,
+                      selectedIcon: Icons.shopping_bag_rounded,
+                      badgeCount: _cart.length,
+                    ),
+                    SlideforgeNavigationItem(
+                      label: _text('Account', 'Аккаунт', 'Hisob'),
+                      icon: Icons.account_circle_outlined,
+                      selectedIcon: Icons.account_circle_rounded,
+                    ),
+                  ],
+                  onSelected: (index) {
+                    if (index == 1 && _cart.isEmpty) _setCheckoutStep(0);
+                    _setSection(index);
+                  },
                 ),
               ],
-              onSelected: (index) {
-                if (index == 1 && _cart.isEmpty) _setCheckoutStep(0);
-                _setSection(index);
-              },
             ),
           );
         },

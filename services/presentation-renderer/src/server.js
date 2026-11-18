@@ -5,9 +5,11 @@ const path = require("node:path");
 const { renderPdf } = require("./render-pdf");
 const { renderArtifact } = require("./render-artifact");
 const { renderPptx } = require("./render-pptx");
+const { renderMarketplacePreview } = require("./render-marketplace-preview");
 const { validateDeck } = require("./validate");
 
 const MAX_REQUEST_BYTES = 5 * 1024 * 1024;
+const MAX_MARKETPLACE_PREVIEW_BYTES = 25 * 1024 * 1024;
 const CONTENT_TYPES = {
   pdf: "application/pdf",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -34,6 +36,21 @@ async function readJson(request) {
   }
 }
 
+async function readBuffer(request, maximumBytes) {
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of request) {
+    bytes += chunk.length;
+    if (bytes > maximumBytes) {
+      const error = new Error("Uploaded file exceeds 25 MB");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
@@ -44,6 +61,24 @@ function createRendererServer() {
     const url = new URL(request.url, "http://localhost");
     if (request.method === "GET" && url.pathname === "/health") {
       return sendJson(response, 200, { status: "available" });
+    }
+
+    const marketplacePreviewExtension = url.pathname.match(/^\/render\/marketplace-preview\/([a-z0-9]{2,5})$/)?.[1];
+    if (request.method === "POST" && marketplacePreviewExtension) {
+      if (!request.headers["content-type"]?.startsWith("application/octet-stream")) {
+        return sendJson(response, 415, { error: "Content-Type must be application/octet-stream" });
+      }
+      try {
+        const input = await readBuffer(request, MAX_MARKETPLACE_PREVIEW_BYTES);
+        const preview = await renderMarketplacePreview(input, marketplacePreviewExtension);
+        sendJson(response, 200, preview);
+      } catch (error) {
+        console.error("Marketplace preview request failed:", error);
+        sendJson(response, error.statusCode ?? 422, {
+          error: error.statusCode ? error.message : "The uploaded file could not be previewed",
+        });
+      }
+      return;
     }
 
     const artifactFormat = url.pathname.match(/^\/render\/artifact\/(pdf|docx)$/)?.[1];

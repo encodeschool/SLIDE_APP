@@ -17,12 +17,12 @@ import {
   Plus,
   Search,
   Settings2,
-  ShieldCheck,
   Sparkles,
   UsersRound,
 } from "lucide-react";
 import type { Locale } from "../../shared/types";
 import { showcaseCopy } from "../../i18n/showcase";
+import brandMark from "../../assets/slideforge-mark.svg";
 
 interface AppsShowcaseProps {
   locale: Locale;
@@ -148,7 +148,7 @@ function AdminPreview({ copy }: { copy: Record<string, string> }) {
     <PromoFrame label={copy.screenAdmin} sampleData={copy.sampleData}>
       <div className="apps-admin-screen">
         <aside className="apps-admin-sidebar">
-          <span className="apps-admin-brand"><ShieldCheck size={16} />slideforge</span>
+          <span className="apps-admin-brand"><img src={brandMark} alt="" />EDU Slides</span>
           <span className="apps-admin-selected"><LayoutDashboard size={14} />{copy.adminOverview}</span>
           <span><UsersRound size={14} />{copy.adminMenuUsers}</span>
           <span><BookOpen size={14} />{copy.adminMenuMarketplace}</span>
@@ -181,7 +181,7 @@ function MobilePreview({ copy }: { copy: Record<string, string> }) {
       <div className="apps-phone-frame">
         <div className="apps-phone-island" />
         <div className="apps-phone-screen">
-          <div className="apps-phone-header"><span>slideforge</span><span className="apps-phone-avatar">S</span></div>
+          <div className="apps-phone-header"><span className="apps-phone-wordmark"><img src={brandMark} alt="" />EDU Slides</span><span className="apps-phone-avatar">E</span></div>
           <p className="apps-phone-greeting">{copy.mobileGreeting}</p>
           <h3>{copy.mobileSubheading}</h3>
           <div className="apps-phone-create"><span><Sparkles size={16} /></span><div><strong>{copy.ctaButton}</strong><small>{copy.mobileAiLabel}</small></div><ArrowRight size={14} /></div>

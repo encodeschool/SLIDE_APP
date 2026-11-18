@@ -28,6 +28,10 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipException;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,16 +46,20 @@ public class MarketplaceFileStorage {
     private static final Logger logger = LoggerFactory.getLogger(MarketplaceFileStorage.class);
     private static final Map<String, Set<String>> EXTENSIONS_BY_WORK_TYPE = Map.of(
             "presentation", Set.of("pptx", "pdf", "odp"),
-            "document", Set.of("docx", "odt", "rtf", "txt", "pdf"),
-            "coursework", Set.of("docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt"),
-            "worksheet", Set.of("xlsx", "ods", "docx", "odt", "pdf", "txt"),
-            "design", Set.of("pdf", "png", "jpg", "jpeg", "webp"),
+            "document", Set.of("docx", "odt", "rtf", "txt", "md", "html", "htm", "pdf"),
+            "coursework", Set.of(
+                    "docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "md", "html", "htm", "csv"),
+            "worksheet", Set.of("xlsx", "ods", "docx", "odt", "pdf", "txt", "md", "csv"),
+            "design", Set.of("pdf", "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp"),
             "other", Set.of(
-                    "docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "png", "jpg", "jpeg", "webp"));
+                    "docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "md", "html", "htm", "csv",
+                    "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp"));
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "png", "jpg", "jpeg", "webp");
+            "docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "md", "html", "htm", "csv",
+            "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp");
     private static final String OBJECT_KEY_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.[a-z0-9]{2,5}$";
     private static final byte[] ZIP_SIGNATURE = new byte[] {0x50, 0x4b, 0x03, 0x04};
+    private static final Set<String> UNSAFE_SVG_ELEMENTS = Set.of("script", "style", "foreignObject", "image");
     private final Path storageRoot;
 
     public MarketplaceFileStorage(@Value("${app.marketplace.storage-path}") String storagePath) {
@@ -120,9 +128,7 @@ public class MarketplaceFileStorage {
     }
 
     public Path resolveStoredFile(String objectKey) {
-        if (objectKey == null || !objectKey.matches(OBJECT_KEY_PATTERN)) {
-            throw new IllegalStateException("Marketplace file object key is invalid");
-        }
+        requireValidObjectKey(objectKey);
         Path resolved = storageRoot.resolve(objectKey).normalize();
         if (!storageRoot.equals(resolved.getParent())
                 || !Files.isRegularFile(resolved, LinkOption.NOFOLLOW_LINKS)) {
@@ -134,14 +140,56 @@ public class MarketplaceFileStorage {
         return resolved;
     }
 
+    public byte[] readPreviewCache(String objectKey) {
+        Path cache = previewCachePath(objectKey);
+        if (!Files.isRegularFile(cache, LinkOption.NOFOLLOW_LINKS)) return null;
+        try {
+            return Files.readAllBytes(cache);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Marketplace preview cache could not be read", exception);
+        }
+    }
+
+    public void writePreviewCache(String objectKey, byte[] contents) {
+        Path cache = previewCachePath(objectKey);
+        Path temporaryFile = null;
+        try {
+            Files.createDirectories(cache.getParent());
+            temporaryFile = Files.createTempFile(cache.getParent(), ".preview-", ".tmp");
+            Files.write(temporaryFile, contents, StandardOpenOption.TRUNCATE_EXISTING);
+            moveAtomically(temporaryFile, cache);
+        } catch (IOException exception) {
+            if (temporaryFile != null) {
+                try {
+                    Files.deleteIfExists(temporaryFile);
+                } catch (IOException cleanupException) {
+                    logger.error("Could not clean up marketplace preview cache temporary file", cleanupException);
+                }
+            }
+            throw new IllegalStateException("Marketplace preview cache could not be stored", exception);
+        }
+    }
+
     public void delete(String objectKey) {
         if (objectKey == null || !objectKey.matches(OBJECT_KEY_PATTERN)) {
             throw new IllegalArgumentException("Marketplace file object key is invalid");
         }
         try {
             Files.deleteIfExists(storageRoot.resolve(objectKey).normalize());
+            Files.deleteIfExists(previewCachePath(objectKey));
         } catch (IOException exception) {
             logger.error("Could not remove marketplace upload {}", objectKey, exception);
+        }
+    }
+
+    private Path previewCachePath(String objectKey) {
+        requireValidObjectKey(objectKey);
+        return storageRoot.resolve(".previews").resolve(objectKey + ".json").normalize();
+    }
+
+    private void requireValidObjectKey(String objectKey) {
+        if (objectKey == null || !objectKey.matches(OBJECT_KEY_PATTERN)) {
+            throw new IllegalStateException("Marketplace file object key is invalid");
         }
     }
 
@@ -200,8 +248,12 @@ public class MarketplaceFileStorage {
             case "webp" -> prefix.length >= 12
                     && startsWith(prefix, "RIFF".getBytes(StandardCharsets.US_ASCII))
                     && startsWithAt(prefix, "WEBP".getBytes(StandardCharsets.US_ASCII), 8);
+            case "gif" -> startsWith(prefix, "GIF87a".getBytes(StandardCharsets.US_ASCII))
+                    || startsWith(prefix, "GIF89a".getBytes(StandardCharsets.US_ASCII));
+            case "bmp" -> startsWith(prefix, "BM".getBytes(StandardCharsets.US_ASCII));
+            case "svg" -> isSvg(file);
             case "rtf" -> startsWith(prefix, "{\\rtf".getBytes(StandardCharsets.US_ASCII));
-            case "txt" -> isUtf8Text(file);
+            case "txt", "md", "html", "htm", "csv" -> isUtf8Text(file);
             case "docx" -> isOfficeZip(file, "word/document.xml");
             case "pptx" -> isOfficeZip(file, "ppt/presentation.xml");
             case "xlsx" -> isOfficeZip(file, "xl/workbook.xml");
@@ -239,6 +291,48 @@ public class MarketplaceFileStorage {
             }
             return true;
         } catch (CharacterCodingException exception) {
+            return false;
+        }
+    }
+
+    private boolean isSvg(Path file) throws IOException {
+        XMLInputFactory factory = XMLInputFactory.newFactory();
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        factory.setProperty("javax.xml.stream.isSupportingExternalEntities", false);
+        try (InputStream input = Files.newInputStream(file)) {
+            XMLStreamReader reader = factory.createXMLStreamReader(input, StandardCharsets.UTF_8.name());
+            try {
+                boolean rootSeen = false;
+                while (reader.hasNext()) {
+                    int event = reader.next();
+                    if (event == XMLStreamConstants.DTD) return false;
+                    if (event == XMLStreamConstants.START_ELEMENT) {
+                        String element = reader.getLocalName();
+                        if (!rootSeen) {
+                            if (!"svg".equals(element)) return false;
+                            rootSeen = true;
+                        } else if (UNSAFE_SVG_ELEMENTS.contains(element)) {
+                            return false;
+                        }
+                        for (int index = 0; index < reader.getAttributeCount(); index++) {
+                            String name = reader.getAttributeLocalName(index).toLowerCase(Locale.ROOT);
+                            String value = reader.getAttributeValue(index).strip().toLowerCase(Locale.ROOT);
+                            if (name.startsWith("on")
+                                    || ("href".equals(name) && !value.startsWith("#"))
+                                    || value.matches(".*url\\(\\s*['\"]?(?!#).*")
+                                    || value.contains("javascript:")
+                                    || value.contains("@import")
+                                    || value.contains("expression(")) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return rootSeen;
+            } finally {
+                reader.close();
+            }
+        } catch (XMLStreamException exception) {
             return false;
         }
     }
@@ -300,9 +394,9 @@ public class MarketplaceFileStorage {
 
     private void moveAtomically(Path source, Path destination) throws IOException {
         try {
-            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(source, destination);
+            Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

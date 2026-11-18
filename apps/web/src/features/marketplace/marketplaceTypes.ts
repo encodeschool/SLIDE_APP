@@ -40,7 +40,22 @@ export type Product = {
   previewSlides?: PreviewSlide[];
 };
 
-export type ProductDetail = Product & { licenseTerms: string };
+export type FilePreviewPage = {
+  pageNumber: number;
+  imageDataUrl: string;
+};
+
+export type FilePreview = {
+  totalPages: number;
+  pages: FilePreviewPage[];
+};
+
+export type ProductDetail = Product & {
+  licenseTerms: string;
+  filePreview?: FilePreview;
+  filePreviewUnavailable?: boolean;
+  filePreviewLoading?: boolean;
+};
 
 export type Purchase = {
   entitlementId: string;

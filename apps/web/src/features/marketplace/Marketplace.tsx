@@ -4,7 +4,7 @@ import { API_URL, authorizedFetch } from "../../shared/api/client";
 import type { AuthResponse, ExportFormat, ExportJobResponse, Locale, PresentationSummary } from "../../shared/types";
 import { SlidePreviewCarousel } from "./SlidePreviewCarousel";
 import { demoCatalogPage, demoCategories, demoProductDetails } from "./demoCatalog";
-import type { Category, MarketplaceWorkType, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
+import type { Category, FilePreview, MarketplaceWorkType, Product, ProductDetail, Purchase, PurchaseContent, PreviewSlide } from "./marketplaceTypes";
 import { browseLabels, categoryNames, marketplaceCategoryFallbacks, publishDialogCopy, purchaseActionLabels } from "../../i18n/marketplace";
 type Listing = {
   id: string;
@@ -26,12 +26,87 @@ type SellerSource = "owned" | "file";
 const maximumUploadSize = 25 * 1024 * 1024;
 const allowedFormatsByWorkType: Record<SellerWorkType, string[]> = {
   presentation: ["pptx", "pdf", "odp"],
-  document: ["docx", "odt", "rtf", "txt", "pdf"],
-  coursework: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt"],
-  worksheet: ["xlsx", "ods", "docx", "odt", "pdf", "txt"],
-  design: ["pdf", "png", "jpg", "jpeg", "webp"],
-  other: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "png", "jpg", "jpeg", "webp"],
+  document: ["docx", "odt", "rtf", "txt", "md", "html", "htm", "pdf"],
+  coursework: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "md", "html", "htm", "csv"],
+  worksheet: ["xlsx", "ods", "docx", "odt", "pdf", "txt", "md", "csv"],
+  design: ["pdf", "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp"],
+  other: ["docx", "pptx", "xlsx", "odt", "odp", "ods", "pdf", "rtf", "txt", "md", "html", "htm", "csv", "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp"],
 };
+
+function readFilePreview(value: unknown): FilePreview | null {
+  if (!isRecord(value) || typeof value.totalPages !== "number" || !Number.isSafeInteger(value.totalPages)
+    || value.totalPages < 1 || value.totalPages > 500 || !Array.isArray(value.pages) || value.pages.length > 2) {
+    return null;
+  }
+  const pages = value.pages.flatMap((page): FilePreview["pages"] => {
+    if (!isRecord(page) || typeof page.pageNumber !== "number"
+      || !Number.isSafeInteger(page.pageNumber) || page.pageNumber < 1 || page.pageNumber > 2
+      || typeof page.imageDataUrl !== "string" || page.imageDataUrl.length > 7_000_000
+      || !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(page.imageDataUrl)) {
+      return [];
+    }
+    return [{ pageNumber: page.pageNumber, imageDataUrl: page.imageDataUrl }];
+  });
+  if (pages.length !== value.pages.length || pages.length > value.totalPages
+    || pages.some((page, index) => page.pageNumber !== index + 1)) return null;
+  return { totalPages: value.totalPages, pages };
+}
+
+function MarketplaceFilePreview({
+  fileFormat,
+  workTypeLabel,
+  preview,
+  loading,
+  unavailable,
+  labels,
+  onPurchase,
+}: {
+  fileFormat: string | null;
+  workTypeLabel: string;
+  preview?: FilePreview;
+  loading?: boolean;
+  unavailable?: boolean;
+  labels: {
+    filePreviewLoading: string;
+    filePreviewUnavailable: string;
+    filePreviewCount: string;
+    previewPage: string;
+    filePreviewLocked: string;
+    buyToUnlock: string;
+  };
+  onPurchase: () => void;
+}) {
+  const pages = preview?.pages.slice(0, 2) ?? [];
+  const lockedCount = Math.max(0, (preview?.totalPages ?? 0) - pages.length);
+  return (
+    <div className="market-file-page-preview" aria-live="polite">
+      {pages.length === 0 && <FileWorkPreview fileFormat={fileFormat} workTypeLabel={workTypeLabel} />}
+      {pages.length > 0 && (
+        <div className="market-file-page-grid">
+          {pages.map((page) => (
+            <figure className="market-file-page" key={page.pageNumber}>
+              <img src={page.imageDataUrl} alt={`${labels.previewPage} ${page.pageNumber}`} />
+              <figcaption>{labels.previewPage} {page.pageNumber}</figcaption>
+            </figure>
+          ))}
+          {lockedCount > 0 && (
+            <div className="market-file-page-locked">
+              <LockKeyhole size={22} aria-hidden="true" />
+              <strong>{labels.filePreviewLocked}</strong>
+              <small>{lockedCount}</small>
+              <button className="secondary-button" type="button" onClick={onPurchase}>{labels.buyToUnlock}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {loading && <p className="market-file-preview-status" role="status">{labels.filePreviewLoading}</p>}
+      {unavailable && <p className="market-file-preview-status" role="status">{labels.filePreviewUnavailable}</p>}
+      {preview && <p className="market-preview-count">
+        {labels.filePreviewCount.replace("{visible}", String(pages.length)).replace("{total}", String(preview.totalPages))}
+      </p>}
+    </div>
+  );
+}
 
 interface Props {
   locale: Locale;
@@ -299,6 +374,7 @@ export function Marketplace({
   const checkoutKeys = useRef(new Map<string, string>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLock = useRef(false);
+  const detailRequestId = useRef(0);
   const sellerDialogRef = useRef<HTMLDialogElement | null>(null);
   const [sellerDialogOpen, setSellerDialogOpen] = useState(false);
   const isFileListing = sellerWorkType !== "presentation" || sellerSource === "file";
@@ -523,6 +599,7 @@ export function Marketplace({
   }, [items.length, total, loading, loadingMore, error, visibleItems.length, page, category, minPriceTiyin, maxPriceTiyin, sort]);
 
   async function showDetail(item: Product) {
+    const requestId = ++detailRequestId.current;
     if (demoMode) {
       const result = demoProductDetails.get(item.listingId);
       if (result) {
@@ -534,9 +611,28 @@ export function Marketplace({
     try {
       const response = await fetch(`${API_URL}/api/v1/catalog/${item.listingId}`);
       if (!response.ok) throw new Error();
+      const listing = await response.json() as ProductDetail;
+      if (requestId !== detailRequestId.current) return;
       setDetailTab("overview");
-      setDetail(await response.json() as ProductDetail);
-    } catch { setError(t.error); }
+      setDetail({ ...listing, filePreviewLoading: listing.hasDownloadableFile });
+      if (listing.hasDownloadableFile) {
+        try {
+          const previewResponse = await fetch(`${API_URL}/api/v1/catalog/${item.listingId}/preview`);
+          if (!previewResponse.ok) throw new Error();
+          const preview = readFilePreview(await previewResponse.json());
+          if (!preview) throw new Error();
+          setDetail((current) => current?.listingId === item.listingId
+            ? { ...current, filePreview: preview, filePreviewLoading: false }
+            : current);
+        } catch {
+          setDetail((current) => current?.listingId === item.listingId
+            ? { ...current, filePreviewLoading: false, filePreviewUnavailable: true }
+            : current);
+        }
+      }
+    } catch {
+      if (requestId === detailRequestId.current) setError(t.error);
+    }
   }
 
   function showFilters() {
@@ -937,6 +1033,11 @@ export function Marketplace({
     </div>
   );
 
+  function closeDetail() {
+    detailRequestId.current++;
+    setDetail(null);
+  }
+
   if (detail) {
     const visibleSlideCount = Math.min(detail.previewSlides?.length ?? 0, 2);
     const totalSlideCount = Number.isSafeInteger(detail.slideCount) && detail.slideCount > 0
@@ -946,12 +1047,20 @@ export function Marketplace({
     return (
       <section className="marketplace-page market-detail-page" aria-labelledby="market-detail-title">
         {cartAddedToast}
-        <button className="text-button" type="button" onClick={() => setDetail(null)}><ArrowLeft size={16} />{t.back}</button>
+        <button className="text-button" type="button" onClick={closeDetail}><ArrowLeft size={16} />{t.back}</button>
         <div className="market-detail">
           <div className="market-detail-main">
             <div className="market-detail-preview">
                 {detail.hasDownloadableFile ? (
-                  <FileWorkPreview fileFormat={detail.fileFormat} workTypeLabel={workTypeName(detail.workType)} />
+                  <MarketplaceFilePreview
+                    fileFormat={detail.fileFormat}
+                    workTypeLabel={workTypeName(detail.workType)}
+                    preview={detail.filePreview}
+                    loading={detail.filePreviewLoading}
+                    unavailable={detail.filePreviewUnavailable}
+                    labels={b}
+                    onPurchase={() => { addToCart(detail); closeDetail(); setStage("cart"); }}
+                  />
                 ) : (
                   <>
                     <SlidePreviewCarousel
@@ -960,7 +1069,7 @@ export function Marketplace({
                       locale={locale}
                       categoryTag={translatedCategory(detail.category)}
                       {...lockedCarouselCopy(totalSlideCount, detail.previewSlides)}
-                      onPurchase={() => { addToCart(detail); setDetail(null); setStage("cart"); }}
+                      onPurchase={() => { addToCart(detail); closeDetail(); setStage("cart"); }}
                     />
                     <p className="market-preview-count">
                       {b.previewCount.replace("{visible}", String(visibleSlideCount)).replace("{total}", String(totalSlideCount))}
@@ -998,6 +1107,20 @@ export function Marketplace({
                   <>
                     <h2>{b.fileDetails}</h2>
                     <p>{workTypeName(detail.workType)} · {b.fileFormatLabel}: {detail.fileFormat}</p>
+                    {detail.filePreview && (
+                      <p>{b.filePreviewCount
+                        .replace("{visible}", String(detail.filePreview.pages.length))
+                        .replace("{total}", String(detail.filePreview.totalPages))}</p>
+                    )}
+                    {detail.filePreview && detail.filePreview.totalPages > detail.filePreview.pages.length && (
+                      <div className="market-detail-locked-note">
+                        <LockKeyhole size={16} aria-hidden="true" />
+                        <span>{b.filePreviewLocked}</span>
+                        <button className="secondary-button" type="button" onClick={() => { addToCart(detail); closeDetail(); setStage("cart"); }}>
+                          <ShoppingBag size={14} aria-hidden="true" />{b.buyToUnlock}
+                        </button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1039,7 +1162,7 @@ export function Marketplace({
                 ? <><Check size={15} aria-hidden="true" />{t.added}</>
                 : <><ShoppingBag size={15} aria-hidden="true" />{t.add}</>}
             </button>
-            {lockedSlideCount > 0 && (
+            {(lockedSlideCount > 0 || (detail.filePreview && detail.filePreview.totalPages > detail.filePreview.pages.length)) && (
               <p className="market-detail-purchase-lock"><LockKeyhole size={15} aria-hidden="true" />{b.lockedNote}</p>
             )}
             <p className="market-detail-secure-note"><ShieldCheck size={16} aria-hidden="true" />{t.secureNote}</p>
@@ -1452,6 +1575,7 @@ export function Marketplace({
               {stagedWorkFile && <p className="seller-file-selected" role="status">{publishCopy.fileSelected}: {stagedWorkFile.name} · {publishCopy.fileSize}: {(stagedWorkFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
               {workFileError && <p className="form-error" role="alert">{workFileError}</p>}
               <p className="seller-file-notice">{publishCopy.fileFormats.replace("{formats}", allowedFormats.map((format) => `.${format}`).join(", "))}</p>
+              <p className="seller-file-notice">{publishCopy.filePreviewNotice}</p>
               <p className="seller-file-notice">{publishCopy.fileSecurityNotice}</p>
             </div>
           )}

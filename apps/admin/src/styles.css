@@ -9,7 +9,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #7cb9a0; outline-offs
 .admin-shell { min-height: 100vh; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
 .admin-sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 25px 15px 18px; border-right: 1px solid var(--line); background: #fafbf8; }
 .admin-brand { display: flex; align-items: center; gap: 10px; padding: 0 9px; font: 800 17px "Manrope", sans-serif; }
-.admin-brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; color: white; background: #28765d; }
+.admin-brand-mark { display: grid; width: 34px; height: 34px; place-items: center; }
+.admin-brand-mark img { display: block; width: 100%; height: 100%; }
 .brand-divider { padding: 0 5px; color: #c2c9c3; font-weight: 500; }
 .console-label { margin: 42px 10px 12px; color: #929a94; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .admin-nav { display: grid; gap: 4px; }
@@ -31,7 +32,8 @@ section {
 .admin-language { display: inline-flex; align-items: center; gap: 7px; min-height: 33px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; background: #fbfcf9; color: #58625b; cursor: pointer; font-size: 10px; font-weight: 700; }
 .admin-content { width: min(100%, 770px); padding-top: clamp(55px, 9vh, 94px); }
 .auth-loading-page { display: grid; justify-items: center; align-content: center; gap: 14px; min-height: min(62vh, 560px); margin: auto; padding: 32px 20px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, #fbfcf9, #f2f6f1); text-align: center; }
-.admin-loading-mark { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 16px; background: var(--green); color: white; box-shadow: 0 9px 22px rgb(40 118 93 / 20%); }
+.admin-loading-mark { display: grid; width: 54px; height: 54px; place-items: center; }
+.admin-loading-mark img { display: block; width: 100%; height: 100%; }
 .admin-loading-brand { color: var(--ink); font: 800 18px "Manrope", sans-serif; }
 .admin-loading-spinner { width: 24px; height: 24px; margin-top: 8px; border: 2px solid #dfe9df; border-top-color: var(--green); border-radius: 50%; animation: admin-spin .85s linear infinite; }
 .auth-loading-page strong { color: var(--ink); font: 700 14px "Manrope", sans-serif; }
@@ -478,6 +480,7 @@ body {
 }
 
 .admin-auth-page {
+  position: relative;
   display: grid;
   min-height: 100vh;
   min-height: 100svh;
@@ -487,6 +490,17 @@ body {
     radial-gradient(ellipse at 50% 0%, rgb(213 231 216 / 75%), transparent 48%),
     #f3f5f2;
 }
+.admin-auth-brand {
+  position: absolute;
+  top: clamp(18px, 4vw, 36px);
+  left: clamp(18px, 4vw, 44px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font: 800 17px "Manrope", sans-serif;
+}
+.admin-auth-brand img { width: 36px; height: 36px; }
 .admin-auth-page > .admin-content {
   width: min(100%, 440px);
   margin: 0;

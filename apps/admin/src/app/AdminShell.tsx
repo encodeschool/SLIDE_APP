@@ -1,5 +1,6 @@
-import { Globe2, Layers3, LogOut, ShieldCheck, Store, UsersRound } from "lucide-react";
+import { Globe2, LogOut, ShieldCheck, Store, UsersRound } from "lucide-react";
 import type { Locale, Translations } from "../i18n";
+import brandMark from "../assets/eduslides-mark.svg";
 
 interface AdminShellProps {
   locale: Locale;
@@ -25,9 +26,9 @@ export function AdminShell({
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <a className="admin-brand" href="#admin-home" aria-label="Slideforge admin home">
-          <span className="admin-brand-mark"><Layers3 size={20} strokeWidth={2.2} /></span>
-          <span>slideforge<span className="brand-divider">/</span>admin</span>
+        <a className="admin-brand" href="#admin-home" aria-label="EDU Slides admin home">
+          <span className="admin-brand-mark"><img src={brandMark} alt="" /></span>
+          <span>EDU Slides<span className="brand-divider">/</span>Admin</span>
         </a>
         <div className="console-label">{t.console}</div>
         <nav className="admin-nav" aria-label={t.console}>
@@ -63,7 +64,7 @@ export function AdminShell({
           </div>
         </header>
         {children}
-        <footer className="admin-footer"><span>Slideforge Admin</span><span>{t.staffOnly}</span></footer>
+        <footer className="admin-footer"><span>EDU Slides Admin</span><span>{t.staffOnly}</span></footer>
       </main>
     </div>
   );

@@ -83,6 +83,55 @@ class MarketplaceFileStorageTest {
     }
 
     @Test
+    void acceptsAdditionalTextAndImageFormatsForTheirWorkTypes() throws Exception {
+        MarketplaceFileStorage storage = new MarketplaceFileStorage(storagePath.toString());
+        byte[] text = "# Study guide\nLesson one".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12">
+                  <circle cx="6" cy="6" r="5"/>
+                </svg>
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] gif = "GIF89a".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] bmp = "BM".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+
+        assertEquals("guide.md", storage.store(new MockMultipartFile("file", "guide.md", "text/markdown", text), "document")
+                .fileName());
+        assertEquals("art.svg", storage.store(new MockMultipartFile("file", "art.svg", "image/svg+xml", svg), "design")
+                .fileName());
+        assertEquals("animation.gif", storage.store(
+                        new MockMultipartFile("file", "animation.gif", "image/gif", gif), "design")
+                .fileName());
+        assertEquals("bitmap.bmp", storage.store(
+                        new MockMultipartFile("file", "bitmap.bmp", "image/bmp", bmp), "design")
+                .fileName());
+    }
+
+    @Test
+    void rejectsSvgWithExternalEntities() {
+        MarketplaceFileStorage storage = new MarketplaceFileStorage(storagePath.toString());
+        byte[] maliciousSvg = """
+                <!DOCTYPE svg [<!ENTITY external SYSTEM "file:///etc/passwd">]>
+                <svg xmlns="http://www.w3.org/2000/svg">&external;</svg>
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] activeSvg = """
+                <svg xmlns="http://www.w3.org/2000/svg">
+                  <script>alert(1)</script>
+                </svg>
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> storage.store(
+                        new MockMultipartFile("file", "art.svg", "image/svg+xml", maliciousSvg), "design"));
+        ApiException activeContent = assertThrows(
+                ApiException.class,
+                () -> storage.store(new MockMultipartFile("file", "active.svg", "image/svg+xml", activeSvg), "design"));
+
+        assertEquals("FILE_CONTENT_MISMATCH", error.getCode());
+        assertEquals("FILE_CONTENT_MISMATCH", activeContent.getCode());
+    }
+
+    @Test
     void rejectsUploadsLargerThanTwentyFiveMibBeforeReadingThem() {
         MultipartFile oversized = mock(MultipartFile.class);
         when(oversized.isEmpty()).thenReturn(false);

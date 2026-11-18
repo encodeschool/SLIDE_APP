@@ -1,15 +1,20 @@
 package com.slideforge.api.marketplace;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.hamcrest.Matchers.containsString;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,7 +24,10 @@ import com.slideforge.api.auth.AuthTestSupport;
 import com.slideforge.api.auth.MailDelivery;
 import com.slideforge.api.auth.LoginRequest;
 import com.slideforge.api.auth.RegisterRequest;
+import com.slideforge.api.exports.RendererClient;
 import jakarta.persistence.EntityManager;
+import java.nio.file.Path;
+import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +35,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +59,9 @@ class MarketplaceIntegrationTest {
 
     @MockBean
     private MailDelivery mailDelivery;
+
+    @MockBean
+    private RendererClient rendererClient;
 
     @Test
     void categoryManagementIsSuperadminOnlyAndPublishesLocalizedNames() throws Exception {
@@ -344,10 +355,30 @@ class MarketplaceIntegrationTest {
         UUID listingId = UUID.fromString(
                 objectMapper.readTree(created.getResponse().getContentAsString()).path("id").asText());
 
+        mockMvc.perform(get("/api/v1/catalog/{id}/preview", listingId))
+                .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/seller/listings/{id}/publish", listingId)
                         .header("Authorization", bearer(seller.token())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        String pngData = Base64.getEncoder().encodeToString(
+                new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a});
+        ObjectNode rendererPreview = objectMapper.createObjectNode();
+        rendererPreview.put("totalPages", 4);
+        ArrayNode rendererPages = rendererPreview.putArray("pages");
+        rendererPages.addObject().put("pageNumber", 1).put("contentType", "image/png").put("data", pngData);
+        when(rendererClient.renderMarketplacePreview(any(Path.class), eq("pdf")))
+                .thenReturn(objectMapper.writeValueAsBytes(rendererPreview));
+        mockMvc.perform(get("/api/v1/catalog/{id}/preview", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPages").value(4))
+                .andExpect(jsonPath("$.pages.length()").value(1))
+                .andExpect(jsonPath("$.pages[0].pageNumber").value(1))
+                .andExpect(jsonPath("$.pages[0].imageDataUrl").value("data:image/png;base64," + pngData));
+        mockMvc.perform(get("/api/v1/catalog/{id}/preview", listingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPages").value(4));
+        verify(rendererClient, times(1)).renderMarketplacePreview(any(Path.class), eq("pdf"));
         mockMvc.perform(get("/api/v1/catalog/{id}", listingId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.workType").value("document"))
@@ -407,6 +438,8 @@ class MarketplaceIntegrationTest {
     @Test
     void fileListingUploadRejectsUnsupportedTypeAndSpoofedPdfContent() throws Exception {
         Account seller = register("file-validation");
+        int existingFileListings = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM listing_versions WHERE file_name IS NOT NULL", Integer.class);
         MockMultipartFile unsupported = new MockMultipartFile(
                 "file", "program.exe", "application/octet-stream", new byte[] {1, 2, 3});
         mockMvc.perform(multipart("/api/v1/seller/listings/uploads")
@@ -435,7 +468,7 @@ class MarketplaceIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("FILE_CONTENT_MISMATCH"));
         org.junit.jupiter.api.Assertions.assertEquals(
-                0,
+                existingFileListings,
                 jdbcTemplate.queryForObject(
                         "SELECT count(*) FROM listing_versions WHERE file_name IS NOT NULL", Integer.class));
     }

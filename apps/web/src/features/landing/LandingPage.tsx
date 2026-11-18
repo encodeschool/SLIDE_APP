@@ -52,7 +52,7 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
       <header className="landing-header">
         <a className="landing-brand" href="/" aria-label={copy.home}>
           <img src={brandMark} alt="" />
-          <span>slideforge</span>
+          <span>EDU Slides</span>
         </a>
         <nav className="landing-nav" aria-label={copy.mainNavigation}>
           <a href="#landing-features">{copy.navFeatures}</a>
@@ -126,7 +126,7 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
             </div>
             <div className="landing-float-card landing-float-ai">
               <span><Sparkles size={16} /></span>
-              <div><small>Slideforge AI</small><strong>{copy.toolbarLabel}</strong></div>
+              <div><small>EDU Slides AI</small><strong>{copy.toolbarLabel}</strong></div>
             </div>
             <div className="landing-float-card landing-float-ready">
               <span><Check size={15} /></span>
@@ -220,7 +220,7 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
 
       <footer className="landing-footer">
         <a className="landing-brand" href="/" aria-label={copy.home}>
-          <img src={brandMark} alt="" /><span>slideforge</span>
+          <img src={brandMark} alt="" /><span>EDU Slides</span>
         </a>
         <span>{copy.footerLine}</span>
         <a href="#product-web">{copy.navWeb}<ArrowRight size={14} aria-hidden="true" /></a>
@@ -242,7 +242,7 @@ export function LandingPage({ locale, onAuth, onToggleLocale }: LandingPageProps
         <div className="public-page-loader" role="status" aria-live="polite">
           <div className="public-loader-card">
             <img src={brandMark} alt="" />
-            <strong>slideforge</strong>
+            <strong>EDU Slides</strong>
             <span className="public-loader-progress" aria-hidden="true"><span /></span>
             <small>{copy.eyebrow}</small>
           </div>

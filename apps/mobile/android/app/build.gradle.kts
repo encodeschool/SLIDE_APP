@@ -1,32 +1,52 @@
-plugins {
-    id("com.android.application")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+import java.util.Properties
+
+val keystoreProperties = Properties().apply {
+    val keystoreFile = rootProject.file("key.properties")
+    if (keystoreFile.exists()) {
+        keystoreFile.inputStream().use { load(it) }
+    }
 }
 
 val releaseRequested = gradle.startParameter.taskNames.any {
     it.contains("release", ignoreCase = true)
 }
-val releaseStoreFile = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
-val releaseStorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
-val releaseKeyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
-val releaseKeyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+val releaseStoreFile =
+    providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+        ?: keystoreProperties.getProperty("storeFile")
+val releaseStorePassword =
+    providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+        ?: keystoreProperties.getProperty("storePassword")
+val releaseKeyAlias =
+    providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+        ?: keystoreProperties.getProperty("keyAlias")
+val releaseKeyPassword =
+    providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+        ?: keystoreProperties.getProperty("keyPassword")
 
-if (releaseRequested && listOf(
-        releaseStoreFile,
-        releaseStorePassword,
-        releaseKeyAlias,
-        releaseKeyPassword,
-    ).any { it.isNullOrBlank() }
-) {
-    throw GradleException(
-        "Release builds require ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, " +
-            "ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
-    )
+if (releaseRequested) {
+    val missingProperties = buildList {
+        if (releaseStoreFile.isNullOrBlank()) add("ANDROID_KEYSTORE_PATH / storeFile")
+        if (releaseStorePassword.isNullOrBlank()) add("ANDROID_KEYSTORE_PASSWORD / storePassword")
+        if (releaseKeyAlias.isNullOrBlank()) add("ANDROID_KEY_ALIAS / keyAlias")
+        if (releaseKeyPassword.isNullOrBlank()) add("ANDROID_KEY_PASSWORD / keyPassword")
+    }
+    if (missingProperties.isNotEmpty()) {
+        throw GradleException(
+            "Release builds require Android signing credentials. Set " +
+                missingProperties.joinToString() +
+                " as environment variables or in android/key.properties."
+        )
+    }
+    if (!file(releaseStoreFile!!).isFile) {
+        throw GradleException("The Android keystore file specified by ANDROID_KEYSTORE_PATH/storeFile does not exist.")
+    }
 }
 
-if (releaseRequested && !file(releaseStoreFile!!).isFile) {
-    throw GradleException("The file specified by ANDROID_KEYSTORE_PATH does not exist.")
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
@@ -56,17 +76,17 @@ android {
 
     signingConfigs {
         create("release") {
-            if (!releaseStoreFile.isNullOrBlank()) {
-                storeFile = file(releaseStoreFile)
-            }
-            storePassword = releaseStorePassword
             keyAlias = releaseKeyAlias
             keyPassword = releaseKeyPassword
+            storeFile = releaseStoreFile?.let { file(it) }
+            storePassword = releaseStorePassword
         }
     }
 
     buildTypes {
-        release {
+        getByName("release") {
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
         }
     }

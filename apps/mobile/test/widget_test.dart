@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +10,7 @@ import 'package:slideforge_mobile/auth/app_state_store.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/main.dart';
+import 'package:slideforge_mobile/presentations/presentation_library_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
@@ -77,6 +81,77 @@ class MemoryAppStateStore implements MobileAppStateStore {
   Future<void> write(MobileAppState value) async {
     state = value;
   }
+}
+
+class FakeWalletHttpClientAdapter implements HttpClientAdapter {
+  final List<RequestOptions> requests = [];
+  int balanceTiyin = 0;
+  int workCredits = 0;
+  bool failHistoryAfterTopUp = false;
+
+  Map<String, dynamic> _wallet() => {
+    'balanceTiyin': balanceTiyin,
+    'workCredits': workCredits,
+    'currency': 'UZS',
+    'sandboxEnabled': true,
+    'packages': [
+      {
+        'code': 'STARTER',
+        'amountTiyin': 3600000,
+        'workUnits': 18,
+        'costPerWorkTiyin': 200000,
+      },
+      {
+        'code': 'VALUE',
+        'amountTiyin': 7000000,
+        'workUnits': 70,
+        'costPerWorkTiyin': 100000,
+      },
+    ],
+  };
+
+  ResponseBody _jsonResponse(Object body) => ResponseBody.fromString(
+    jsonEncode(body),
+    200,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    if (options.path.endsWith('/wallet/transactions')) {
+      if (failHistoryAfterTopUp && balanceTiyin > 0) {
+        return ResponseBody.fromString(
+          jsonEncode({'detail': 'Transaction history unavailable'}),
+          503,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }
+      return _jsonResponse(const []);
+    }
+    if (options.path.endsWith('/wallet/topups') && options.method == 'POST') {
+      balanceTiyin += 3600000;
+      workCredits += 18;
+      return _jsonResponse(_wallet());
+    }
+    if (options.path.endsWith('/wallet') && options.method == 'GET') {
+      return _jsonResponse(_wallet());
+    }
+    throw StateError(
+      'Unexpected wallet request: ${options.method} ${options.path}',
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class FakePresentationRepository implements PresentationRepository {
@@ -374,6 +449,123 @@ void main() {
     expect(find.text('Your cart'), findsNothing);
     semantics.dispose();
   }, skip: !const bool.fromEnvironment('MARKETPLACE_DEMO'));
+
+  testWidgets('cart summary shows item count and total and opens the cart', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    int? selectedSection;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MarketplaceScreen(
+          accessToken: null,
+          isRussian: false,
+          isUzbek: false,
+          presentationRepository: FakePresentationRepository(),
+          cartItems: const [
+            {
+              'listingId': 'listing-1',
+              'title': 'Math workbook',
+              'sellerName': 'EduSlides',
+              'priceTiyin': 250000,
+              'currency': 'UZS',
+              'hasDownloadableFile': true,
+              'fileFormat': 'pdf',
+            },
+          ],
+          onCartChanged: (_) {},
+          onToggleLanguage: () {},
+          onStateChanged: (section, _) => selectedSection = section,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cart · 1'), findsOneWidget);
+    expect(find.text('2500 UZS'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('marketplace-cart-summary')));
+    await tester.pumpAndSettle();
+
+    expect(selectedSection, 1);
+    expect(find.text('Your cart'), findsOneWidget);
+  });
+
+  testWidgets(
+    'mobile wallet top-up updates balance and does not fake withdrawals',
+    (tester) async {
+      final adapter =
+          FakeWalletHttpClientAdapter()..failHistoryAfterTopUp = true;
+      final walletClient = Dio(
+        BaseOptions(
+          baseUrl: 'https://wallet.test',
+          headers: {'Authorization': 'Bearer wallet-test-token'},
+        ),
+      )..httpClientAdapter = adapter;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WorkspaceScreen(
+            user: const AuthUser(
+              id: 'user-wallet',
+              email: 'wallet@example.test',
+              displayName: 'Wallet User',
+              locale: 'en',
+              roles: ['USER'],
+            ),
+            accessToken: 'wallet-test-token',
+            isRussian: false,
+            isUzbek: false,
+            onSignOut: () {},
+            onToggleLanguage: () {},
+            cartItems: const [],
+            onCartChanged: (_) {},
+            initialTab: 3,
+            presentationRepository: FakePresentationRepository(),
+            walletClient: walletClient,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 UZS'), findsOneWidget);
+      await tester.tap(find.text('Top up balance'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add balance'), findsOneWidget);
+      await tester.tap(find.text('Add').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('36000 UZS'), findsOneWidget);
+      expect(find.text('Transaction history unavailable'), findsOneWidget);
+      final topUpRequests =
+          adapter.requests
+              .where(
+                (request) =>
+                    request.method == 'POST' &&
+                    request.path.endsWith('/wallet/topups'),
+              )
+              .toList();
+      expect(topUpRequests, hasLength(1));
+      expect(
+        topUpRequests.single.headers['Authorization'],
+        'Bearer wallet-test-token',
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('account-home')),
+        const Offset(0, -900),
+      );
+      await tester.pumpAndSettle();
+      final withdrawButton = tester.widget<OutlinedButton>(
+        find.byKey(const ValueKey('wallet-withdraw-disabled')),
+      );
+      expect(withdrawButton.onPressed, isNull);
+      expect(find.text('Withdrawals unavailable'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('product card opens its slide details without a Details button', (
     tester,

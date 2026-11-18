@@ -39,6 +39,7 @@ sequenceDiagram
     participant API as Spring Boot API
     participant DB as PostgreSQL
     participant Files as Private API file directory
+    participant Renderer as Private LibreOffice and Poppler renderer
 
     Seller->>Web: Select work type, metadata, and supported file
     Web->>API: Authenticated multipart upload (maximum 25 MiB)
@@ -47,6 +48,13 @@ sequenceDiagram
     API->>DB: Save listing version, digest, size, and file metadata
     Web->>API: Publish owner-scoped draft listing
     API->>DB: Mark listing PUBLISHED
+    Buyer->>API: GET public listing preview
+    API->>DB: Verify published file listing
+    API->>Files: Read private source for conversion
+    API->>Renderer: Convert document and rasterize first two pages
+    Renderer-->>API: Page count and at most two PNG pages
+    API->>Files: Cache preview metadata and PNG data
+    API-->>Buyer: First two page images and locked-page count only
     Buyer->>Web: Place order and pay from wallet
     Web->>API: Create order and pay
     API->>DB: Record PAID order and grant entitlement
@@ -56,7 +64,7 @@ sequenceDiagram
     API-->>Buyer: Download attachment (octet-stream, nosniff)
 ```
 
-The private directory shares the persistent `exports_data` volume in local and production Compose. The API does not expose object keys or public download URLs. Uploaded files currently lack malware scanning/quarantine; extension/signature validation is not a substitute for scanning. RustFS/S3 remains a possible future shared-storage backend.
+The private directory and generated preview cache share the persistent `exports_data` volume in local and production Compose. The public preview endpoint exposes no more than the first two rasterized pages and never returns the source file; the full original remains entitlement-gated. The API does not expose object keys or public download URLs. Uploaded files currently lack malware scanning/quarantine; extension/signature validation is not a substitute for scanning, and document conversion processes untrusted files. RustFS/S3 remains a possible future shared-storage backend.
 
 ## Security boundaries
 

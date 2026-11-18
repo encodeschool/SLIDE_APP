@@ -135,16 +135,16 @@ class _NavigationDestination extends StatelessWidget {
                     ),
                     if (item.badgeCount > 0)
                       Positioned(
-                        right: -9,
-                        top: -6,
+                        right: -10,
+                        top: -7,
                         child: Container(
                           constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
+                            minWidth: 20,
+                            minHeight: 20,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
                           decoration: BoxDecoration(
-                            color: selectedColor,
+                            color: const Color(0xFFD56738),
                             borderRadius: BorderRadius.circular(99),
                             border: Border.all(
                               color: const Color(0xFFF9FCF9),
@@ -156,7 +156,7 @@ class _NavigationDestination extends StatelessWidget {
                             item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 8,
+                              fontSize: 10,
                               height: 1,
                               fontWeight: FontWeight.w800,
                             ),

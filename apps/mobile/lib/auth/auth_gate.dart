@@ -6,6 +6,7 @@ import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
 import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_library_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
+import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({
@@ -416,24 +417,10 @@ class _StartupLoadingScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const SizedBox(
-                        width: 58,
-                        height: 58,
-                        child: Icon(
-                          Icons.layers_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
+                    const EduslidesBrandMark(size: 58),
                     const SizedBox(height: 18),
                     const Text(
-                      'slideforge',
+                      'EDU Slides',
                       style: TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w800,

@@ -35,7 +35,7 @@ export function StorefrontPage({
         <div className="storefront-header-inner">
           <a className="storefront-brand" href="/" aria-label={authenticated ? workspaceLabel : copy.home}>
             <img src={brandMark} alt="" />
-            <span>slideforge</span>
+            <span>EDU Slides</span>
           </a>
           <a className="storefront-home-link" href="/">
             <ArrowLeft size={16} aria-hidden="true" />
@@ -81,7 +81,7 @@ export function StorefrontPage({
       <footer className="storefront-footer">
         <a className="storefront-brand" href="/" aria-label={authenticated ? workspaceLabel : copy.home}>
           <img src={brandMark} alt="" />
-          <span>slideforge</span>
+          <span>EDU Slides</span>
         </a>
         <span>{copy.footerLine}</span>
       </footer>

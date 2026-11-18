@@ -133,7 +133,7 @@ class ApiAuthRepository implements AuthRepository {
       rethrow;
     } on DioException {
       throw const AuthException(
-        'Could not reach Slideforge. Check your connection.',
+        'Could not reach EDU Slides. Check your connection.',
       );
     }
   }
@@ -195,7 +195,7 @@ class ApiAuthRepository implements AuthRepository {
       }
     } on DioException {
       throw const AuthException(
-        'Could not reach Slideforge to end this session.',
+        'Could not reach EDU Slides to end this session.',
       );
     } finally {
       await _sessionStore.clear();
@@ -216,7 +216,7 @@ class ApiAuthRepository implements AuthRepository {
       return response;
     } on DioException {
       throw const AuthException(
-        'Could not reach Slideforge. Check your connection.',
+        'Could not reach EDU Slides. Check your connection.',
       );
     }
   }

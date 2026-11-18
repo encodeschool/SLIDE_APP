@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:slideforge_mobile/i18n/mobile_localizations.dart';
+import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
 
 enum AuthSubmitResult { signedIn, registered, failed }
 
@@ -86,7 +87,7 @@ class _AuthScreenState extends State<AuthScreen> {
             'Hisobingiz bormi? Kiring',
           )
           : _text(
-            'New to Slideforge? Create an account',
+            'New to EDU Slides? Create an account',
             'Нет аккаунта? Создать',
             'Yangi foydalanuvchimisiz? Hisob yarating',
           );
@@ -181,15 +182,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 color: colors.primary,
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: const Icon(
-                Icons.layers_rounded,
-                color: Colors.white,
-                size: 21,
-              ),
+              child: const EduslidesBrandMark(size: 34),
             ),
             const SizedBox(width: 10),
             const Text(
-              'slideforge',
+              'EDU Slides',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ],

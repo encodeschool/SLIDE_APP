@@ -29,6 +29,7 @@ export const publishDialogCopy = {
     title: "Work title",
     filePrompt: "Choose or drop one file",
     fileFormats: "Supported formats: {formats}",
+    filePreviewNotice: "Buyers can preview the first two pages. Remaining pages stay locked until purchase.",
     fileSecurityNotice: "Files are stored privately and only buyers with a completed purchase can download them. Upload only files you trust and have permission to sell; files are not automatically scanned for malware.",
     fileTypeMismatch: "Choose a supported file format for this work type.",
     fileSelected: "Selected",
@@ -52,6 +53,7 @@ export const publishDialogCopy = {
     title: "Название работы",
     filePrompt: "Выберите файл или перетащите его сюда",
     fileFormats: "Поддерживаемые форматы: {formats}",
+    filePreviewNotice: "Покупатели смогут просмотреть первые две страницы. Остальные будут доступны после покупки.",
     fileSecurityNotice: "Файлы хранятся приватно и доступны для скачивания только после завершённой покупки. Загружайте только проверенные файлы, которые вы вправе продавать; автоматическая проверка на вирусы не выполняется.",
     fileTypeMismatch: "Выберите поддерживаемый формат для этого типа работы.",
     fileSelected: "Выбрано",
@@ -75,6 +77,7 @@ export const publishDialogCopy = {
     title: "Iş nomi",
     filePrompt: "Faylni tanlang yoki şu yerga taşlang",
     fileFormats: "Qöllab-quvvatlanadigan formatlar: {formats}",
+    filePreviewNotice: "Xaridorlar dastlabki ikki betni köradi. Qolgan betlar xariddan söng oçiladi.",
     fileSecurityNotice: "Fayllar maxfiy saqlanadi va faqat xarid yakunlangandan söng yuklab olinadi. Faqat özingiz işonadigan va sotishga ruxsatingiz bor fayllarni yuklang; fayllar zararli dasturlarga avtomatik tekşirilmaydi.",
     fileTypeMismatch: "Iş turiga mos qöllab-quvvatlanadigan formatni tanlang.",
     fileSelected: "Tanlandi",
@@ -98,6 +101,7 @@ export const publishDialogCopy = {
   title: string;
   filePrompt: string;
   fileFormats: string;
+  filePreviewNotice: string;
   fileSecurityNotice: string;
   fileTypeMismatch: string;
   fileSelected: string;
@@ -133,6 +137,12 @@ export const browseLabels = {
     topUpBalance: "Top up balance",
     insufficientBalance: "Your balance is too low. Add funds to finish this purchase.",
     sandboxWalletNotice: "Top-ups are simulated in sandbox mode. No real payment is made.",
+    filePreviewLoading: "Preparing page preview…",
+    filePreviewUnavailable: "A preview is not available for this file.",
+    filePreviewCount: "Previewing {visible} of {total} pages",
+    filePreviewLocked: "The remaining pages are locked",
+    previewPage: "Preview page",
+    buyToUnlock: "Buy to unlock",
   },
   ru: {
     bannerTitle: "Идеи для вашей следующей главы.",
@@ -160,6 +170,12 @@ export const browseLabels = {
     topUpBalance: "Пополнить баланс",
     insufficientBalance: "Недостаточно средств. Пополните баланс, чтобы завершить покупку.",
     sandboxWalletNotice: "Пополнение симулируется в тестовом режиме. Реальная оплата не выполняется.",
+    filePreviewLoading: "Подготавливаем предварительный просмотр…",
+    filePreviewUnavailable: "Предварительный просмотр этого файла недоступен.",
+    filePreviewCount: "Показаны {visible} из {total} страниц",
+    filePreviewLocked: "Остальные страницы закрыты",
+    previewPage: "Страница предпросмотра",
+    buyToUnlock: "Купить и открыть",
   },
   uz: {
     bannerTitle: "Keyingi ğoyangiz uçun ilhom.",
@@ -187,6 +203,12 @@ export const browseLabels = {
     topUpBalance: "Balansni töldiriş",
     insufficientBalance: "Balansda mablağ yetarli emas. Xaridni yakunlaş uçun balansni töldiring.",
     sandboxWalletNotice: "Balans sinov rejimida töldiriladi. Haqiqiy tölov olinmaydi.",
+    filePreviewLoading: "Betlar körib çiqiş uçun tayyorlanmoqda…",
+    filePreviewUnavailable: "Bu faylni oldindan körib bolmaydi.",
+    filePreviewCount: "{total} betdan {visible} tasi körsatilmoqda",
+    filePreviewLocked: "Qolgan betlar yopiq",
+    previewPage: "Koʻrib çiqiş beti",
+    buyToUnlock: "Sotib olib oçiş",
   },
 };
 
@@ -197,7 +219,7 @@ export const purchaseActionLabels = {
     continueShopping: "Continue shopping",
     emptyCartDescription: "Explore the marketplace and add a presentation to begin.",
     checkoutIntro: "Review your items and total before moving on.",
-    walletMethod: "Slideforge wallet",
+    walletMethod: "EDU Slides wallet",
     additionalMethods: "Other payment methods",
     detailSections: "Presentation details",
     detailOverview: "Description",
@@ -227,7 +249,7 @@ export const purchaseActionLabels = {
     continueShopping: "Продолжить покупки",
     emptyCartDescription: "Перейдите в маркетплейс и добавьте презентацию, чтобы начать.",
     checkoutIntro: "Проверьте товары и сумму перед продолжением.",
-    walletMethod: "Кошелёк Slideforge",
+    walletMethod: "Кошелёк EDU Slides",
     additionalMethods: "Другие способы оплаты",
     detailSections: "Информация о презентации",
     detailOverview: "Описание",
@@ -257,7 +279,7 @@ export const purchaseActionLabels = {
     continueShopping: "Xaridni davom ettirish",
     emptyCartDescription: "Boshlash uchun marketpleysdan taqdimot tanlab savatga qöşing.",
     checkoutIntro: "Davom etishdan avval mahsulotlar va jami summani tekshiring.",
-    walletMethod: "Slideforge hamyoni",
+    walletMethod: "EDU Slides hamyoni",
     additionalMethods: "Boshqa tölov usullari",
     detailSections: "Taqdimot maʼlumotlari",
     detailOverview: "Tavsif",

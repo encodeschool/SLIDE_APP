@@ -8,7 +8,7 @@ import { UserManagement } from "../features/users/UserManagement";
 import { MarketplaceMonitoring } from "../features/marketplace/MarketplaceMonitoring";
 import { MarketplaceCategories } from "../features/marketplace/MarketplaceCategories";
 import { nextLocale, readLocalePreference, saveLocalePreference, translations, type Locale } from "../i18n";
-import { Layers3 } from "lucide-react";
+import brandMark from "../assets/eduslides-mark.svg";
 
 type AdminPage = "users" | "marketplace" | "categories";
 
@@ -51,6 +51,10 @@ export default function AdminApp() {
   if (!session.accessToken) {
     return (
       <main className="admin-auth-page">
+        <a className="admin-auth-brand" href="/" aria-label="EDU Slides Admin">
+          <img src={brandMark} alt="" />
+          <span>EDU Slides<span className="brand-divider">/</span>Admin</span>
+        </a>
         {invitationToken ? (
           <AdminInvitationCompletion
             token={invitationToken}
@@ -64,8 +68,8 @@ export default function AdminApp() {
           <AdminInvitationRequest translations={t} onCancel={() => setRegistering(false)} />
         ) : session.loading ? (
           <section className="admin-content auth-loading-page" role="status" aria-live="polite">
-            <span className="admin-loading-mark"><Layers3 size={24} strokeWidth={2.2} aria-hidden="true" /></span>
-            <span className="admin-loading-brand">slideforge<span className="brand-divider">/</span>admin</span>
+            <span className="admin-loading-mark"><img src={brandMark} alt="" /></span>
+            <span className="admin-loading-brand">EDU Slides<span className="brand-divider">/</span>Admin</span>
             <span className="admin-loading-spinner" aria-hidden="true" />
             <strong>{t.sessionChecking}</strong>
           </section>

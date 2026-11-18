@@ -1,6 +1,6 @@
-# Slideforge / EduSlides
+# EDU Slides
 
-Slideforge is an AI-assisted presentation platform with a Spring Boot API, PostgreSQL, React web and admin clients, a Flutter mobile client, and a private PPTX/PDF renderer. The production web deployment uses Docker Compose, GHCR, Caddy, and GitHub Actions on Ubuntu 24.04.
+EDU Slides is an AI-assisted presentation platform with a Spring Boot API, PostgreSQL, React web and admin clients, a Flutter mobile client, and a private PPTX/PDF renderer. The production web deployment uses Docker Compose, GHCR, Caddy, and GitHub Actions on Ubuntu 24.04.
 
 The app and API are built and deployed from this repository. A live VDS deployment still requires operator-managed DNS, SSH access, GitHub secrets, SMTP credentials, and production smoke tests. Real Payme, Click, and Uzum processing is not implemented or enabled.
 
@@ -28,7 +28,7 @@ The VDS deployment directory is `/home/encode/eduslides`. The Flutter app is not
 | API | `backend/api/` | Java 21 / Spring Boot REST API and Flyway migrations |
 | Renderer | `services/presentation-renderer/` | Node.js service for editable PPTX and PDF generation |
 | Shared types | `packages/shared-types/` | Canonical deck model and editor operations |
-| Mobile | `apps/mobile/` | Flutter Android/iOS client; released separately from VDS |
+| Mobile | `apps/mobile/` | Flutter Android/iOS client with marketplace file publishing, previews, and a persistent cart summary; released separately from VDS |
 | Production proxy | `infra/deployment/Caddyfile` | Caddy HTTPS reverse proxy and `www` redirects |
 | Production stack | `infra/deployment/compose.production.yml` | Web, admin, API, renderer, PostgreSQL and Caddy |
 
@@ -245,7 +245,7 @@ Configure encrypted off-host backups before accepting real user data. The helper
 
 - No live VDS deployment, SMTP delivery test, or production AI-provider test has been performed yet.
 - Real external payment processing, seller payouts, and legal invoices are not implemented.
-- Marketplace uploads and entitlement-gated buyer downloads are implemented for the documented file allowlist; uploaded files are not currently malware-scanned or previewed.
+- Web and mobile marketplace clients support typed work-file publishing, and mobile displays up to the first two public preview pages. The API gates original-file downloads on buyer entitlement and the documented allowlist. Uploaded files are not currently malware-scanned.
 - The web bundle builds with Vite, but the full production build is currently blocked by pre-existing unused declarations in `apps/web/src/app/App.tsx`; see [the continuation notes](docs/CONTINUATION.md#current-checkpoint).
 - The authentication rate limiter is process-local; a multi-instance API deployment needs a distributed limiter.
 - Production backups, monitoring/alerting, and an incident/restore drill must be operator-configured.

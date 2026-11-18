@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -325,6 +326,29 @@ public class MarketplaceService {
                                 rs.getTimestamp("updated_at").toInstant(),
                                 preview.slideCount(),
                                 preview.slides());
+                    },
+                    listingId);
+        } catch (EmptyResultDataAccessException exception) {
+            throw listingNotFound();
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public MarketplacePreviewSource catalogFilePreviewSource(UUID listingId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT lv.file_object_key, lv.file_name
+                    FROM listings l
+                    JOIN listing_versions lv ON lv.listing_id = l.id AND lv.version = l.current_version
+                    WHERE l.id = ? AND l.status = 'PUBLISHED' AND lv.file_name IS NOT NULL
+                    """,
+                    (rs, row) -> {
+                        String fileName = rs.getString("file_name");
+                        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+                        return new MarketplacePreviewSource(
+                                fileStorage.resolveStoredFile(rs.getString("file_object_key")), extension,
+                                rs.getString("file_object_key"));
                     },
                     listingId);
         } catch (EmptyResultDataAccessException exception) {

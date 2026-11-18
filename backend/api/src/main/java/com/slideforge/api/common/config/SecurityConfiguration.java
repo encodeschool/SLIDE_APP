@@ -65,6 +65,7 @@ public class SecurityConfiguration {
                                 "/api/v1/catalog",
                                 "/api/v1/catalog/categories",
                                 "/api/v1/catalog/*",
+                                "/api/v1/catalog/*/preview",
                                 "/api/v1/auth/**",
                                 "/actuator/health",
                                 "/actuator/health/**",

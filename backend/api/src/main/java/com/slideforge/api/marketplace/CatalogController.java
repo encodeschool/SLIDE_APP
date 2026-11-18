@@ -17,9 +17,11 @@ import java.util.UUID;
 @RequestMapping("/api/v1/catalog")
 public class CatalogController {
     private final MarketplaceService marketplaceService;
+    private final MarketplaceFilePreviewService previewService;
 
-    public CatalogController(MarketplaceService marketplaceService) {
+    public CatalogController(MarketplaceService marketplaceService, MarketplaceFilePreviewService previewService) {
         this.marketplaceService = marketplaceService;
+        this.previewService = previewService;
     }
 
     @GetMapping
@@ -41,6 +43,11 @@ public class CatalogController {
     @GetMapping("/{listingId}")
     public ListingDetailResponse detail(@PathVariable UUID listingId) {
         return marketplaceService.catalogListing(listingId);
+    }
+
+    @GetMapping("/{listingId}/preview")
+    public MarketplaceFilePreviewResponse preview(@PathVariable UUID listingId) {
+        return previewService.preview(listingId);
     }
 
     @GetMapping("/preferences")

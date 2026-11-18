@@ -97,13 +97,17 @@ The public catalog and listing details include the work type and file format; ca
 | Work type | Accepted formats |
 |---|---|
 | `presentation` | `.pptx`, `.pdf`, `.odp` |
-| `document` | `.docx`, `.odt`, `.rtf`, `.txt`, `.pdf` |
-| `coursework` | `.docx`, `.pptx`, `.xlsx`, `.odt`, `.odp`, `.ods`, `.pdf`, `.rtf`, `.txt` |
-| `worksheet` | `.xlsx`, `.ods`, `.docx`, `.odt`, `.pdf`, `.txt` |
-| `design` | `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp` |
+| `document` | `.docx`, `.odt`, `.rtf`, `.txt`, `.md`, `.html`, `.htm`, `.pdf` |
+| `coursework` | `.docx`, `.pptx`, `.xlsx`, `.odt`, `.odp`, `.ods`, `.pdf`, `.rtf`, `.txt`, `.md`, `.html`, `.htm`, `.csv` |
+| `worksheet` | `.xlsx`, `.ods`, `.docx`, `.odt`, `.pdf`, `.txt`, `.md`, `.csv` |
+| `design` | `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.gif`, `.bmp` |
 | `other` | All formats listed above |
 
-Uploads are limited to 25 MiB. The API validates signatures/package entries, rejects unsupported/mismatched content and macro-enabled package entries, generates a private random object key, stores the file outside the web root, and records its SHA-256 and size on the immutable listing version. The current storage backend is a private directory under the persistent API export volume (not RustFS); production deployment and the backup helper persist and back up that volume. File downloads use `application/octet-stream`, `Content-Disposition: attachment`, and `nosniff`; no public file URL is returned. `GET /api/v1/purchases/{entitlementId}/file` only returns a file for the authenticated buyer with an unrevoked entitlement and a `PAID` order; other accounts receive the standard not-found response. File uploads are not currently malware-scanned or previewed. Do not treat signature checks as antivirus; operators should add scanning/quarantine before accepting untrusted files at public scale.
+Uploads are limited to 25 MiB. The API validates signatures/package entries (including SVG XML without DTD or external-entity support), rejects unsupported/mismatched content and macro-enabled package entries, generates a private random object key, stores the file outside the web root, and records its SHA-256 and size on the immutable listing version. The current storage backend is a private directory under the persistent API export volume (not RustFS); production deployment and the backup helper persist and back up that volume.
+
+`GET /api/v1/catalog/{listingId}/preview` returns page count and at most the first two rasterized PNG pages for a published file listing. The API sends the uploaded file only to the private renderer and never returns the source document from this public preview route; subsequent pages are represented only by their locked count. Text, Markdown, HTML, and CSV previews are rendered as text (HTML tags and script/style blocks are removed). Previews are cached privately under the marketplace storage directory. Conversion supports up to 500 pages; a renderer/conversion failure returns `FILE_PREVIEW_UNAVAILABLE` and does not prevent listing details from loading. The full original remains available only through `GET /api/v1/purchases/{entitlementId}/file`, which requires the authenticated buyer's unrevoked entitlement and a `PAID` order. File downloads use `application/octet-stream`, `Content-Disposition: attachment`, and `nosniff`; no public source-file URL is returned.
+
+File uploads are not currently malware-scanned or quarantined. Signature and XML checks are not antivirus; buyers may still download malicious content. Operators should add scanning/quarantine before accepting untrusted files at public scale.
 
 The SUPERADMIN-only category manager uses `POST /api/v1/admin/marketplace/categories` with `{ "slug": "science", "nameEn": "Science", "nameRu": "Наука", "nameUz": "Ilm-fan" }` and `PATCH /api/v1/admin/marketplace/categories/{slug}/status` with `{ "active": false }`. A category with published listings cannot be deactivated.
 

@@ -18,6 +18,7 @@ In practice they are accepted *through* an acquirer/aggregator. Plan:
 - Authenticated `GET /api/v1/wallet/transactions` returns the latest 50 ledger entries for the signed-in user.
 - The wallet panel displays top-ups, AI work charges/refunds, and marketplace purchases with their amount, status, date, and transaction reference.
 - Current top-ups are sandbox simulations. A selected method such as Click or Uzcard is metadata only; it is not evidence that money was received.
+- The mobile wallet can submit these sandbox top-ups and refresh the returned balance. It does not offer cash withdrawal or seller payout; no payout endpoint or settlement integration exists.
 - The transaction reference is not a legal/tax invoice or proof of external settlement.
 
 ## Rules (apply to every adapter)
@@ -31,7 +32,7 @@ In practice they are accepted *through* an acquirer/aggregator. Plan:
 ## Before coding the real adapters (open items)
 1. Sign merchant contracts and obtain sandbox credentials for each provider.
 2. Re-read each provider's current official API docs; the exact request/response and signature formats must be taken from them, not from memory.
-3. Confirm legal/tax requirements for selling digital goods and for seller payouts (payouts stay a manual admin workflow).
+3. Confirm legal/tax requirements for selling digital goods and for seller payouts. Mobile withdrawals and seller card attachment/payouts remain unavailable until a verified payout workflow is designed and implemented.
 
 ## Public documentation verification checkpoint
 

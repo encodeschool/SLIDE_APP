@@ -7,6 +7,7 @@ const { execFileSync } = require("node:child_process");
 const { validateDeck } = require("../src/validate");
 const { renderPptx } = require("../src/render-pptx");
 const { renderPdf } = require("../src/render-pdf");
+const { renderMarketplacePreview } = require("../src/render-marketplace-preview");
 
 const deck = JSON.parse(fs.readFileSync(path.join(__dirname, "../samples/sample-deck.json"), "utf8"));
 
@@ -65,4 +66,19 @@ print(json.dumps(out))`;
 
   const pages = fs.readFileSync(pdf).toString("latin1").match(/\/Type\s*\/Page[^s]/g) || [];
   assert.strictEqual(pages.length, 2);
+});
+
+test("marketplace preview rasterizes at most the first two pages", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "marketplace-preview-test-"));
+  try {
+    const pptx = await renderPptx(deck, path.join(dir, "deck.pptx"));
+    const pdf = await renderPdf(pptx, dir);
+    const preview = await renderMarketplacePreview(fs.readFileSync(pdf), "pdf");
+
+    assert.equal(preview.totalPages, 2);
+    assert.deepStrictEqual(preview.pages.map((page) => page.pageNumber), [1, 2]);
+    assert.ok(preview.pages.every((page) => page.contentType === "image/png" && page.data.length > 100));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

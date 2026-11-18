@@ -1,7 +1,9 @@
 package com.slideforge.api.exports;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -36,6 +38,19 @@ public class RendererClient {
                 .body(byte[].class);
         if (output == null || output.length == 0) {
             throw new IllegalStateException("Renderer returned an empty artifact export");
+        }
+        return output;
+    }
+
+    public byte[] renderMarketplacePreview(Path file, String extension) {
+        byte[] output = restClient.post()
+                .uri("/render/marketplace-preview/{extension}", extension)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new FileSystemResource(file))
+                .retrieve()
+                .body(byte[].class);
+        if (output == null || output.length == 0) {
+            throw new IllegalStateException("Renderer returned an empty marketplace preview");
         }
         return output;
     }

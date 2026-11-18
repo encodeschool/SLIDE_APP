@@ -11,6 +11,7 @@ import 'package:slideforge_mobile/marketplace/marketplace_screen.dart';
 import 'package:slideforge_mobile/auth/auth_repository.dart';
 import 'package:slideforge_mobile/presentations/presentation_editor_screen.dart';
 import 'package:slideforge_mobile/presentations/presentation_repository.dart';
+import 'package:slideforge_mobile/shared/eduslides_brand_mark.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
@@ -30,6 +31,7 @@ class WorkspaceScreen extends StatefulWidget {
     this.onMarketplaceStateChanged,
     this.presentationRepository,
     this.artifactRepository,
+    this.walletClient,
     this.error,
   });
 
@@ -49,6 +51,7 @@ class WorkspaceScreen extends StatefulWidget {
   final void Function(int section, int checkoutStep)? onMarketplaceStateChanged;
   final PresentationRepository? presentationRepository;
   final ArtifactRepository? artifactRepository;
+  final Dio? walletClient;
 
   @override
   State<WorkspaceScreen> createState() => _WorkspaceScreenState();
@@ -134,17 +137,19 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             defaultValue: 'http://10.0.2.2:8080',
           ),
         );
-    _walletDio = Dio(
-      BaseOptions(
-        baseUrl: const String.fromEnvironment(
-          'API_BASE_URL',
-          defaultValue: 'http://10.0.2.2:8080',
-        ),
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-        headers: {'Authorization': 'Bearer ${widget.accessToken}'},
-      ),
-    );
+    _walletDio =
+        widget.walletClient ??
+        Dio(
+          BaseOptions(
+            baseUrl: const String.fromEnvironment(
+              'API_BASE_URL',
+              defaultValue: 'http://10.0.2.2:8080',
+            ),
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+            headers: {'Authorization': 'Bearer ${widget.accessToken}'},
+          ),
+        );
     _loadPresentations();
     if (_selectedTab == 3) _loadWallet();
   }
@@ -295,36 +300,48 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       _walletError = null;
     });
     try {
-      final walletRequest = _walletDio.get<Map<String, dynamic>>(
+      final walletResponse = await _walletDio.get<Map<String, dynamic>>(
         '/api/v1/wallet',
       );
-      final transactionsRequest = _walletDio.get<List<dynamic>>(
+      if (mounted && walletResponse.data != null) {
+        setState(() => _wallet = walletResponse.data);
+      }
+      final transactionsResponse = await _walletDio.get<List<dynamic>>(
         '/api/v1/wallet/transactions',
       );
-      final walletResponse = await walletRequest;
-      final transactionsResponse = await transactionsRequest;
       if (!mounted) return;
       setState(() {
-        _wallet = walletResponse.data;
         _walletTransactions =
             (transactionsResponse.data ?? const [])
                 .whereType<Map>()
                 .map((transaction) => Map<String, dynamic>.from(transaction))
                 .toList();
       });
-    } on DioException {
+    } on DioException catch (error) {
       if (mounted) {
         setState(() {
-          _walletError = _text(
-            'Could not load balance and billing activity. Try again.',
-            'Не удалось загрузить баланс и историю операций. Повторите попытку.',
-            'Balans va toʻlovlar tarixini yuklab boʻlmadi. Qayta urinib koʻring.',
+          _walletError = _walletRequestError(
+            error,
+            _text(
+              'Could not load balance and billing activity. Try again.',
+              'Не удалось загрузить баланс и историю операций. Повторите попытку.',
+              'Balans va toʻlovlar tarixini yuklab boʻlmadi. Qayta urinib koʻring.',
+            ),
           );
         });
       }
     } finally {
       if (mounted) setState(() => _walletLoading = false);
     }
+  }
+
+  String _walletRequestError(DioException error, String fallback) {
+    final response = error.response?.data;
+    if (response is Map && response['detail'] is String) {
+      final detail = (response['detail'] as String).trim();
+      if (detail.isNotEmpty) return detail;
+    }
+    return fallback;
   }
 
   Future<void> _showTopUp() async {
@@ -364,9 +381,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           const SizedBox(height: 7),
                           Text(
                             _text(
-                              'Choose a package for your Slideforge account.',
-                              'Выберите пакет для аккаунта Slideforge.',
-                              'Slideforge hisobingiz uchun paketni tanlang.',
+                              'Choose a package for your EDU Slides account.',
+                              'Выберите пакет для аккаунта EDU Slides.',
+                              'EDU Slides hisobingiz uchun paketni tanlang.',
                             ),
                             style: TextStyle(
                               color:
@@ -485,11 +502,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                                                   final code =
                                                       item['code'] as String?;
                                                   if (code == null) return;
-                                                  updateSheet(() {});
-                                                  final success = await _topUp(
+                                                  final topUpRequest = _topUp(
                                                     code,
                                                     method,
                                                   );
+                                                  updateSheet(() {});
+                                                  final success =
+                                                      await topUpRequest;
                                                   if (success &&
                                                       context.mounted) {
                                                     Navigator.pop(context);
@@ -555,6 +574,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<bool> _topUp(String packageCode, String method) async {
+    if (_topUpBusy) return false;
     setState(() {
       _topUpBusy = true;
       _walletError = null;
@@ -563,7 +583,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       final random = Random.secure();
       final nonce =
           List.generate(16, (_) => random.nextInt(16).toRadixString(16)).join();
-      await _walletDio.post<Map<String, dynamic>>(
+      final response = await _walletDio.post<Map<String, dynamic>>(
         '/api/v1/wallet/topups',
         data: {
           'packageCode': packageCode,
@@ -571,15 +591,21 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           'idempotencyKey': 'mobile-$nonce',
         },
       );
+      if (mounted && response.data != null) {
+        setState(() => _wallet = response.data);
+      }
       await _loadWallet();
       return true;
-    } on DioException {
+    } on DioException catch (error) {
       if (mounted) {
         setState(() {
-          _walletError = _text(
-            'Could not top up the balance. Please try again.',
-            'Не удалось пополнить баланс. Попробуйте ещё раз.',
-            'Balansni toʻldirib boʻlmadi. Qayta urinib koʻring.',
+          _walletError = _walletRequestError(
+            error,
+            _text(
+              'Could not top up the balance. Please try again.',
+              'Не удалось пополнить баланс. Попробуйте ещё раз.',
+              'Balansni toʻldirib boʻlmadi. Qayta urinib koʻring.',
+            ),
           );
         });
       }
@@ -823,21 +849,52 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         const SizedBox(height: 16),
         Card(
           color: colors.surfaceContainerLow,
-          child: ListTile(
-            leading: Icon(Icons.shield_outlined, color: colors.primary),
-            title: Text(
-              _text(
-                'Seller payouts',
-                'Выплаты продавцам',
-                'Sotuvchi toʻlovlari',
-              ),
-            ),
-            subtitle: Text(
-              _text(
-                'Secure payouts are not configured yet. We never collect card numbers or security codes.',
-                'Безопасные выплаты пока не настроены. Мы не собираем номера карт и коды безопасности.',
-                'Xavfsiz sotuvchi toʻlovlari hali sozlanmagan. Karta raqami yoki xavfsizlik kodi yigʻilmaydi.',
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: colors.primary,
+                  ),
+                  title: Text(
+                    _text(
+                      'Withdraw funds',
+                      'Вывод средств',
+                      'Mablagʻni yechish',
+                    ),
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      _text(
+                        'Withdrawals are not available yet. Wallet funds are prepaid for work and marketplace purchases, and seller payouts are not connected.',
+                        'Вывод пока недоступен. Средства кошелька предоплачены для работ и покупок на маркетплейсе, а выплаты продавцам не подключены.',
+                        'Mablagʻni yechish hozircha mavjud emas. Hamyon mablagʻlari ishlar va marketpleys xaridlari uchun, sotuvchi toʻlovlari esa ulanmagan.',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('wallet-withdraw-disabled'),
+                    onPressed: null,
+                    icon: const Icon(Icons.lock_outline_rounded),
+                    label: Text(
+                      _text(
+                        'Withdrawals unavailable',
+                        'Вывод недоступен',
+                        'Yechib olish mavjud emas',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -856,25 +913,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Row(
+        title: const Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: colors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.layers_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 9),
-            const Flexible(
+            EduslidesBrandMark(size: 32),
+            SizedBox(width: 9),
+            Flexible(
               child: Text(
-                'slideforge',
+                'EDU Slides',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontWeight: FontWeight.w800),
@@ -977,9 +1022,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           title: Text(widget.user.displayName),
                           subtitle: Text(
                             _text(
-                              'Slideforge account',
-                              'Аккаунт Slideforge',
-                              'Slideforge hisobi',
+                              'EDU Slides account',
+                              'Аккаунт EDU Slides',
+                              'EDU Slides hisobi',
                             ),
                           ),
                         ),

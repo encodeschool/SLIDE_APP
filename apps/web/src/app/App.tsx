@@ -926,7 +926,7 @@ function App() {
       <main className="app-loading-screen" role="status" aria-live="polite">
         <div className="app-loading-card">
           <span className="app-loading-mark"><img src={brandMark} alt="" /></span>
-          <span className="app-loading-brand">slideforge</span>
+          <span className="app-loading-brand">EDU Slides</span>
           <span className="app-loading-spinner" aria-hidden="true" />
           <strong>{copy.authLoading}</strong>
           <span className="app-loading-caption">{copy.workspace}</span>
@@ -1228,7 +1228,7 @@ function App() {
       <aside className="sidebar">
         <a className="brand" href="#workspace" aria-label={copy.workspaceAria}>
           <span className="brand-mark"><img src={brandMark} alt="" /></span>
-          <span>slideforge</span>
+          <span>EDU Slides</span>
         </a>
         <div className="workspace-label">{copy.workspace}</div>
         <nav className="side-nav" aria-label={copy.workspace}>
@@ -1296,8 +1296,8 @@ function App() {
             </span>
             <div className="mr-5">
               {authUser && (
-                <button className="text-button" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
-                  <LogOut size={16} aria-hidden="true" />
+                <button className="text-button signoutButton" type="button" title={copy.signOut} aria-label={copy.signOut} onClick={signOut}>
+                  <LogOut size={16} aria-hidden="true" /> {copy.signOut}
                 </button>
               )}
               <button
@@ -1513,7 +1513,7 @@ function App() {
 
         {!editorActive && (
           <footer className="app-footer">
-            <span>Slideforge <span className="footer-separator">·</span> {copy.workspaceFooter}</span>
+            <span>EDU Slides <span className="footer-separator">·</span> {copy.workspaceFooter}</span>
             <a href={`${API_URL}/api/v1/status`} target="_blank" rel="noreferrer">API status <ArrowUpRight size={13} /></a>
           </footer>
         )}

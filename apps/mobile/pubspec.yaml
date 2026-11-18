@@ -8,11 +8,14 @@ environment:
 
 dependencies:
   dio: ^5.11.1
+  file_picker: ^13.4.0
   flutter:
     sdk: flutter
+  flutter_svg: ^2.2.0
   flutter_secure_storage: ^11.2.0
   image_picker: ^1.1.2
   path_provider: ^2.1.6
+  flutter_launcher_icons:
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +24,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/eduslides-mark.svg
