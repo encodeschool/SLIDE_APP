@@ -2,16 +2,16 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:eduslides_mobile/artifacts/artifact_library_screen.dart';
-import 'package:eduslides_mobile/artifacts/artifact_repository.dart';
-import 'package:eduslides_mobile/creation/work_creator_screen.dart';
-import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
-import 'package:eduslides_mobile/marketplace/bottom_navigation.dart';
-import 'package:eduslides_mobile/marketplace/marketplace_screen.dart';
-import 'package:eduslides_mobile/auth/auth_repository.dart';
-import 'package:eduslides_mobile/presentations/presentation_editor_screen.dart';
-import 'package:eduslides_mobile/presentations/presentation_repository.dart';
-import 'package:eduslides_mobile/shared/eduslides_brand_mark.dart';
+import 'package:mobile/artifacts/artifact_library_screen.dart';
+import 'package:mobile/artifacts/artifact_repository.dart';
+import 'package:mobile/creation/work_creator_screen.dart';
+import 'package:mobile/i18n/mobile_localizations.dart';
+import 'package:mobile/marketplace/bottom_navigation.dart';
+import 'package:mobile/marketplace/marketplace_screen.dart';
+import 'package:mobile/auth/auth_repository.dart';
+import 'package:mobile/presentations/presentation_editor_screen.dart';
+import 'package:mobile/presentations/presentation_repository.dart';
+import 'package:mobile/shared/eduslides_brand_mark.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({

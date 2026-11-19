@@ -2,14 +2,14 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:eduslides_mobile/marketplace/bottom_navigation.dart';
-import 'package:eduslides_mobile/marketplace/marketplace_file_preview_gallery.dart';
-import 'package:eduslides_mobile/marketplace/marketplace_upload_listing_dialog.dart';
-import 'package:eduslides_mobile/marketplace/marketplace_demo_data.dart';
-import 'package:eduslides_mobile/marketplace/slide_preview_carousel.dart';
-import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
-import 'package:eduslides_mobile/presentations/presentation_repository.dart';
-import 'package:eduslides_mobile/shared/eduslides_brand_mark.dart';
+import 'package:mobile/marketplace/bottom_navigation.dart';
+import 'package:mobile/marketplace/marketplace_file_preview_gallery.dart';
+import 'package:mobile/marketplace/marketplace_upload_listing_dialog.dart';
+import 'package:mobile/marketplace/marketplace_demo_data.dart';
+import 'package:mobile/marketplace/slide_preview_carousel.dart';
+import 'package:mobile/i18n/mobile_localizations.dart';
+import 'package:mobile/presentations/presentation_repository.dart';
+import 'package:mobile/shared/eduslides_brand_mark.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:eduslides_mobile/artifacts/artifact_library_screen.dart';
-import 'package:eduslides_mobile/artifacts/artifact_repository.dart';
-import 'package:eduslides_mobile/i18n/mobile_localizations.dart';
-import 'package:eduslides_mobile/presentations/presentation_editor_screen.dart';
-import 'package:eduslides_mobile/presentations/presentation_repository.dart';
+import 'package:mobile/artifacts/artifact_library_screen.dart';
+import 'package:mobile/artifacts/artifact_repository.dart';
+import 'package:mobile/i18n/mobile_localizations.dart';
+import 'package:mobile/presentations/presentation_editor_screen.dart';
+import 'package:mobile/presentations/presentation_repository.dart';
 
 class WorkCreatorScreen extends StatefulWidget {
   const WorkCreatorScreen({
