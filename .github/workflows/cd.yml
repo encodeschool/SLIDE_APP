@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Get repository
+      # 1. Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -25,25 +25,57 @@ jobs:
           mkdir -p ~/.ssh
 
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-
           chmod 600 ~/.ssh/id_ed25519
 
           ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
 
-      # 3. Deploy
-      - name: Deploy to VDS
+      # 3. Prepare deployment directory
+      - name: Prepare VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
         run: |
-          ssh "$VDS_USER@$VDS_HOST" << 'EOF'
+          ssh -i ~/.ssh/id_ed25519 \
+              -o IdentitiesOnly=yes \
+              "$VDS_USER@$VDS_HOST" << 'EOF'
+
+            set -e
+
+            mkdir -p ~/slideforge
+
+            echo "VDS deployment directory ready."
+
+          EOF
+
+      # 4. Copy project to VDS
+      - name: Copy project to VDS
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          rsync -az --delete \
+            --exclude ".git/" \
+            --exclude ".github/" \
+            --exclude ".env" \
+            --exclude "node_modules/" \
+            --exclude "dist/" \
+            --exclude "build/" \
+            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+            ./ "$VDS_USER@$VDS_HOST:~/slideforge/"
+
+      # 5. Build and start Docker containers
+      - name: Deploy Docker
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+              -o IdentitiesOnly=yes \
+              "$VDS_USER@$VDS_HOST" << 'EOF'
 
             set -e
 
             cd ~/slideforge
-
-            echo "Pulling latest code..."
-            git pull origin main
 
             echo "Building containers..."
             docker compose build
@@ -61,12 +93,13 @@ jobs:
 
           EOF
 
-      # 4. Basic health check - last step
+      # 6. Check frontend
       - name: Check frontend
         run: |
           curl --fail --silent --show-error \
             https://eduslides.encode.uz/
 
+      # 7. Check admin
       - name: Check admin
         run: |
           curl --fail --silent --show-error \
