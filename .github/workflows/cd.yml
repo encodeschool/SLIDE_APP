@@ -12,15 +12,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------
       # 1. Checkout repository
+      # --------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
       # 2. Setup SSH
+      # --------------------------------------------------
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
           VDS_HOST: ${{ secrets.VDS_HOST }}
+
         run: |
           mkdir -p ~/.ssh
 
@@ -29,15 +35,19 @@ jobs:
 
           ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
 
+      # --------------------------------------------------
       # 3. Prepare deployment directory
+      # --------------------------------------------------
       - name: Prepare VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
+
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
-              -o IdentitiesOnly=yes \
-              "$VDS_USER@$VDS_HOST" << 'EOF'
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            "$VDS_USER@$VDS_HOST" << 'EOF'
 
             set -e
 
@@ -47,11 +57,14 @@ jobs:
 
           EOF
 
+      # --------------------------------------------------
       # 4. Copy project to VDS
+      # --------------------------------------------------
       - name: Copy project to VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
+
         run: |
           rsync -az --delete \
             --exclude ".git/" \
@@ -63,44 +76,80 @@ jobs:
             -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
             ./ "$VDS_USER@$VDS_HOST:~/slideforge/"
 
-      # 5. Build and start Docker containers
+      # --------------------------------------------------
+      # 5. Build and start Docker
+      # --------------------------------------------------
       - name: Deploy Docker
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
+
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
-              -o IdentitiesOnly=yes \
-              "$VDS_USER@$VDS_HOST" << 'EOF'
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            "$VDS_USER@$VDS_HOST" << 'EOF'
 
             set -e
 
             cd ~/slideforge
 
-            echo "Building containers..."
-            docker compose build
+            echo "========================================="
+            echo "Stopping old containers..."
+            echo "========================================="
 
+            docker compose down --remove-orphans || true
+
+            echo "========================================="
+            echo "Building containers..."
+            echo "========================================="
+
+            docker compose build --no-cache
+
+            echo "========================================="
             echo "Starting containers..."
+            echo "========================================="
+
             docker compose up -d
 
-            echo "Removing unused images..."
+            echo "========================================="
+            echo "Container status"
+            echo "========================================="
+
+            docker compose ps
+
+            echo "========================================="
+            echo "Cleaning unused images"
+            echo "========================================="
+
             docker image prune -f
 
-            echo "Deployment completed."
-
-            echo "Container status:"
-            docker compose ps
+            echo "========================================="
+            echo "Deployment completed"
+            echo "========================================="
 
           EOF
 
+      # --------------------------------------------------
       # 6. Check frontend
+      # --------------------------------------------------
       - name: Check frontend
         run: |
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
             https://eduslides.encode.uz/
 
+      # --------------------------------------------------
       # 7. Check admin
+      # --------------------------------------------------
       - name: Check admin
         run: |
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
             https://admin-eduslides.encode.uz/
