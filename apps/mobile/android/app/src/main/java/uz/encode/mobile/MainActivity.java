@@ -1,4 +1,4 @@
-package uz.encode.mobile;
+package uz.encode.eduslides;
 
 import io.flutter.embedding.android.FlutterActivity;
 

@@ -1,0 +1,73 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Get repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Setup SSH
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+
+          chmod 600 ~/.ssh/id_ed25519
+
+          ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
+
+      # 3. Deploy
+      - name: Deploy to VDS
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          ssh "$VDS_USER@$VDS_HOST" << 'EOF'
+
+            set -e
+
+            cd ~/slideforge
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Building containers..."
+            docker compose build
+
+            echo "Starting containers..."
+            docker compose up -d
+
+            echo "Removing unused images..."
+            docker image prune -f
+
+            echo "Deployment completed."
+
+            echo "Container status:"
+            docker compose ps
+
+          EOF
+
+      # 4. Basic health check
+      - name: Check frontend
+        run: |
+          curl --fail --silent --show-error \
+            https://eduslides.encode.uz/
+
+      - name: Check admin
+        run: |
+          curl --fail --silent --show-error \
+            https://admin-eduslides.encode.uz/
