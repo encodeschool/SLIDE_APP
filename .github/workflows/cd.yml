@@ -61,7 +61,7 @@ jobs:
 
           EOF
 
-      # 4. Basic health check
+      # 4. Basic health check - last step
       - name: Check frontend
         run: |
           curl --fail --silent --show-error \
