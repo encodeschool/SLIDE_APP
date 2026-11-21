@@ -338,7 +338,7 @@ class _AuthGateState extends State<AuthGate> {
             ApiPresentationRepository(
               baseUrl: const String.fromEnvironment(
                 'API_BASE_URL',
-                defaultValue: 'https://api-eduslides.encode.uz/', // 'http://10.0.2.2:8080',
+                defaultValue: 'https://api-eduslides.encode.uz', // 'http://10.0.2.2:8080',
               ),
             ),
         cartItems: _cartItems,
