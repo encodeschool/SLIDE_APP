@@ -22,7 +22,80 @@ jobs:
 
 
       # ==================================================
-      # SSH
+      # NODE.JS FOR GITHUB RUNNER
+      # ==================================================
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/admin/package-lock.json
+
+
+      # ==================================================
+      # BUILD WEB FRONTEND
+      # ==================================================
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: |
+          npm ci
+
+
+      - name: Build web frontend
+        working-directory: apps/web
+        run: |
+          npm run build
+
+
+      # ==================================================
+      # BUILD ADMIN FRONTEND
+      # ==================================================
+
+      - name: Install admin dependencies
+        working-directory: apps/admin
+        run: |
+          npm ci
+
+
+      - name: Build admin frontend
+        working-directory: apps/admin
+        run: |
+          npm run build
+
+
+      # ==================================================
+      # VERIFY BUILDS
+      # ==================================================
+
+      - name: Verify frontend builds
+        run: |
+          echo "Checking web build..."
+
+          test -f apps/web/dist/index.html
+
+          echo "Web build OK"
+
+          echo "Checking admin build..."
+
+          test -f apps/admin/dist/index.html
+
+          echo "Admin build OK"
+
+          echo ""
+          echo "Web dist:"
+          find apps/web/dist -maxdepth 2 -type f | head -30
+
+          echo ""
+          echo "Admin dist:"
+          find apps/admin/dist -maxdepth 2 -type f | head -30
+
+
+      # ==================================================
+      # SETUP SSH
       # ==================================================
 
       - name: Setup SSH
@@ -57,15 +130,21 @@ jobs:
 
             set -e
 
+            echo "Preparing VDS..."
+
             mkdir -p ~/slideforge
 
-            echo "VDS deployment directory ready."
+            mkdir -p /home/encode/eduslides/apps/web/dist
+
+            mkdir -p /home/encode/eduslides/apps/admin/dist
+
+            echo "VDS directories ready."
 
           EOF
 
 
       # ==================================================
-      # COPY SOURCE CODE
+      # COPY PROJECT TO VDS
       # ==================================================
 
       - name: Copy project to VDS
@@ -86,10 +165,50 @@ jobs:
 
 
       # ==================================================
-      # BUILD FRONTEND + ADMIN + DOCKER
+      # DEPLOY WEB DIST
       # ==================================================
 
-      - name: Build and deploy on VDS
+      - name: Deploy web frontend
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+
+        run: |
+          echo "Copying web frontend..."
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+            apps/web/dist/ \
+            "$VDS_USER@$VDS_HOST:/home/encode/eduslides/apps/web/dist/"
+
+          echo "Web frontend deployed."
+
+
+      # ==================================================
+      # DEPLOY ADMIN DIST
+      # ==================================================
+
+      - name: Deploy admin frontend
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+
+        run: |
+          echo "Copying admin frontend..."
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+            apps/admin/dist/ \
+            "$VDS_USER@$VDS_HOST:/home/encode/eduslides/apps/admin/dist/"
+
+          echo "Admin frontend deployed."
+
+
+      # ==================================================
+      # VALIDATE DOCKER COMPOSE
+      # ==================================================
+
+      - name: Validate Docker Compose
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
@@ -104,82 +223,54 @@ jobs:
 
             cd ~/slideforge
 
-            echo ""
-            echo "========================================="
-            echo "Installing frontend dependencies"
-            echo "========================================="
-
-            cd apps/web
-
-            npm ci
-
-            echo ""
-            echo "Building frontend..."
-
-            npm run build
-
-            cd ../admin
-
-            echo ""
-            echo "========================================="
-            echo "Installing admin dependencies"
-            echo "========================================="
-
-            npm ci
-
-            echo ""
-            echo "Building admin..."
-
-            npm run build
-
-            cd ../..
-
-            echo ""
-            echo "========================================="
-            echo "Frontend build results"
-            echo "========================================="
-
-            ls -lah apps/web/dist
-
-            echo ""
-            echo "Admin build results"
-
-            ls -lah apps/admin/dist
-
-            echo ""
-            echo "========================================="
-            echo "Validating Docker Compose"
-            echo "========================================="
+            echo "Validating Docker Compose..."
 
             docker compose config
 
-            echo ""
+            echo "Docker Compose configuration is valid."
+
+          EOF
+
+
+      # ==================================================
+      # DEPLOY DOCKER
+      # ==================================================
+
+      - name: Deploy Docker
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+
+        run: |
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            "$VDS_USER@$VDS_HOST" << 'EOF'
+
+            set -e
+
+            cd ~/slideforge
+
             echo "========================================="
             echo "Building Docker containers"
             echo "========================================="
 
             docker compose build
 
-            echo ""
             echo "========================================="
             echo "Starting Docker containers"
             echo "========================================="
 
             docker compose up -d
 
-            echo ""
-            echo "Waiting for services..."
+            echo "========================================="
+            echo "Waiting for services"
+            echo "========================================="
 
             sleep 10
 
-            echo ""
-            echo "========================================="
-            echo "Docker Compose status"
-            echo "========================================="
-
             docker compose ps
 
-            echo ""
             echo "========================================="
             echo "Checking API inside container"
             echo "========================================="
@@ -189,14 +280,12 @@ jobs:
 
             echo
 
-            echo ""
             echo "========================================="
             echo "Cleaning old Docker images"
             echo "========================================="
 
             docker image prune -f
 
-            echo ""
             echo "Docker deployment completed."
 
           EOF
@@ -268,7 +357,6 @@ jobs:
 
       - name: Deployment completed
         run: |
-          echo ""
           echo "========================================="
           echo "DEPLOYMENT COMPLETED SUCCESSFULLY"
           echo "========================================="
