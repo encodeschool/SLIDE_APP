@@ -13,16 +13,18 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------
-      # Checkout
-      # --------------------------------------------------
+      # ==================================================
+      # CHECKOUT
+      # ==================================================
+
       - name: Checkout
         uses: actions/checkout@v4
 
 
-      # --------------------------------------------------
-      # Setup SSH
-      # --------------------------------------------------
+      # ==================================================
+      # SSH
+      # ==================================================
+
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
@@ -38,9 +40,10 @@ jobs:
           ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
 
 
-      # --------------------------------------------------
-      # Prepare VDS
-      # --------------------------------------------------
+      # ==================================================
+      # PREPARE VDS
+      # ==================================================
+
       - name: Prepare VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
@@ -61,9 +64,10 @@ jobs:
           EOF
 
 
-      # --------------------------------------------------
-      # Copy project to VDS
-      # --------------------------------------------------
+      # ==================================================
+      # COPY SOURCE CODE
+      # ==================================================
+
       - name: Copy project to VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
@@ -81,10 +85,11 @@ jobs:
             ./ "$VDS_USER@$VDS_HOST:~/slideforge/"
 
 
-      # --------------------------------------------------
-      # Validate Docker Compose
-      # --------------------------------------------------
-      - name: Validate Docker Compose
+      # ==================================================
+      # BUILD FRONTEND + ADMIN + DOCKER
+      # ==================================================
+
+      - name: Build and deploy on VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
@@ -99,71 +104,111 @@ jobs:
 
             cd ~/slideforge
 
-            echo "Validating Docker Compose..."
+            echo ""
+            echo "========================================="
+            echo "Installing frontend dependencies"
+            echo "========================================="
+
+            cd apps/web
+
+            npm ci
+
+            echo ""
+            echo "Building frontend..."
+
+            npm run build
+
+            cd ../admin
+
+            echo ""
+            echo "========================================="
+            echo "Installing admin dependencies"
+            echo "========================================="
+
+            npm ci
+
+            echo ""
+            echo "Building admin..."
+
+            npm run build
+
+            cd ../..
+
+            echo ""
+            echo "========================================="
+            echo "Frontend build results"
+            echo "========================================="
+
+            ls -lah apps/web/dist
+
+            echo ""
+            echo "Admin build results"
+
+            ls -lah apps/admin/dist
+
+            echo ""
+            echo "========================================="
+            echo "Validating Docker Compose"
+            echo "========================================="
 
             docker compose config
 
-            echo "Docker Compose configuration is valid."
-
-          EOF
-
-
-      # --------------------------------------------------
-      # Deploy Docker
-      # --------------------------------------------------
-      - name: Deploy Docker
-        env:
-          VDS_HOST: ${{ secrets.VDS_HOST }}
-          VDS_USER: ${{ secrets.VDS_USER }}
-
-        run: |
-          ssh \
-            -i ~/.ssh/id_ed25519 \
-            -o IdentitiesOnly=yes \
-            "$VDS_USER@$VDS_HOST" << 'EOF'
-
-            set -e
-
-            cd ~/slideforge
-
-            echo "Building containers..."
+            echo ""
+            echo "========================================="
+            echo "Building Docker containers"
+            echo "========================================="
 
             docker compose build
 
-            echo "Starting containers..."
+            echo ""
+            echo "========================================="
+            echo "Starting Docker containers"
+            echo "========================================="
 
             docker compose up -d
 
+            echo ""
             echo "Waiting for services..."
 
             sleep 10
 
-            echo "Docker Compose status:"
+            echo ""
+            echo "========================================="
+            echo "Docker Compose status"
+            echo "========================================="
 
             docker compose ps
 
-            echo "Checking API container..."
+            echo ""
+            echo "========================================="
+            echo "Checking API inside container"
+            echo "========================================="
 
             docker compose exec -T api \
               wget -qO- http://127.0.0.1:8080/actuator/health
 
             echo
 
-            echo "Cleaning unused images..."
+            echo ""
+            echo "========================================="
+            echo "Cleaning old Docker images"
+            echo "========================================="
 
             docker image prune -f
 
+            echo ""
             echo "Docker deployment completed."
 
           EOF
 
 
-      # --------------------------------------------------
-      # Check API
-      # --------------------------------------------------
+      # ==================================================
+      # CHECK API
+      # ==================================================
+
       - name: Check API
         run: |
-          echo "Checking public API..."
+          echo "Checking API..."
 
           curl \
             --fail \
@@ -177,9 +222,10 @@ jobs:
           echo "API check successful."
 
 
-      # --------------------------------------------------
-      # Check Frontend
-      # --------------------------------------------------
+      # ==================================================
+      # CHECK FRONTEND
+      # ==================================================
+
       - name: Check frontend
         run: |
           echo "Checking frontend..."
@@ -196,9 +242,10 @@ jobs:
           echo "Frontend check successful."
 
 
-      # --------------------------------------------------
-      # Check Admin
-      # --------------------------------------------------
+      # ==================================================
+      # CHECK ADMIN
+      # ==================================================
+
       - name: Check admin
         run: |
           echo "Checking admin..."
@@ -215,11 +262,13 @@ jobs:
           echo "Admin check successful."
 
 
-      # --------------------------------------------------
-      # Deployment complete
-      # --------------------------------------------------
+      # ==================================================
+      # COMPLETE
+      # ==================================================
+
       - name: Deployment completed
         run: |
+          echo ""
           echo "========================================="
-          echo "Deployment completed successfully"
+          echo "DEPLOYMENT COMPLETED SUCCESSFULLY"
           echo "========================================="
