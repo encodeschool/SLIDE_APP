@@ -58,7 +58,7 @@ function sendJson(response, statusCode, body) {
 
 function createRendererServer() {
   return http.createServer(async (request, response) => {
-    const url = new URL(request.url, "http://localhost");
+    const url = new URL(request.url, "https://api-eduslides.encode.uz/");
     if (request.method === "GET" && url.pathname === "/health") {
       return sendJson(response, 200, { status: "available" });
     }

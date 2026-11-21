@@ -108,16 +108,14 @@ class _AuthGateState extends State<AuthGate> {
             _localeIsSaved = true;
           }
           if (_session == null) {
-            _marketplaceSection =
-                savedState.marketplaceSection == 2
-                    ? 2
-                    : savedState.marketplaceSection;
-            _workspaceTab =
-                _marketplaceSection == 1
-                    ? 1
-                    : _marketplaceSection == 2
-                    ? 2
-                    : 1;
+            _marketplaceSection = savedState.marketplaceSection == 2
+                ? 2
+                : savedState.marketplaceSection;
+            _workspaceTab = _marketplaceSection == 1
+                ? 1
+                : _marketplaceSection == 2
+                ? 2
+                : 1;
           }
           _isRestoring = false;
         });
@@ -201,14 +199,13 @@ class _AuthGateState extends State<AuthGate> {
             _locale = MobileLocalizations.normalize(session.user.locale);
             _localeIsSaved = true;
           }
-          _workspaceTab =
-              _accountAuthRequested
-                  ? 3
-                  : _marketplaceSection == 1
-                  ? 1
-                  : _marketplaceSection == 2
-                  ? 2
-                  : 1;
+          _workspaceTab = _accountAuthRequested
+              ? 3
+              : _marketplaceSection == 1
+              ? 1
+              : _marketplaceSection == 2
+              ? 2
+              : 1;
           _accountAuthRequested = false;
         });
       }
@@ -220,12 +217,11 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {
       if (mounted) {
         setState(
-          () =>
-              _error = _text(
-                'Could not reach the server. Check your connection.',
-                'Не удалось связаться с сервером. Проверьте подключение.',
-                'Serverga ulanib boʻlmadi. Internet aloqasini tekshiring.',
-              ),
+          () => _error = _text(
+            'Could not reach the server. Check your connection.',
+            'Не удалось связаться с сервером. Проверьте подключение.',
+            'Serverga ulanib boʻlmadi. Internet aloqasini tekshiring.',
+          ),
         );
       }
       return AuthSubmitResult.failed;
@@ -251,18 +247,17 @@ class _AuthGateState extends State<AuthGate> {
       }
       if (mounted) {
         setState(() {
-          _notice =
-              verification
-                  ? _text(
-                    'If eligible, verification instructions will be sent to your email.',
-                    'Если аккаунт доступен, письмо для подтверждения будет отправлено.',
-                    'Agar hisob mos boʻlsa, tasdiqlash koʻrsatmalari elektron pochtangizga yuboriladi.',
-                  )
-                  : _text(
-                    'If the account exists, password reset instructions will be sent.',
-                    'Если аккаунт существует, инструкции для сброса пароля будут отправлены.',
-                    'Agar hisob mavjud boʻlsa, parolni tiklash koʻrsatmalari yuboriladi.',
-                  );
+          _notice = verification
+              ? _text(
+                  'If eligible, verification instructions will be sent to your email.',
+                  'Если аккаунт доступен, письмо для подтверждения будет отправлено.',
+                  'Agar hisob mos boʻlsa, tasdiqlash koʻrsatmalari elektron pochtangizga yuboriladi.',
+                )
+              : _text(
+                  'If the account exists, password reset instructions will be sent.',
+                  'Если аккаунт существует, инструкции для сброса пароля будут отправлены.',
+                  'Agar hisob mavjud boʻlsa, parolni tiklash koʻrsatmalari yuboriladi.',
+                );
         });
       }
     } on AuthException catch (exception) {
@@ -343,7 +338,7 @@ class _AuthGateState extends State<AuthGate> {
             ApiPresentationRepository(
               baseUrl: const String.fromEnvironment(
                 'API_BASE_URL',
-                defaultValue: 'http://localhost:8080'// 'http://10.0.2.2:8080',
+                defaultValue: 'https://api-eduslides.encode.uz/', // 'http://10.0.2.2:8080',
               ),
             ),
         cartItems: _cartItems,
@@ -370,10 +365,10 @@ class _AuthGateState extends State<AuthGate> {
       error: _error,
       notice: _notice,
       onSubmit: _authenticate,
-      onRequestVerification:
-          (email) => _requestEmailAction(email, verification: true),
-      onRequestPasswordRecovery:
-          (email) => _requestEmailAction(email, verification: false),
+      onRequestVerification: (email) =>
+          _requestEmailAction(email, verification: true),
+      onRequestPasswordRecovery: (email) =>
+          _requestEmailAction(email, verification: false),
       onToggleLanguage: _toggleLanguage,
       onBack: () => setState(() => _authRequested = false),
     );
@@ -444,9 +439,8 @@ class _StartupLoadingScreen extends StatelessWidget {
                         'Ish maydoni tayyorlanmoqda',
                       ),
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 7),
                     Text(
@@ -456,9 +450,8 @@ class _StartupLoadingScreen extends StatelessWidget {
                         'Sessiya tekshirilmoqda',
                       ),
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),
