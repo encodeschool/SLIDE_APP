@@ -1,71 +1,92 @@
 name: Deploy
 
 on:
+
   push:
     branches:
       - main
 
   workflow_dispatch:
 
+
 jobs:
+
   deploy:
+
     runs-on: ubuntu-latest
 
     steps:
 
-      # --------------------------------------------------
-      # 1. Checkout repository
-      # --------------------------------------------------
+      # =====================================================
+      # CHECKOUT
+      # =====================================================
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --------------------------------------------------
-      # 2. Setup SSH
-      # --------------------------------------------------
+
+      # =====================================================
+      # SSH SETUP
+      # =====================================================
+
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
           VDS_HOST: ${{ secrets.VDS_HOST }}
 
         run: |
+
+          set -e
+
           mkdir -p ~/.ssh
 
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+
           chmod 600 ~/.ssh/id_ed25519
 
           ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
 
-      # --------------------------------------------------
-      # 3. Prepare deployment directory
-      # --------------------------------------------------
+
+      # =====================================================
+      # PREPARE VDS
+      # =====================================================
+
       - name: Prepare VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
+
+          set -e
+
           ssh \
             -i ~/.ssh/id_ed25519 \
             -o IdentitiesOnly=yes \
             "$VDS_USER@$VDS_HOST" << 'EOF'
 
-            set -e
+          set -e
 
-            mkdir -p ~/slideforge
+          mkdir -p ~/slideforge
 
-            echo "VDS deployment directory ready."
+          echo "VDS deployment directory ready."
 
           EOF
 
-      # --------------------------------------------------
-      # 4. Copy project to VDS
-      # --------------------------------------------------
+
+      # =====================================================
+      # COPY DOCKER PROJECT
+      # =====================================================
+
       - name: Copy project to VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
+
+          set -e
+
           rsync -az --delete \
             --exclude ".git/" \
             --exclude ".github/" \
@@ -74,67 +95,102 @@ jobs:
             --exclude "dist/" \
             --exclude "build/" \
             -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
-            ./ "$VDS_USER@$VDS_HOST:~/slideforge/"
+            ./ \
+            "$VDS_USER@$VDS_HOST:~/slideforge/"
 
-      # --------------------------------------------------
-      # 5. Build and start Docker
-      # --------------------------------------------------
+
+      # =====================================================
+      # DEPLOY DOCKER
+      # =====================================================
+
       - name: Deploy Docker
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
+
+          set -e
+
           ssh \
             -i ~/.ssh/id_ed25519 \
             -o IdentitiesOnly=yes \
             "$VDS_USER@$VDS_HOST" << 'EOF'
 
-            set -e
+          set -e
 
-            cd ~/slideforge
+          cd ~/slideforge
 
-            echo "========================================="
-            echo "Stopping old containers..."
-            echo "========================================="
+          echo ""
+          echo "========================================="
+          echo "Docker Compose Configuration"
+          echo "========================================="
 
-            docker compose down --remove-orphans || true
+          docker compose config
 
-            echo "========================================="
-            echo "Building containers..."
-            echo "========================================="
 
-            docker compose build --no-cache
+          echo ""
+          echo "========================================="
+          echo "Building Docker Images"
+          echo "========================================="
 
-            echo "========================================="
-            echo "Starting containers..."
-            echo "========================================="
+          docker compose build
 
-            docker compose up -d
 
-            echo "========================================="
-            echo "Container status"
-            echo "========================================="
+          echo ""
+          echo "========================================="
+          echo "Starting Services"
+          echo "========================================="
 
-            docker compose ps
+          docker compose up -d
 
-            echo "========================================="
-            echo "Cleaning unused images"
-            echo "========================================="
 
-            docker image prune -f
+          echo ""
+          echo "========================================="
+          echo "Container Status"
+          echo "========================================="
 
-            echo "========================================="
-            echo "Deployment completed"
-            echo "========================================="
+          docker compose ps
+
+
+          echo ""
+          echo "========================================="
+          echo "Cleaning Unused Images"
+          echo "========================================="
+
+          docker image prune -f
+
+
+          echo ""
+          echo "========================================="
+          echo "Deployment Completed"
+          echo "========================================="
 
           EOF
 
-      # --------------------------------------------------
-      # 6. Check frontend
-      # --------------------------------------------------
+
+      # =====================================================
+      # CHECK API
+      # =====================================================
+
+      - name: Check API
+        run: |
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
+            https://api-eduslides.encode.uz/
+
+
+      # =====================================================
+      # CHECK FRONTEND
+      # =====================================================
+
       - name: Check frontend
         run: |
+
           curl \
             --fail \
             --silent \
@@ -142,14 +198,45 @@ jobs:
             --max-time 30 \
             https://eduslides.encode.uz/
 
-      # --------------------------------------------------
-      # 7. Check admin
-      # --------------------------------------------------
+
+      # =====================================================
+      # CHECK ADMIN
+      # =====================================================
+
       - name: Check admin
         run: |
+
           curl \
             --fail \
             --silent \
             --show-error \
             --max-time 30 \
             https://admin-eduslides.encode.uz/
+
+
+      # =====================================================
+      # DEPLOYMENT SUCCESS
+      # =====================================================
+
+      - name: Deployment successful
+        run: |
+
+          echo ""
+          echo "========================================="
+          echo "EDUSLIDES DEPLOYMENT SUCCESSFUL"
+          echo "========================================="
+
+          echo "Frontend:"
+          echo "https://eduslides.encode.uz/"
+
+          echo ""
+
+          echo "Admin:"
+          echo "https://admin-eduslides.encode.uz/"
+
+          echo ""
+
+          echo "API:"
+          echo "https://api-eduslides.encode.uz/"
+
+          echo "========================================="

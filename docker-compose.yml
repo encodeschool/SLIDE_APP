@@ -1,84 +1,152 @@
 services:
+
+  # =========================================================
+  # POSTGRESQL
+  # =========================================================
+
   postgres:
     image: postgres:16
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-slideforge}
       POSTGRES_USER: ${POSTGRES_USER:-slideforge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nurik2512453}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
       - "${POSTGRES_PORT:-15432}:5432"
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
       interval: 5s
+      timeout: 5s
       retries: 10
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  # =========================================================
+  # RABBITMQ
+  # =========================================================
 
   rabbitmq:
     image: rabbitmq:3.13-management
     restart: unless-stopped
+
     ports:
       - "${RABBITMQ_PORT:-15672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
+
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test:
+        [
+          "CMD",
+          "rabbitmq-diagnostics",
+          "-q",
+          "ping"
+        ]
       interval: 10s
+      timeout: 5s
       retries: 10
+
+
+  # =========================================================
+  # RUSTFS PERMISSIONS
+  # =========================================================
 
   rustfs-volume-permissions:
     image: alpine:3.21
+
     user: "0:0"
+
     command:
       - sh
       - -c
-      - chown -R 10001:10001 /data/rustfs0 /data/rustfs1 /data/rustfs2 /data/rustfs3
+      - >
+        chown -R 10001:10001
+        /data/rustfs0
+        /data/rustfs1
+        /data/rustfs2
+        /data/rustfs3
+
     volumes:
       - rustfs_data_0:/data/rustfs0
       - rustfs_data_1:/data/rustfs1
       - rustfs_data_2:/data/rustfs2
       - rustfs_data_3:/data/rustfs3
+
     restart: "no"
+
+
+  # =========================================================
+  # RUSTFS OBJECT STORAGE
+  # =========================================================
 
   object-storage:
     image: rustfs/rustfs:1.0.1
     restart: unless-stopped
+
     depends_on:
       rustfs-volume-permissions:
         condition: service_completed_successfully
+
     environment:
       RUSTFS_VOLUMES: /data/rustfs{0...3}
       RUSTFS_ADDRESS: 0.0.0.0:9000
       RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
       RUSTFS_CONSOLE_ENABLE: "true"
+
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-slideforge}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-local-development-secret}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY}
+
       RUSTFS_UNSAFE_BYPASS_DISK_CHECK: "true"
+
     ports:
       - "${RUSTFS_PORT:-19000}:9000"
       - "${RUSTFS_CONSOLE_PORT:-19001}:9001"
+
     volumes:
       - rustfs_data_0:/data/rustfs0
       - rustfs_data_1:/data/rustfs1
       - rustfs_data_2:/data/rustfs2
       - rustfs_data_3:/data/rustfs3
+
     healthcheck:
       test:
         - CMD
         - sh
         - -ec
-        - curl -fsS http://127.0.0.1:9000/health && curl -fsS http://127.0.0.1:9001/rustfs/console/health
+        - >
+          curl -fsS http://127.0.0.1:9000/health &&
+          curl -fsS http://127.0.0.1:9001/rustfs/console/health
+
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+
+  # =========================================================
+  # PRESENTATION RENDERER
+  # =========================================================
+
   renderer:
     build:
       context: ./services/presentation-renderer
+
     restart: unless-stopped
+
     environment:
       PORT: 8090
+
     expose:
       - "8090"
+
     healthcheck:
       test:
         [
@@ -87,62 +155,127 @@ services:
           "-e",
           "fetch('http://127.0.0.1:8090/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
         ]
+
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
 
+
+  # =========================================================
+  # MAILPIT
+  # =========================================================
+
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
+
     ports:
       - "127.0.0.1:8025:8025"
+
+
+  # =========================================================
+  # API
+  # =========================================================
 
   api:
     build:
       context: ./backend/api
+
     restart: unless-stopped
+
     environment:
+
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-sandbox}
+
       PORT: 8080
+
+      # -----------------------------------------------------
+      # DATABASE
+      # -----------------------------------------------------
 
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-slideforge}
       DATABASE_USER: ${POSTGRES_USER:-slideforge}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-nurik2512453}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
 
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175}
+      # -----------------------------------------------------
+      # CORS
+      # -----------------------------------------------------
 
-      JWT_SECRET: ${JWT_SECRET:-nurik2512453-to-a-long-random-string}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
 
-      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:-}
+      # -----------------------------------------------------
+      # JWT
+      # -----------------------------------------------------
+
+      JWT_SECRET: ${JWT_SECRET}
 
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
-      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-true}
+
+      # -----------------------------------------------------
+      # ADMIN BOOTSTRAP
+      # -----------------------------------------------------
+
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+
+      BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64: ${BOOTSTRAP_ADMIN_PASSWORD_HASH_BASE64:-}
+
+      # -----------------------------------------------------
+      # SMTP
+      # -----------------------------------------------------
 
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
+
       SMTP_AUTH: ${SMTP_AUTH:-false}
+
       SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS_ENABLE:-false}
       SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS_REQUIRED:-false}
 
       MAIL_ENABLED: ${MAIL_ENABLED:-true}
-      MAIL_FROM: ${MAIL_FROM:-no-reply@slideforge.local}
 
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@eduslides.encode.uz}
+
+      # -----------------------------------------------------
+      # PUBLIC APP
+      # -----------------------------------------------------
+
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+
+      # -----------------------------------------------------
+      # RENDERER
+      # -----------------------------------------------------
 
       RENDERER_URL: ${RENDERER_URL:-http://renderer:8090}
 
+      # -----------------------------------------------------
+      # STORAGE
+      # -----------------------------------------------------
+
       EXPORT_STORAGE_PATH: /var/lib/slideforge/exports
+
       MARKETPLACE_STORAGE_PATH: /var/lib/slideforge/exports/marketplace
 
       EXPORT_WORKER_ENABLED: ${EXPORT_WORKER_ENABLED:-true}
+
       EXPORT_POLL_INTERVAL_MS: ${EXPORT_POLL_INTERVAL_MS:-1000}
+
       EXPORT_STALE_RUNNING_MINUTES: ${EXPORT_STALE_RUNNING_MINUTES:-5}
 
+      # -----------------------------------------------------
+      # S3 / RUSTFS
+      # -----------------------------------------------------
+
       S3_ENDPOINT: http://object-storage:9000
+
       S3_BUCKET: ${S3_BUCKET:-slideforge}
+
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-slideforge}
+
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
 
     ports:
       - "${API_PORT:-18080}:8080"
@@ -151,16 +284,34 @@ services:
       - exports_data:/var/lib/slideforge/exports
 
     depends_on:
+
       postgres:
         condition: service_healthy
+
       renderer:
         condition: service_healthy
+
       mailpit:
         condition: service_started
 
+      object-storage:
+        condition: service_healthy
+
+
+# =========================================================
+# VOLUMES
+# =========================================================
+
 volumes:
+
+  postgres_data:
+
   rustfs_data_0:
+
   rustfs_data_1:
+
   rustfs_data_2:
+
   rustfs_data_3:
+
   exports_data:
