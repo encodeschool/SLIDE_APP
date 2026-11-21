@@ -1,43 +1,34 @@
 name: Deploy
 
 on:
-
   push:
     branches:
       - main
 
   workflow_dispatch:
 
-
 jobs:
-
   deploy:
-
     runs-on: ubuntu-latest
 
     steps:
 
-      # =====================================================
-      # CHECKOUT
-      # =====================================================
-
+      # --------------------------------------------------
+      # Checkout
+      # --------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
 
-      # =====================================================
-      # SSH SETUP
-      # =====================================================
-
+      # --------------------------------------------------
+      # Setup SSH
+      # --------------------------------------------------
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
           VDS_HOST: ${{ secrets.VDS_HOST }}
 
         run: |
-
-          set -e
-
           mkdir -p ~/.ssh
 
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
@@ -47,46 +38,38 @@ jobs:
           ssh-keyscan -H "$VDS_HOST" >> ~/.ssh/known_hosts
 
 
-      # =====================================================
-      # PREPARE VDS
-      # =====================================================
-
+      # --------------------------------------------------
+      # Prepare VDS
+      # --------------------------------------------------
       - name: Prepare VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
-
-          set -e
-
           ssh \
             -i ~/.ssh/id_ed25519 \
             -o IdentitiesOnly=yes \
             "$VDS_USER@$VDS_HOST" << 'EOF'
 
-          set -e
+            set -e
 
-          mkdir -p ~/slideforge
+            mkdir -p ~/slideforge
 
-          echo "VDS deployment directory ready."
+            echo "VDS deployment directory ready."
 
           EOF
 
 
-      # =====================================================
-      # COPY DOCKER PROJECT
-      # =====================================================
-
+      # --------------------------------------------------
+      # Copy project to VDS
+      # --------------------------------------------------
       - name: Copy project to VDS
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
-
-          set -e
-
           rsync -az --delete \
             --exclude ".git/" \
             --exclude ".github/" \
@@ -95,101 +78,111 @@ jobs:
             --exclude "dist/" \
             --exclude "build/" \
             -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
-            ./ \
-            "$VDS_USER@$VDS_HOST:~/slideforge/"
+            ./ "$VDS_USER@$VDS_HOST:~/slideforge/"
 
 
-      # =====================================================
-      # DEPLOY DOCKER
-      # =====================================================
+      # --------------------------------------------------
+      # Validate Docker Compose
+      # --------------------------------------------------
+      - name: Validate Docker Compose
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
 
+        run: |
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            "$VDS_USER@$VDS_HOST" << 'EOF'
+
+            set -e
+
+            cd ~/slideforge
+
+            echo "Validating Docker Compose..."
+
+            docker compose config
+
+            echo "Docker Compose configuration is valid."
+
+          EOF
+
+
+      # --------------------------------------------------
+      # Deploy Docker
+      # --------------------------------------------------
       - name: Deploy Docker
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
 
         run: |
-
-          set -e
-
           ssh \
             -i ~/.ssh/id_ed25519 \
             -o IdentitiesOnly=yes \
             "$VDS_USER@$VDS_HOST" << 'EOF'
 
-          set -e
+            set -e
 
-          cd ~/slideforge
+            cd ~/slideforge
 
-          echo ""
-          echo "========================================="
-          echo "Docker Compose Configuration"
-          echo "========================================="
+            echo "Building containers..."
 
-          docker compose config
+            docker compose build
 
+            echo "Starting containers..."
 
-          echo ""
-          echo "========================================="
-          echo "Building Docker Images"
-          echo "========================================="
+            docker compose up -d
 
-          docker compose build
+            echo "Waiting for services..."
 
+            sleep 10
 
-          echo ""
-          echo "========================================="
-          echo "Starting Services"
-          echo "========================================="
+            echo "Docker Compose status:"
 
-          docker compose up -d
+            docker compose ps
 
+            echo "Checking API container..."
 
-          echo ""
-          echo "========================================="
-          echo "Container Status"
-          echo "========================================="
+            docker compose exec -T api \
+              wget -qO- http://127.0.0.1:8080/actuator/health
 
-          docker compose ps
+            echo
 
+            echo "Cleaning unused images..."
 
-          echo ""
-          echo "========================================="
-          echo "Cleaning Unused Images"
-          echo "========================================="
+            docker image prune -f
 
-          docker image prune -f
-
-
-          echo ""
-          echo "========================================="
-          echo "Deployment Completed"
-          echo "========================================="
+            echo "Docker deployment completed."
 
           EOF
 
 
-      # =====================================================
-      # CHECK API
-      # =====================================================
-
+      # --------------------------------------------------
+      # Check API
+      # --------------------------------------------------
       - name: Check API
         run: |
+          echo "Checking public API..."
 
           curl \
             --fail \
             --silent \
             --show-error \
             --max-time 30 \
-            https://api-eduslides.encode.uz/
+            https://api-eduslides.encode.uz/actuator/health
+
+          echo
+
+          echo "API check successful."
 
 
-      # =====================================================
-      # CHECK FRONTEND
-      # =====================================================
-
+      # --------------------------------------------------
+      # Check Frontend
+      # --------------------------------------------------
       - name: Check frontend
         run: |
+          echo "Checking frontend..."
 
           curl \
             --fail \
@@ -198,13 +191,17 @@ jobs:
             --max-time 30 \
             https://eduslides.encode.uz/
 
+          echo
 
-      # =====================================================
-      # CHECK ADMIN
-      # =====================================================
+          echo "Frontend check successful."
 
+
+      # --------------------------------------------------
+      # Check Admin
+      # --------------------------------------------------
       - name: Check admin
         run: |
+          echo "Checking admin..."
 
           curl \
             --fail \
@@ -213,30 +210,16 @@ jobs:
             --max-time 30 \
             https://admin-eduslides.encode.uz/
 
+          echo
 
-      # =====================================================
-      # DEPLOYMENT SUCCESS
-      # =====================================================
+          echo "Admin check successful."
 
-      - name: Deployment successful
+
+      # --------------------------------------------------
+      # Deployment complete
+      # --------------------------------------------------
+      - name: Deployment completed
         run: |
-
-          echo ""
           echo "========================================="
-          echo "EDUSLIDES DEPLOYMENT SUCCESSFUL"
-          echo "========================================="
-
-          echo "Frontend:"
-          echo "https://eduslides.encode.uz/"
-
-          echo ""
-
-          echo "Admin:"
-          echo "https://admin-eduslides.encode.uz/"
-
-          echo ""
-
-          echo "API:"
-          echo "https://api-eduslides.encode.uz/"
-
+          echo "Deployment completed successfully"
           echo "========================================="
